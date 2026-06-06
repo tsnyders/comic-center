@@ -6,7 +6,7 @@ part 'manga_entry.g.dart';
 class MangaEntry {
   Id id = Isar.autoIncrement;
 
-  @Index(type: IndexType.fullText, caseSensitive: false)
+  @Index(caseSensitive: false)
   late String title;
 
   /// Unique ID string from the source (e.g. MangaDex UUID)

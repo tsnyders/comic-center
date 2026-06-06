@@ -89,11 +89,9 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
               // Manga grid
               library.when(
                 loading: () => _buildShimmerGrid(),
-                error: (e, _) => SliverToBoxAdapter(
-                  child: _ErrorView(message: e.toString()),
-                ),
+                error: (e, _) => _ErrorView(message: e.toString()),
                 data: (mangas) => mangas.isEmpty
-                    ? SliverToBoxAdapter(child: _EmptyLibraryView())
+                    ? _EmptyLibraryView()
                     : _buildGrid(mangas),
               ),
 
@@ -288,7 +286,7 @@ class _EmptyLibraryView extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             const Icon(
-              CupertinoIcons.books_vertical,
+              CupertinoIcons.book,
               size: 56,
               color: AppColors.textQuaternary,
             ),

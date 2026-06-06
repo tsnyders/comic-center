@@ -38,14 +38,8 @@ abstract final class AppColors {
   ];
 
   static const heroGradientColors = [
-    Colors.transparent,
+    Color(0x00000000), // transparent
     Color(0xD90A0A0F),
   ];
 }
 
-// ignore: avoid_classes_as_namespaces
-abstract final class Colors {
-  static const transparent = Color(0x00000000);
-  static const black = Color(0xFF000000);
-  static const white = Color(0xFFFFFFFF);
-}

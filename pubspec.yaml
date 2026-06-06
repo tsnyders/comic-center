@@ -53,8 +53,8 @@ dev_dependencies:
   riverpod_generator: ^2.4.0
   freezed: ^2.5.2
   json_serializable: ^6.8.0
-  custom_lint: ^0.6.4
-  riverpod_lint: ^2.3.10
+  # riverpod_lint and custom_lint removed — incompatible with isar_generator's
+  # analyzer version constraint. Add back once Isar 4.x ships.
 
 flutter:
   uses-material-design: true

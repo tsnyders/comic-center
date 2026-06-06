@@ -1,7 +1,7 @@
 import 'dart:ui';
 
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/material.dart' show DraggableScrollableSheet;
+import 'package:flutter/material.dart' show DraggableScrollableController, DraggableScrollableSheet;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:isar/isar.dart';
 

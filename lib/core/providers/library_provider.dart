@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:isar/isar.dart';
 
+import '../database/models/chapter_entry.dart';
 import '../database/models/manga_entry.dart';
 import 'database_provider.dart';
 

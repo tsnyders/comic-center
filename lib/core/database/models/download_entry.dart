@@ -31,6 +31,7 @@ class DownloadEntry {
   int totalPages = 0;
   int downloadedPages = 0;
 
+  String? downloadPath;
   DateTime? queuedAt;
   DateTime? startedAt;
   DateTime? completedAt;

@@ -98,30 +98,43 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                 ),
               ),
 
-              // ── Always-visible progress line ──────────────────────────
-              ProgressLine(progress: readerState.progress),
+              // ── Always-visible 2pt progress line ─────────────────────
+              Positioned(
+                top: MediaQuery.of(context).padding.top,
+                left: 0,
+                right: 0,
+                height: 2,
+                child: ProgressLine(progress: readerState.progress),
+              ),
 
               // ── Tap-to-reveal chrome ──────────────────────────────────
-              AnimatedOpacity(
-                opacity: chromeVisible ? 1.0 : 0.0,
-                duration: const Duration(milliseconds: 200),
-                child: IgnorePointer(
-                  ignoring: !chromeVisible,
-                  child: ReaderChrome(
-                    chapterTitle: widget.chapterTitle,
-                    currentPage: readerState.currentPage,
-                    totalPages: readerState.totalPages,
-                    onClose: () => Navigator.of(context).pop(),
-                    onSettings: () => _showSettings(context),
+              Positioned.fill(
+                child: AnimatedOpacity(
+                  opacity: chromeVisible ? 1.0 : 0.0,
+                  duration: const Duration(milliseconds: 200),
+                  child: IgnorePointer(
+                    ignoring: !chromeVisible,
+                    child: ReaderChrome(
+                      chapterTitle: widget.chapterTitle,
+                      currentPage: readerState.currentPage,
+                      totalPages: readerState.totalPages,
+                      onClose: () => Navigator.of(context).pop(),
+                      onSettings: () => _showSettings(context),
+                    ),
                   ),
                 ),
               ),
 
-              // ── Page count pill ───────────────────────────────────────
-              PagePill(
-                current: readerState.currentPage + 1,
-                total: readerState.totalPages,
-                visible: _pillVisible && !chromeVisible,
+              // ── Page count pill (bottom-centre) ───────────────────────
+              Positioned(
+                bottom: MediaQuery.of(context).padding.bottom + 90,
+                left: 0,
+                right: 0,
+                child: PagePill(
+                  current: readerState.currentPage + 1,
+                  total: readerState.totalPages,
+                  visible: _pillVisible && !chromeVisible,
+                ),
               ),
             ],
           );

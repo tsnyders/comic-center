@@ -21,8 +21,8 @@ class RootScaffold extends StatelessWidget {
         ),
         items: const [
           BottomNavigationBarItem(
-            icon: Icon(CupertinoIcons.books_vertical),
-            activeIcon: Icon(CupertinoIcons.books_vertical_fill),
+            icon: Icon(CupertinoIcons.book),
+            activeIcon: Icon(CupertinoIcons.book_fill),
             label: 'Library',
           ),
           BottomNavigationBarItem(
