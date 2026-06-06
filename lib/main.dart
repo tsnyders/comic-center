@@ -3,14 +3,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app.dart';
 import 'core/database/isar_service.dart';
+import 'core/extensions/source_registry.dart';
+import 'core/extensions/sources/mangadex_source.dart';
 import 'core/providers/database_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialise Isar before the widget tree is built, then override the
-  // isarProvider so every downstream provider gets the live instance.
   final isar = await IsarService.init();
+
+  SourceRegistry.instance.register(MangaDexSource());
 
   runApp(
     ProviderScope(
