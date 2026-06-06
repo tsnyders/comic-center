@@ -3,6 +3,9 @@ name: Build Android APK
 on:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -16,49 +19,60 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Install Android SDK components
-        run: |
-          sdkmanager --install "platform-tools" "platforms;android-35" "build-tools;35.0.0" "ndk;27.0.12077973"
-          yes | sdkmanager --licenses || true
-
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.44.1'
           channel: 'stable'
 
-      - name: Flutter doctor
-        run: flutter doctor -v
-
       - name: Flutter pub get
         run: flutter pub get
 
       - name: Build debug APK
-        id: build_apk
-        run: flutter build apk --debug 2>&1 | tee build_output.txt
-        continue-on-error: true
+        run: flutter build apk --debug
 
-      - name: Show last 100 lines of build output
-        if: steps.build_apk.outcome == 'failure'
-        run: tail -100 build_output.txt
+      - name: Verify APK exists and rename
+        run: |
+          set -e
+          echo "── Build output tree ──"
+          ls -la build/app/outputs/flutter-apk/ || true
+          APK=build/app/outputs/flutter-apk/app-debug.apk
+          if [ ! -f "$APK" ]; then
+            echo "::error::APK not found at $APK"
+            find build -name "*.apk" -ls
+            exit 1
+          fi
+          cp "$APK" comic-center-debug.apk
+          echo "APK size: $(du -h comic-center-debug.apk)"
 
-      - name: Upload build output on failure
-        if: steps.build_apk.outcome == 'failure'
-        uses: actions/upload-artifact@v4
+      - name: Generate release tag
+        id: tag
+        run: echo "tag=v1.0.0-beta.$(date +'%Y%m%d-%H%M')" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release with APK
+        uses: softprops/action-gh-release@v2
         with:
-          name: build-failure-logs
-          path: build_output.txt
-          retention-days: 3
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: Comic Center ${{ steps.tag.outputs.tag }}
+          body: |
+            ## Comic Center — Beta Build
 
-      - name: Fail if build failed
-        if: steps.build_apk.outcome == 'failure'
-        run: exit 1
+            Android APK for testing.
 
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: comic-center-android
-          path: build/app/outputs/flutter-apk/app-debug.apk
-          retention-days: 7
+            ### Install
+            1. Download **comic-center-debug.apk** below
+            2. On your Android device, allow installs from unknown sources
+               (Settings → Apps → Special permissions → Install unknown apps)
+            3. Open the downloaded APK and tap Install
+
+            ### What's included
+            - MangaDex, AllManga, AsuraScans sources
+            - Glassmorphism UI with floating glass nav bar
+            - Dark and Light mode (Settings → Appearance)
+            - Library, Downloads, Reader with chapter sync
+
+            > Debug build for testing.
+          files: comic-center-debug.apk
+          prerelease: true
+          fail_on_unmatched_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
