@@ -87,11 +87,16 @@ class AsuraScansSource implements MangaSource {
 
     return MangaDetail(
       id: mangaId,
-      title: d['title'] as String? ?? 'Unknown',
-      coverUrl: d['cover'] as String?,
-      author: d['author'] as String?,
-      artist: d['artist'] as String?,
-      description: d['description'] as String?,
+      title: d['title']?.toString() ??
+          d['name']?.toString() ??
+          d['series_title']?.toString() ??
+          'Unknown',
+      coverUrl: d['cover']?.toString() ??
+          d['thumbnail']?.toString() ??
+          d['image']?.toString(),
+      author: d['author']?.toString(),
+      artist: d['artist']?.toString(),
+      description: d['description']?.toString(),
       genres: _stringList(d['genres']),
       status: _statusStr(d['status']),
       url: '$baseUrl/series/$mangaId',
@@ -107,18 +112,19 @@ class AsuraScansSource implements MangaSource {
 
     return list.map<ChapterInfo>((ch) {
       final m = ch as Map<String, dynamic>;
-      final uuid = (m['id'] ?? m['uuid'] ?? '') as String;
+      final uuid = m['id']?.toString() ?? m['uuid']?.toString() ?? '';
       final chNum = (m['number'] ?? m['chapter_number'] as num?)
           ?.toDouble();
-      final title =
-          m['title'] as String? ?? 'Chapter ${chNum?.toStringAsFixed(0) ?? '?'}';
+      final title = m['title']?.toString() ??
+          m['name']?.toString() ??
+          'Chapter ${chNum?.toStringAsFixed(0) ?? '?'}';
 
       return ChapterInfo(
         id: '$mangaId::$uuid',
         title: title,
         number: chNum,
         uploadDate: m['created_at'] != null
-            ? DateTime.tryParse(m['created_at'] as String)
+            ? DateTime.tryParse(m['created_at'].toString())
             : null,
         url: '$baseUrl/series/$mangaId/chapter/${chNum?.toStringAsFixed(0) ?? uuid}',
       );
@@ -167,11 +173,12 @@ class AsuraScansSource implements MangaSource {
   List<MangaSummary> _parseSummaries(List<dynamic> list) {
     return list.map<MangaSummary>((item) {
       final m = item as Map<String, dynamic>;
-      final slug = (m['slug'] ?? m['id'] ?? '') as String;
+      final slug =
+          m['slug']?.toString() ?? m['id']?.toString() ?? '';
       return MangaSummary(
         id: slug,
-        title: m['title'] as String? ?? 'Unknown',
-        coverUrl: m['cover'] as String?,
+        title: m['title']?.toString() ?? m['name']?.toString() ?? 'Unknown',
+        coverUrl: m['cover']?.toString() ?? m['thumbnail']?.toString(),
         url: '$baseUrl/series/$slug',
       );
     }).toList();

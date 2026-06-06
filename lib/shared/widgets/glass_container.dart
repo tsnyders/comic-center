@@ -2,7 +2,8 @@ import 'dart:ui';
 
 import 'package:flutter/cupertino.dart';
 
-/// Reusable frosted-glass panel — BackdropFilter + semi-transparent fill.
+/// Reusable liquid-glass panel — BackdropFilter blur + specular highlight +
+/// semi-transparent fill, mirroring Apple's glass material aesthetic.
 class GlassContainer extends StatelessWidget {
   const GlassContainer({
     super.key,
@@ -12,10 +13,10 @@ class GlassContainer extends StatelessWidget {
     this.padding,
     this.margin,
     this.borderRadius = 20,
-    this.blur = 24,
-    this.tintOpacity = 0.10,
-    this.borderOpacity = 0.18,
-    this.shadowOpacity = 0.18,
+    this.blur = 28,
+    this.tintOpacity = 0.18,
+    this.borderOpacity = 0.22,
+    this.shadowOpacity = 0.22,
     this.tintColor,
   });
 
@@ -35,22 +36,23 @@ class GlassContainer extends StatelessWidget {
   Widget build(BuildContext context) {
     final fill = (tintColor ?? const Color(0xFFFFFFFF)).withOpacity(tintOpacity);
     final border = const Color(0xFFFFFFFF).withOpacity(borderOpacity);
+    final r = BorderRadius.circular(borderRadius);
 
     return Container(
       margin: margin,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(borderRadius),
+        borderRadius: r,
         boxShadow: [
           BoxShadow(
             color: const Color(0xFF000000).withOpacity(shadowOpacity),
-            blurRadius: 30,
-            spreadRadius: -4,
-            offset: const Offset(0, 8),
+            blurRadius: 40,
+            spreadRadius: -6,
+            offset: const Offset(0, 10),
           ),
         ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(borderRadius),
+        borderRadius: r,
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
           child: Container(
@@ -59,10 +61,36 @@ class GlassContainer extends StatelessWidget {
             padding: padding,
             decoration: BoxDecoration(
               color: fill,
-              borderRadius: BorderRadius.circular(borderRadius),
+              borderRadius: r,
               border: Border.all(color: border, width: 0.5),
             ),
-            child: child,
+            child: Stack(
+              children: [
+                // Specular highlight — white shimmer on the top edge
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: borderRadius,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.vertical(
+                        top: Radius.circular(borderRadius),
+                      ),
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          const Color(0xFFFFFFFF).withOpacity(0.12),
+                          const Color(0x00FFFFFF),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                if (child != null) child!,
+              ],
+            ),
           ),
         ),
       ),
@@ -70,7 +98,8 @@ class GlassContainer extends StatelessWidget {
   }
 }
 
-/// A glass panel with a subtle animated shimmer — used for featured cards.
+/// A glass card with shimmer animation and press-scale — used for featured
+/// source cards.
 class AnimatedGlassCard extends StatefulWidget {
   const AnimatedGlassCard({
     super.key,
@@ -133,57 +162,70 @@ class _AnimatedGlassCardState extends State<AnimatedGlassCard>
             boxShadow: [
               BoxShadow(
                 color: (widget.gradient as LinearGradient).colors.first
-                    .withOpacity(0.35),
-                blurRadius: 24,
+                    .withOpacity(0.40),
+                blurRadius: 28,
                 spreadRadius: -4,
-                offset: const Offset(0, 10),
+                offset: const Offset(0, 12),
               ),
             ],
           ),
-          child: Stack(
-            children: [
-              // Animated shimmer overlay
-              AnimatedBuilder(
-                animation: _shimmer,
-                builder: (_, __) => Positioned.fill(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(20),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(20),
+            child: Stack(
+              children: [
+                // Animated diagonal shimmer
+                AnimatedBuilder(
+                  animation: _shimmer,
+                  builder: (_, __) => Positioned.fill(
                     child: DecoratedBox(
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           begin: Alignment(-1 + _shimmer.value * 2, -0.5),
                           end: Alignment(0 + _shimmer.value * 2, 0.5),
-                          colors: [
-                            const Color(0x00FFFFFF),
-                            const Color(0x18FFFFFF),
-                            const Color(0x00FFFFFF),
+                          colors: const [
+                            Color(0x00FFFFFF),
+                            Color(0x22FFFFFF),
+                            Color(0x00FFFFFF),
                           ],
                         ),
                       ),
                     ),
                   ),
                 ),
-              ),
-              // Glass inner border
-              Positioned.fill(
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(20),
-                  child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 0, sigmaY: 0),
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: const Color(0x30FFFFFF),
-                          width: 0.5,
-                        ),
+                // Specular highlight — top-edge glow
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: 40,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          const Color(0xFFFFFFFF).withOpacity(0.28),
+                          const Color(0x00FFFFFF),
+                        ],
                       ),
                     ),
                   ),
                 ),
-              ),
-              widget.child,
-            ],
+                // Inner border
+                Positioned.fill(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: const Color(0x40FFFFFF),
+                        width: 0.75,
+                      ),
+                    ),
+                  ),
+                ),
+                widget.child,
+              ],
+            ),
           ),
         ),
       ),

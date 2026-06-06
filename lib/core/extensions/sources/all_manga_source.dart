@@ -9,7 +9,8 @@ import '../models/manga_detail.dart';
 import '../models/manga_summary.dart';
 import '../source_interface.dart';
 
-/// AllManga source using the allanime.day persisted-query GraphQL API.
+/// AllManga source — allanime.day GraphQL API using full query strings.
+/// (Persisted-query hashes became stale; full queries are stable.)
 class AllMangaSource implements MangaSource {
   AllMangaSource()
       : _dio = Dio(
@@ -17,9 +18,8 @@ class AllMangaSource implements MangaSource {
             baseUrl: 'https://api.allanime.day',
             headers: {
               'User-Agent':
-                  'Mozilla/5.0 (Linux; Android 13; Pixel 7) '
-                  'AppleWebKit/537.36 (KHTML, like Gecko) '
-                  'Chrome/116.0.0.0 Mobile Safari/537.36',
+                  'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 '
+                  '(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
               'Referer': 'https://allmanga.to/',
             },
             connectTimeout: const Duration(seconds: 15),
@@ -29,13 +29,28 @@ class AllMangaSource implements MangaSource {
 
   final Dio _dio;
 
-  // Persisted-query hashes discovered from the allanime.day API.
-  static const _hashSearch =
-      '2d48e19fb67ddcac42fbb885204b6abb0a84f406f15ef83f36de4a66f49f651a';
-  static const _hashDetail =
-      'd77781dcf964b97aea0be621dbde430e89e200b58526823ee6010dd11c3ca96a';
-  static const _hashPages =
-      'a062f1b131dae3d17c1950fad14640d066b988ac10347ed49cfbe70f5e7f661b';
+  // Full GraphQL query strings — more stable than persisted-query hashes.
+  // Note: the API schema spells it "VaildTranslationTypeEnumType" (intentional typo).
+  static const _gqlSearch =
+      r'query($search: SearchInput, $limit: Int, $page: Int, '
+      r'$translationType: VaildTranslationTypeEnumType, '
+      r'$countryOrigin: VaildCountryOriginEnumType) { '
+      r'shows(search: $search, limit: $limit, page: $page, '
+      r'translationType: $translationType, countryOrigin: $countryOrigin) '
+      r'{ edges { _id name thumbnail } } }';
+
+  static const _gqlDetail =
+      r'query($_id: String!) { show(_id: $_id) { '
+      r'_id name thumbnail description genres status '
+      r'availableChaptersDetail authors { edges { name } } } }';
+
+  static const _gqlPages =
+      r'query($mangaId: String!, '
+      r'$translationType: VaildTranslationTypeEnumType!, '
+      r'$chapterString: String!) { '
+      r'chapterPages(mangaId: $mangaId, translationType: $translationType, '
+      r'chapterString: $chapterString) '
+      r'{ edges { pictureUrls { num url } } } }';
 
   @override
   String get id => 'all_manga_en';
@@ -50,7 +65,7 @@ class AllMangaSource implements MangaSource {
   @override
   Uint8List get iconBytes => Uint8List(0);
   @override
-  // Images are served from the ytimgf CDN and need the youtu-chan Referer.
+  // Chapter page images need the youtu-chan Referer to load from the CDN.
   Map<String, String> get imageHeaders =>
       const {'Referer': 'https://youtu-chan.com/'};
   @override
@@ -78,13 +93,7 @@ class AllMangaSource implements MangaSource {
 
   @override
   Future<MangaDetail> fetchMangaDetail(String mangaId) async {
-    final data = await _query(
-      hash: _hashDetail,
-      variables: {
-        '_id': mangaId,
-        'search': {'allowAdult': false},
-      },
-    );
+    final data = await _query(gql: _gqlDetail, variables: {'_id': mangaId});
 
     final show = data['show'] as Map<String, dynamic>? ?? {};
     return MangaDetail(
@@ -93,7 +102,7 @@ class AllMangaSource implements MangaSource {
       coverUrl: _coverUrl(show['thumbnail'] as String?),
       description: show['description'] as String?,
       author: _firstAuthor(show['authors']),
-      genres: (show['genres'] as List? ?? []).cast<String>(),
+      genres: (show['genres'] as List? ?? []).whereType<String>().toList(),
       status: _statusStr(show['status']),
       url: '$baseUrl/manga/$mangaId',
     );
@@ -103,19 +112,14 @@ class AllMangaSource implements MangaSource {
 
   @override
   Future<List<ChapterInfo>> fetchChapterList(String mangaId) async {
-    final data = await _query(
-      hash: _hashDetail,
-      variables: {
-        '_id': mangaId,
-        'search': {'allowAdult': false},
-      },
-    );
+    final data = await _query(gql: _gqlDetail, variables: {'_id': mangaId});
 
     final show = data['show'] as Map<String, dynamic>? ?? {};
     final detail =
         show['availableChaptersDetail'] as Map<String, dynamic>? ?? {};
-    // Manga chapters live under 'sub' (subtitled = translated).
-    final nums = (detail['sub'] as List? ?? []).cast<String>();
+    // Manga translated chapters live under 'sub'.
+    final rawNums = detail['sub'] as List? ?? [];
+    final nums = rawNums.map((e) => e.toString()).toList();
 
     return nums.map((num) {
       return ChapterInfo(
@@ -133,20 +137,17 @@ class AllMangaSource implements MangaSource {
 
   @override
   Future<List<String>> fetchPageUrls(String chapterId) async {
-    // chapterId is "mangaId::chapterNum"
     final sep = chapterId.lastIndexOf('::');
     if (sep < 0) throw Exception('Invalid AllManga chapter ID: $chapterId');
     final mangaId = chapterId.substring(0, sep);
     final chapterNum = chapterId.substring(sep + 2);
 
     final data = await _query(
-      hash: _hashPages,
+      gql: _gqlPages,
       variables: {
         'mangaId': mangaId,
         'translationType': 'sub',
         'chapterString': chapterNum,
-        'limit': 1000,
-        'offset': 0,
       },
     );
 
@@ -166,10 +167,9 @@ class AllMangaSource implements MangaSource {
         }
         if (raw == null || raw.isEmpty) continue;
         // Relative paths need the image CDN prepended.
-        final url = raw.startsWith('http')
-            ? raw
-            : 'https://ytimgf.fast4speed.rsvp$raw';
-        urls.add(url);
+        urls.add(
+          raw.startsWith('http') ? raw : 'https://ytimgf.fast4speed.rsvp$raw',
+        );
       }
     }
     return urls;
@@ -196,13 +196,13 @@ class AllMangaSource implements MangaSource {
       'countryOrigin': 'ALL',
     };
 
-    final data = await _query(hash: _hashSearch, variables: variables);
+    final data = await _query(gql: _gqlSearch, variables: variables);
     final edges = (data['shows']?['edges'] as List? ?? []);
 
     return edges.map<MangaSummary>((item) {
       final m = item as Map<String, dynamic>;
       return MangaSummary(
-        id: m['_id'] as String,
+        id: m['_id'].toString(),
         title: m['name'] as String? ?? 'Unknown',
         coverUrl: _coverUrl(m['thumbnail'] as String?),
         url: '$baseUrl/manga/${m['_id']}',
@@ -211,33 +211,28 @@ class AllMangaSource implements MangaSource {
   }
 
   Future<Map<String, dynamic>> _query({
-    required String hash,
+    required String gql,
     required Map<String, dynamic> variables,
   }) async {
     final resp = await _dio.get<Map<String, dynamic>>(
       '/api',
       queryParameters: {
+        'query': gql,
         'variables': jsonEncode(variables),
-        'extensions': jsonEncode({
-          'persistedQuery': {'version': 1, 'sha256Hash': hash},
-        }),
       },
     );
-    return (resp.data!['data'] as Map<String, dynamic>?) ?? {};
+    return (resp.data?['data'] as Map<String, dynamic>?) ?? {};
   }
 
   String? _coverUrl(String? thumb) {
     if (thumb == null || thumb.isEmpty) return null;
     if (thumb.startsWith('http')) {
-      // Normalize the numbered filename to 001.jpg for consistent cover art,
-      // then apply the w=250 size param the CDN whitelists.
       final normalized = thumb.replaceAllMapped(
         RegExp(r'\d+\.(jpg|png|webp)'),
         (m) => '001.${m[1]}',
       );
       return '$normalized?w=250';
     }
-    // Relative path: prepend the static asset CDN.
     final clean = thumb.startsWith('/') ? thumb : '/$thumb';
     final normalized = clean.replaceAllMapped(
       RegExp(r'\d+\.(jpg|png|webp)'),
@@ -258,12 +253,11 @@ class AllMangaSource implements MangaSource {
     return null;
   }
 
-  String _statusStr(dynamic status) => switch (
-      status?.toString().toLowerCase()) {
-    'releasing' => 'ongoing',
-    'completed' => 'completed',
-    'hiatus' => 'hiatus',
-    'cancelled' => 'cancelled',
-    _ => 'unknown',
-  };
+  String _statusStr(dynamic status) => switch (status?.toString().toLowerCase()) {
+        'releasing' => 'ongoing',
+        'completed' => 'completed',
+        'hiatus' => 'hiatus',
+        'cancelled' => 'cancelled',
+        _ => 'unknown',
+      };
 }
