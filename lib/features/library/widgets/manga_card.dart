@@ -18,40 +18,37 @@ class MangaCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(14),
-        child: AspectRatio(
-          aspectRatio: 2 / 3,
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              // Cover art
-              CoverImage(url: manga.coverUrl),
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(14),
+      child: AspectRatio(
+        aspectRatio: 2 / 3,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            // Cover art
+            CoverImage(url: manga.coverUrl),
 
-              // Bottom gradient + metadata
+            // Bottom gradient + metadata
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: _BottomOverlay(manga: manga),
+            ),
+
+            // Unread badge
+            if (manga.unreadCount > 0)
               Positioned(
-                bottom: 0,
-                left: 0,
-                right: 0,
-                child: _BottomOverlay(manga: manga),
+                top: 8,
+                right: 8,
+                child: UnreadBadge(count: manga.unreadCount),
               ),
 
-              // Unread badge
-              if (manga.unreadCount > 0)
-                Positioned(
-                  top: 8,
-                  right: 8,
-                  child: UnreadBadge(count: manga.unreadCount),
-                ),
-
-              // Tap ripple effect (subtle highlight)
-              Positioned.fill(
-                child: _TapHighlight(),
-              ),
-            ],
-          ),
+            // Single gesture detector on top — handles both tap and highlight.
+            Positioned.fill(
+              child: _TapHighlight(onTap: onTap),
+            ),
+          ],
         ),
       ),
     );
@@ -97,6 +94,9 @@ class _BottomOverlay extends StatelessWidget {
 }
 
 class _TapHighlight extends StatefulWidget {
+  const _TapHighlight({required this.onTap});
+  final VoidCallback onTap;
+
   @override
   State<_TapHighlight> createState() => _TapHighlightState();
 }
@@ -107,14 +107,13 @@ class _TapHighlightState extends State<_TapHighlight> {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
+      onTap: widget.onTap,
       onTapDown: (_) => setState(() => _pressed = true),
       onTapUp: (_) => setState(() => _pressed = false),
       onTapCancel: () => setState(() => _pressed = false),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 80),
-        color: _pressed
-            ? AppColors.textQuaternary
-            : const Color(0x00000000),
+        color: _pressed ? AppColors.textQuaternary : const Color(0x00000000),
       ),
     );
   }
