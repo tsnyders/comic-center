@@ -82,25 +82,56 @@ class AsuraScansSource implements MangaSource {
 
   @override
   Future<MangaDetail> fetchMangaDetail(String mangaId) async {
-    final resp = await _dio.get<dynamic>('/series/$mangaId');
-    final d = _dataMap(resp.data);
+    Map<String, dynamic> d = const {};
+    try {
+      final resp = await _dio.get<dynamic>('/series/$mangaId');
+      d = _dataMap(resp.data);
+    } catch (_) {
+      // API endpoint may have moved or changed shape — fall back to slug.
+    }
+
+    String? pick(List<String> keys) {
+      for (final k in keys) {
+        final v = d[k];
+        if (v != null && v.toString().trim().isNotEmpty) return v.toString();
+      }
+      return null;
+    }
+
+    final apiTitle = pick(const [
+      'title', 'name', 'series_title', 'titleEnglish',
+      'english_title', 'manga_title', 'romaji',
+    ]);
 
     return MangaDetail(
       id: mangaId,
-      title: d['title']?.toString() ??
-          d['name']?.toString() ??
-          d['series_title']?.toString() ??
-          'Unknown',
-      coverUrl: d['cover']?.toString() ??
-          d['thumbnail']?.toString() ??
-          d['image']?.toString(),
-      author: d['author']?.toString(),
-      artist: d['artist']?.toString(),
-      description: d['description']?.toString(),
-      genres: _stringList(d['genres']),
-      status: _statusStr(d['status']),
+      title: apiTitle ?? _humanizeSlug(mangaId),
+      coverUrl: pick(const [
+        'cover', 'thumbnail', 'image', 'cover_url',
+        'coverImage', 'poster', 'image_url',
+      ]),
+      author: pick(const ['author', 'authors']),
+      artist: pick(const ['artist', 'artists']),
+      description: pick(const ['description', 'synopsis', 'summary']),
+      genres: _stringList(d['genres'] ?? d['tags'] ?? d['categories']),
+      status: _statusStr(d['status'] ?? d['publishing_status']),
       url: '$baseUrl/series/$mangaId',
     );
+  }
+
+  /// Turns "the-beginning-after-the-end-abc123" into
+  /// "The Beginning After The End".
+  String _humanizeSlug(String slug) {
+    var s = slug.replaceAll('_', '-');
+    // Strip trailing AsuraComic hash suffix ("-a1b2c3d4").
+    final hashSfx = RegExp(r'-[a-f0-9]{6,}$', caseSensitive: false);
+    s = s.replaceFirst(hashSfx, '');
+    final words = s.split('-').where((w) => w.isNotEmpty).map((w) {
+      final lower = w.toLowerCase();
+      return lower[0].toUpperCase() + lower.substring(1);
+    });
+    final out = words.join(' ').trim();
+    return out.isEmpty ? 'Untitled' : out;
   }
 
   // ── Chapters ──────────────────────────────────────────────────────────────
@@ -196,11 +227,16 @@ class AsuraScansSource implements MangaSource {
   }
 
   Map<String, dynamic> _dataMap(dynamic body) {
-    if (body is Map<String, dynamic>) {
-      if (body.containsKey('data')) return body['data'] as Map<String, dynamic>;
-      return body;
+    Map<String, dynamic>? asMap(dynamic v) =>
+        v is Map<String, dynamic> ? v : (v is Map ? Map<String, dynamic>.from(v) : null);
+
+    final root = asMap(body);
+    if (root == null) return {};
+    for (final key in const ['data', 'series', 'manga', 'item', 'result']) {
+      final nested = asMap(root[key]);
+      if (nested != null) return nested;
     }
-    return {};
+    return root;
   }
 
   List<String> _stringList(dynamic v) {

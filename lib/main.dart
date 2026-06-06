@@ -23,7 +23,7 @@ void main() async {
       overrides: [
         isarProvider.overrideWithValue(isar),
       ],
-      child: const ComicCenterApp(),
+      child: const YomiApp(),
     ),
   );
 }
