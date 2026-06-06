@@ -1,4 +1,4 @@
-name: Build Android APK
+name: Build Yomi Android APK
 
 on:
   workflow_dispatch:
@@ -41,8 +41,8 @@ jobs:
             find build -name "*.apk" -ls
             exit 1
           fi
-          cp "$APK" comic-center-debug.apk
-          echo "APK size: $(du -h comic-center-debug.apk)"
+          cp "$APK" yomi-debug.apk
+          echo "APK size: $(du -h yomi-debug.apk)"
 
       - name: Generate release tag
         id: tag
@@ -52,14 +52,14 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.tag.outputs.tag }}
-          name: Comic Center ${{ steps.tag.outputs.tag }}
+          name: Yomi ${{ steps.tag.outputs.tag }}
           body: |
-            ## Comic Center — Beta Build
+            ## Yomi — Beta Build
 
             Android APK for testing.
 
             ### Install
-            1. Download **comic-center-debug.apk** below
+            1. Download **yomi-debug.apk** below
             2. On your Android device, allow installs from unknown sources
                (Settings → Apps → Special permissions → Install unknown apps)
             3. Open the downloaded APK and tap Install
@@ -71,7 +71,7 @@ jobs:
             - Library, Downloads, Reader with chapter sync
 
             > Debug build for testing.
-          files: comic-center-debug.apk
+          files: yomi-debug.apk
           prerelease: true
           fail_on_unmatched_files: true
         env:
