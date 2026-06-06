@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Concept B — Immersive Dark</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0a0f;
+    font-family: -apple-system, "SF Pro Display", "SF Pro Text", Helvetica, sans-serif;
+    display: flex;
+    gap: 24px;
+    padding: 40px;
+    justify-content: center;
+    align-items: flex-start;
+    min-height: 100vh;
+  }
+
+  /* iPhone frame */
+  .phone {
+    width: 393px;
+    height: 852px;
+    background: #000;
+    border-radius: 54px;
+    padding: 12px;
+    box-shadow:
+      0 0 0 1px #2c2c2e,
+      0 40px 80px rgba(0,0,0,0.95),
+      inset 0 0 0 2px #111;
+    position: relative;
+    flex-shrink: 0;
+  }
+  .screen {
+    width: 100%;
+    height: 100%;
+    background: #0a0a0f;
+    border-radius: 44px;
+    overflow: hidden;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Status bar */
+  .status-bar {
+    height: 54px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    padding: 0 28px 8px;
+    flex-shrink: 0;
+    position: relative;
+    z-index: 10;
+  }
+  .status-time { font-size: 15px; font-weight: 600; color: #fff; }
+  .status-icons { display: flex; gap: 6px; align-items: center; }
+  .status-icons svg { width: 16px; height: 12px; fill: #fff; }
+  .dynamic-island {
+    position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+    width: 120px; height: 34px; background: #000; border-radius: 20px;
+  }
+
+  /* Tab bar — dark */
+  .tab-bar {
+    background: rgba(20,20,24,0.92);
+    backdrop-filter: blur(40px);
+    -webkit-backdrop-filter: blur(40px);
+    border-top: 0.5px solid rgba(255,255,255,0.08);
+    display: flex;
+    padding: 8px 0 24px;
+    flex-shrink: 0;
+  }
+  .tab-item {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; gap: 3px; cursor: pointer;
+  }
+  .tab-item svg { width: 24px; height: 24px; }
+  .tab-item span { font-size: 10px; font-weight: 500; }
+  .tab-item.active span { color: #0a84ff; }
+  .tab-item.active svg { fill: #0a84ff; }
+  .tab-item:not(.active) span { color: rgba(255,255,255,0.3); }
+  .tab-item:not(.active) svg { fill: rgba(255,255,255,0.3); }
+
+  /* ======= LIBRARY ======= */
+  .lib-scroll { flex: 1; overflow: hidden; position: relative; }
+  .lib-bg-blur {
+    position: absolute; inset: 0; z-index: 0;
+    background: radial-gradient(ellipse at 30% 20%, rgba(102,126,234,0.15) 0%, transparent 60%),
+                radial-gradient(ellipse at 80% 60%, rgba(118,75,162,0.12) 0%, transparent 50%),
+                #0a0a0f;
+  }
+  .lib-content { position: relative; z-index: 1; padding: 0 20px; }
+  .floating-bar {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 0 6px;
+  }
+  .search-pill {
+    flex: 1; height: 38px; margin-right: 12px;
+    background: rgba(255,255,255,0.07);
+    border: 0.5px solid rgba(255,255,255,0.12);
+    border-radius: 19px;
+    display: flex; align-items: center; gap: 8px; padding: 0 14px;
+    color: rgba(255,255,255,0.35); font-size: 14px;
+    backdrop-filter: blur(20px);
+  }
+  .search-pill svg { width: 14px; height: 14px; fill: rgba(255,255,255,0.35); }
+  .avatar {
+    width: 38px; height: 38px; border-radius: 19px;
+    background: linear-gradient(135deg,#667eea,#764ba2);
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 14px; font-weight: 700;
+  }
+  .big-title {
+    font-size: 44px; font-weight: 800; color: #fff;
+    letter-spacing: -1.5px; line-height: 1;
+    margin: 6px 0 16px;
+  }
+  .big-title span { color: #0a84ff; }
+
+  /* Category chips */
+  .chips { display: flex; gap: 8px; margin-bottom: 16px; overflow: hidden; }
+  .chip {
+    padding: 6px 14px; border-radius: 16px; font-size: 13px; font-weight: 500;
+    white-space: nowrap; cursor: pointer;
+    background: rgba(255,255,255,0.07);
+    border: 0.5px solid rgba(255,255,255,0.12);
+    color: rgba(255,255,255,0.6);
+    backdrop-filter: blur(20px);
+  }
+  .chip.active {
+    background: rgba(10,132,255,0.2);
+    border-color: rgba(10,132,255,0.5);
+    color: #0a84ff;
+  }
+
+  /* 2-col grid */
+  .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+  .card-b {
+    border-radius: 14px; overflow: hidden;
+    aspect-ratio: 2/3; position: relative; cursor: pointer;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+  }
+  .card-bg { width: 100%; height: 100%; position: absolute; inset: 0; }
+  .card-overlay {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    padding: 10px;
+    background: linear-gradient(transparent, rgba(0,0,0,0.9) 60%);
+  }
+  .card-title-b {
+    font-size: 13px; font-weight: 600; color: #fff;
+    line-height: 1.3; margin-bottom: 2px;
+  }
+  .card-sub { font-size: 11px; color: rgba(255,255,255,0.5); }
+  .badge-b {
+    position: absolute; top: 8px; right: 8px;
+    background: rgba(255,59,48,0.9);
+    backdrop-filter: blur(10px);
+    color: #fff; font-size: 11px; font-weight: 700;
+    padding: 3px 7px; border-radius: 10px;
+    border: 0.5px solid rgba(255,255,255,0.2);
+  }
+
+  /* ======= BROWSE ======= */
+  .browse-scroll { flex: 1; overflow: hidden; }
+  .hero-search {
+    padding: 0 20px 12px;
+    background: linear-gradient(180deg, rgba(10,10,15,0) 0%, rgba(10,10,15,0) 100%);
+  }
+  .hero-search-bar {
+    height: 46px;
+    background: rgba(255,255,255,0.08);
+    border: 0.5px solid rgba(255,255,255,0.15);
+    border-radius: 14px;
+    display: flex; align-items: center; gap: 10px; padding: 0 16px;
+    color: rgba(255,255,255,0.4); font-size: 16px;
+  }
+  .hero-search-bar svg { width: 16px; height: 16px; fill: rgba(255,255,255,0.4); }
+  .browse-section { padding: 0 20px 16px; }
+  .section-h {
+    font-size: 19px; font-weight: 700; color: #fff;
+    margin-bottom: 12px; letter-spacing: -0.3px;
+  }
+  /* Featured carousel */
+  .carousel { display: flex; gap: 12px; overflow: hidden; }
+  .feat-card {
+    min-width: 260px; height: 150px; border-radius: 16px;
+    position: relative; overflow: hidden; flex-shrink: 0;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  }
+  .feat-bg { width: 100%; height: 100%; }
+  .feat-overlay {
+    position: absolute; inset: 0;
+    background: linear-gradient(135deg, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.6) 100%);
+    padding: 16px;
+    display: flex; flex-direction: column; justify-content: flex-end;
+  }
+  .feat-name { font-size: 16px; font-weight: 700; color: #fff; }
+  .feat-desc { font-size: 12px; color: rgba(255,255,255,0.6); margin-top: 2px; }
+  /* Source rows */
+  .source-row-b {
+    display: flex; align-items: center; gap: 14px;
+    padding: 14px 16px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 14px; margin-bottom: 8px;
+    border: 0.5px solid rgba(255,255,255,0.08);
+  }
+  .src-icon-b {
+    width: 44px; height: 44px; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; flex-shrink: 0;
+  }
+  .src-body { flex: 1; }
+  .src-name { font-size: 15px; font-weight: 600; color: #fff; }
+  .src-meta { font-size: 12px; color: rgba(255,255,255,0.4); margin-top: 2px; }
+  .src-badge {
+    font-size: 11px; font-weight: 600; color: #0a84ff;
+    background: rgba(10,132,255,0.15);
+    border: 0.5px solid rgba(10,132,255,0.3);
+    padding: 4px 10px; border-radius: 10px;
+  }
+  .src-get {
+    font-size: 13px; font-weight: 600; color: #0a84ff;
+    background: rgba(10,132,255,0.15);
+    border: 0.5px solid rgba(10,132,255,0.3);
+    padding: 6px 16px; border-radius: 14px; cursor: pointer;
+  }
+
+  /* ======= TITLE DETAIL ======= */
+  .detail-full-hero {
+    flex: 1; position: relative; overflow: hidden;
+    display: flex; flex-direction: column;
+  }
+  .hero-art {
+    position: absolute; inset: 0;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 40%, #0f3460 70%, #533483 100%);
+  }
+  .hero-art-overlay {
+    position: absolute; inset: 0;
+    background: linear-gradient(180deg, rgba(0,0,0,0.2) 0%, rgba(0,0,0,0.0) 30%, rgba(0,0,0,0.85) 80%, #0a0a0f 100%);
+  }
+  /* Bottom sheet */
+  .bottom-sheet {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    background: rgba(18,18,24,0.95);
+    backdrop-filter: blur(40px);
+    -webkit-backdrop-filter: blur(40px);
+    border-radius: 24px 24px 0 0;
+    border-top: 0.5px solid rgba(255,255,255,0.1);
+    padding: 12px 20px 0;
+    height: 60%;
+    display: flex; flex-direction: column;
+  }
+  .sheet-handle {
+    width: 36px; height: 4px; background: rgba(255,255,255,0.2);
+    border-radius: 2px; margin: 0 auto 16px;
+  }
+  .sheet-title { font-size: 22px; font-weight: 700; color: #fff; letter-spacing: -0.5px; }
+  .sheet-author { font-size: 14px; color: rgba(255,255,255,0.5); margin: 4px 0 12px; }
+  .genre-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+  .g-chip {
+    font-size: 11px; font-weight: 500;
+    padding: 4px 10px; border-radius: 8px;
+    background: rgba(255,255,255,0.08);
+    border: 0.5px solid rgba(255,255,255,0.12);
+    color: rgba(255,255,255,0.6);
+  }
+  .sheet-actions { display: flex; gap: 10px; margin-bottom: 16px; }
+  .sheet-btn-primary {
+    flex: 1; padding: 13px;
+    background: #0a84ff; color: #fff;
+    font-size: 15px; font-weight: 600;
+    border: none; border-radius: 14px; cursor: pointer;
+  }
+  .sheet-btn-secondary {
+    padding: 13px 18px;
+    background: rgba(255,255,255,0.1);
+    border: 0.5px solid rgba(255,255,255,0.15);
+    color: #fff; font-size: 15px; font-weight: 600;
+    border-radius: 14px; cursor: pointer;
+  }
+  .chapters-label {
+    font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.4);
+    text-transform: uppercase; letter-spacing: 0.5px;
+    margin-bottom: 8px;
+  }
+  .ch-row-b {
+    display: flex; align-items: center; gap: 12px;
+    padding: 11px 0;
+    border-bottom: 0.5px solid rgba(255,255,255,0.06);
+  }
+  .ch-num-b { font-size: 14px; font-weight: 700; color: #fff; width: 32px; }
+  .ch-info-b { flex: 1; }
+  .ch-title-b { font-size: 13px; color: rgba(255,255,255,0.85); }
+  .ch-date-b { font-size: 11px; color: rgba(255,255,255,0.35); margin-top: 1px; }
+  .ch-dot-b { width: 7px; height: 7px; border-radius: 50%; background: #0a84ff; }
+  .ch-dot-read { background: transparent; }
+
+  /* ======= READER ======= */
+  .reader-page-b { flex: 1; position: relative; overflow: hidden; }
+  .page-art {
+    width: 100%; height: 100%;
+    background: #0d0d14;
+    display: flex; flex-direction: column; gap: 0;
+  }
+  .p-row { display: flex; flex: 1; }
+  .p-panel {
+    flex: 1; border: 1px solid #000; position: relative; overflow: hidden;
+  }
+  .p-fill { width: 100%; height: 100%; }
+
+  /* progress line */
+  .progress-line {
+    position: absolute; top: 54px; left: 0; right: 0; height: 2px; z-index: 20;
+  }
+  .progress-fill { height: 100%; width: 42%; background: #0a84ff; }
+
+  .reader-chrome-b {
+    background: rgba(0,0,0,0.8);
+    backdrop-filter: blur(30px);
+    padding: 10px 20px 14px;
+    display: flex; align-items: center; gap: 12px; flex-shrink: 0;
+  }
+  .reader-back { color: #fff; font-size: 22px; width: 32px; }
+  .reader-chapter { flex: 1; color: #fff; font-size: 14px; font-weight: 600; text-align: center; }
+  .reader-more { color: rgba(255,255,255,0.6); font-size: 20px; width: 32px; text-align: right; }
+  .page-pill {
+    position: absolute; bottom: 80px; left: 50%; transform: translateX(-50%);
+    background: rgba(0,0,0,0.7); backdrop-filter: blur(20px);
+    border: 0.5px solid rgba(255,255,255,0.15);
+    color: #fff; font-size: 12px; font-weight: 500;
+    padding: 6px 14px; border-radius: 14px;
+  }
+
+  .concept-title {
+    color: #fff; font-size: 20px; font-weight: 700;
+    text-align: center; margin-bottom: 20px;
+    letter-spacing: -0.3px;
+  }
+  .screen-label {
+    color: rgba(255,255,255,0.35); font-size: 11px;
+    text-align: center; margin-bottom: 8px;
+    text-transform: uppercase; letter-spacing: 1px; font-weight: 600;
+  }
+  .phone-wrap { display: flex; flex-direction: column; }
+  .phones-row { display: flex; gap: 24px; }
+  .concept-col { display: flex; flex-direction: column; gap: 32px; }
+
+  .nav-bar-dark {
+    padding: 0 20px 12px;
+    position: relative; z-index: 5; flex-shrink: 0;
+  }
+  .back-btn { color: #0a84ff; font-size: 16px; font-weight: 400; margin-bottom: 4px; display: inline-block; }
+
+</style>
+</head>
+<body>
+
+<div class="concept-col">
+  <div class="concept-title">Concept B — "Immersive Dark"</div>
+  <div class="phones-row">
+
+    <!-- Screen 1: Library -->
+    <div class="phone-wrap">
+      <div class="screen-label">Library</div>
+      <div class="phone">
+        <div class="screen">
+          <div class="status-bar">
+            <div class="dynamic-island"></div>
+            <span class="status-time">9:41</span>
+            <div class="status-icons">
+              <svg viewBox="0 0 17 12"><rect x="0" y="3" width="3" height="9" rx="1"/><rect x="4.5" y="2" width="3" height="10" rx="1"/><rect x="9" y="0" width="3" height="12" rx="1"/></svg>
+              <svg viewBox="0 0 16 12"><path d="M8 2.4C5.6 2.4 3.4 3.4 1.8 5L0 3.2C2.1 1.2 4.9 0 8 0s5.9 1.2 8 3.2L14.2 5C12.6 3.4 10.4 2.4 8 2.4z"/><path d="M8 5.6c-1.5 0-2.8.6-3.8 1.5L2.4 5.3C3.8 4 5.8 3.2 8 3.2s4.2.8 5.6 2.1l-1.8 1.8C10.8 6.2 9.5 5.6 8 5.6z"/><circle cx="8" cy="10" r="2"/></svg>
+              <svg viewBox="0 0 25 12"><rect x="0.5" y="0.5" width="21" height="11" rx="3.5" stroke="white" stroke-width="1" fill="none"/><rect x="2" y="2" width="15" height="8" rx="2" fill="white"/></svg>
+            </div>
+          </div>
+          <div class="lib-scroll">
+            <div class="lib-bg-blur"></div>
+            <div class="lib-content">
+              <div class="floating-bar">
+                <div class="search-pill">
+                  <svg viewBox="0 0 14 14"><circle cx="6" cy="6" r="5" stroke="rgba(255,255,255,0.35)" stroke-width="1.5" fill="none"/><line x1="10" y1="10" x2="13" y2="13" stroke="rgba(255,255,255,0.35)" stroke-width="1.5" stroke-linecap="round"/></svg>
+                  Search
+                </div>
+                <div class="avatar">T</div>
+              </div>
+              <div class="big-title">My<br><span>Library</span></div>
+              <div class="chips">
+                <div class="chip active">All 42</div>
+                <div class="chip">Reading</div>
+                <div class="chip">On Hold</div>
+                <div class="chip">Completed</div>
+              </div>
+              <div class="grid-2">
+                <div class="card-b">
+                  <div class="card-bg" style="background:linear-gradient(135deg,#667eea,#764ba2)"></div>
+                  <div class="badge-b">3</div>
+                  <div class="card-overlay">
+                    <div class="card-title-b">One Piece</div>
+                    <div class="card-sub">Ch. 1107 • Oda</div>
+                  </div>
+                </div>
+                <div class="card-b">
+                  <div class="card-bg" style="background:linear-gradient(135deg,#f093fb,#f5576c)"></div>
+                  <div class="badge-b">12</div>
+                  <div class="card-overlay">
+                    <div class="card-title-b">Demon Slayer</div>
+                    <div class="card-sub">Ch. 205 • Gotouge</div>
+                  </div>
+                </div>
+                <div class="card-b">
+                  <div class="card-bg" style="background:linear-gradient(135deg,#4facfe,#00f2fe)"></div>
+                  <div class="card-overlay">
+                    <div class="card-title-b">Solo Leveling</div>
+                    <div class="card-sub">Ch. 179 • Chugong</div>
+                  </div>
+                </div>
+                <div class="card-b">
+                  <div class="card-bg" style="background:linear-gradient(135deg,#43e97b,#38f9d7)"></div>
+                  <div class="badge-b">1</div>
+                  <div class="card-overlay">
+                    <div class="card-title-b">Attack on Titan</div>
+                    <div class="card-sub">Ch. 139 • Isayama</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="tab-bar">
+            <div class="tab-item active">
+              <svg viewBox="0 0 24 24"><path d="M19 3H5C3.9 3 3 3.9 3 5v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+              <span>Library</span>
+            </div>
+            <div class="tab-item">
+              <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
+              <span>Browse</span>
+            </div>
+            <div class="tab-item">
+              <svg viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+              <span>Downloads</span>
+            </div>
+            <div class="tab-item">
+              <svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94s-.02-.64-.07-.94l2.03-1.58-1.92-3.32-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54H9.81l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96L3.52 8.87l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94L3.5 13.92l1.92 3.32 2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54h3.84l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96 1.92-3.32-2.04-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+              <span>Settings</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Screen 2: Browse -->
+    <div class="phone-wrap">
+      <div class="screen-label">Browse</div>
+      <div class="phone">
+        <div class="screen">
+          <div class="status-bar">
+            <div class="dynamic-island"></div>
+            <span class="status-time">9:41</span>
+            <div class="status-icons">
+              <svg viewBox="0 0 17 12"><rect x="0" y="3" width="3" height="9" rx="1"/><rect x="4.5" y="2" width="3" height="10" rx="1"/><rect x="9" y="0" width="3" height="12" rx="1"/></svg>
+              <svg viewBox="0 0 25 12"><rect x="0.5" y="0.5" width="21" height="11" rx="3.5" stroke="white" stroke-width="1" fill="none"/><rect x="2" y="2" width="15" height="8" rx="2" fill="white"/></svg>
+            </div>
+          </div>
+          <div class="hero-search">
+            <div style="font-size:26px;font-weight:800;color:#fff;letter-spacing:-0.5px;margin-bottom:10px">Browse</div>
+            <div class="hero-search-bar">
+              <svg viewBox="0 0 14 14"><circle cx="6" cy="6" r="5" stroke="rgba(255,255,255,0.4)" stroke-width="1.5" fill="none"/><line x1="10" y1="10" x2="13" y2="13" stroke="rgba(255,255,255,0.4)" stroke-width="1.5" stroke-linecap="round"/></svg>
+              Search all sources...
+            </div>
+          </div>
+          <div class="browse-scroll">
+            <div class="browse-section">
+              <div class="section-h">Featured</div>
+              <div class="carousel">
+                <div class="feat-card">
+                  <div class="feat-bg" style="background:linear-gradient(135deg,#667eea,#764ba2)"></div>
+                  <div class="feat-overlay">
+                    <div class="feat-name">MangaDex</div>
+                    <div class="feat-desc">50,000+ titles · Multi-language</div>
+                  </div>
+                </div>
+                <div class="feat-card">
+                  <div class="feat-bg" style="background:linear-gradient(135deg,#f093fb,#f5576c)"></div>
+                  <div class="feat-overlay">
+                    <div class="feat-name">MangaPlus</div>
+                    <div class="feat-desc">Official Shueisha · Free</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="browse-section">
+              <div class="section-h">Installed</div>
+              <div class="source-row-b">
+                <div class="src-icon-b" style="background:linear-gradient(135deg,#667eea,#764ba2)">🔷</div>
+                <div class="src-body">
+                  <div class="src-name">MangaDex</div>
+                  <div class="src-meta">v1.4 · 🌐 Multi-language</div>
+                </div>
+                <span class="src-badge">NSFW</span>
+              </div>
+              <div class="source-row-b">
+                <div class="src-icon-b" style="background:linear-gradient(135deg,#f5576c,#f093fb)">🔴</div>
+                <div class="src-body">
+                  <div class="src-name">MangaPlus</div>
+                  <div class="src-meta">v2.1 · 🇯🇵 Japanese</div>
+                </div>
+              </div>
+            </div>
+            <div class="browse-section">
+              <div class="section-h">Available</div>
+              <div class="source-row-b">
+                <div class="src-icon-b" style="background:linear-gradient(135deg,#43e97b,#38f9d7)">🟢</div>
+                <div class="src-body">
+                  <div class="src-name">Batoto</div>
+                  <div class="src-meta">v3.0 · 🌐 Multi-language</div>
+                </div>
+                <button class="src-get">Get</button>
+              </div>
+            </div>
+          </div>
+          <div class="tab-bar">
+            <div class="tab-item"><svg viewBox="0 0 24 24"><path d="M19 3H5C3.9 3 3 3.9 3 5v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg><span>Library</span></div>
+            <div class="tab-item active"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg><span>Browse</span></div>
+            <div class="tab-item"><svg viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg><span>Downloads</span></div>
+            <div class="tab-item"><svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94s-.02-.64-.07-.94l2.03-1.58-1.92-3.32-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54H9.81l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96L3.52 8.87l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94L3.5 13.92l1.92 3.32 2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54h3.84l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96 1.92-3.32-2.04-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg><span>Settings</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Screen 3: Title Detail -->
+    <div class="phone-wrap">
+      <div class="screen-label">Title Detail</div>
+      <div class="phone">
+        <div class="screen">
+          <div class="status-bar" style="position:absolute;top:0;left:0;right:0;z-index:20">
+            <div class="dynamic-island"></div>
+            <span class="status-time">9:41</span>
+            <div class="status-icons">
+              <svg viewBox="0 0 17 12"><rect x="0" y="3" width="3" height="9" rx="1"/><rect x="4.5" y="2" width="3" height="10" rx="1"/><rect x="9" y="0" width="3" height="12" rx="1"/></svg>
+              <svg viewBox="0 0 25 12"><rect x="0.5" y="0.5" width="21" height="11" rx="3.5" stroke="white" stroke-width="1" fill="none"/><rect x="2" y="2" width="15" height="8" rx="2" fill="white"/></svg>
+            </div>
+          </div>
+          <div class="detail-full-hero">
+            <div class="hero-art"></div>
+            <div class="hero-art-overlay"></div>
+            <!-- Back button -->
+            <div style="position:absolute;top:62px;left:20px;z-index:10">
+              <div style="background:rgba(0,0,0,0.5);backdrop-filter:blur(10px);border-radius:16px;padding:6px 14px;color:#0a84ff;font-size:14px;font-weight:500;border:0.5px solid rgba(255,255,255,0.15)">‹ Back</div>
+            </div>
+            <!-- Cover floating -->
+            <div style="position:absolute;top:90px;right:20px;z-index:10">
+              <div style="width:80px;height:120px;border-radius:10px;background:linear-gradient(135deg,#1a1a2e,#533483);box-shadow:0 12px 32px rgba(0,0,0,0.7)"></div>
+            </div>
+            <div class="bottom-sheet">
+              <div class="sheet-handle"></div>
+              <div class="sheet-title">Fullmetal Alchemist</div>
+              <div class="sheet-author">Hiromu Arakawa · Completed · 108 ch</div>
+              <div class="genre-chips">
+                <span class="g-chip">Action</span>
+                <span class="g-chip">Adventure</span>
+                <span class="g-chip">Fantasy</span>
+                <span class="g-chip">Military</span>
+              </div>
+              <div class="sheet-actions">
+                <button class="sheet-btn-primary">▶  Continue Reading</button>
+                <button class="sheet-btn-secondary">＋</button>
+              </div>
+              <div class="chapters-label">108 Chapters</div>
+              <div class="ch-row-b">
+                <div class="ch-num-b">108</div>
+                <div class="ch-info-b">
+                  <div class="ch-title-b">Journey's End</div>
+                  <div class="ch-date-b">2 days ago</div>
+                </div>
+                <div class="ch-dot-b"></div>
+              </div>
+              <div class="ch-row-b">
+                <div class="ch-num-b">107</div>
+                <div class="ch-info-b">
+                  <div class="ch-title-b">The Final Battle</div>
+                  <div class="ch-date-b">1 week ago</div>
+                </div>
+                <div class="ch-dot-b"></div>
+              </div>
+              <div class="ch-row-b">
+                <div class="ch-num-b">106</div>
+                <div class="ch-info-b">
+                  <div class="ch-title-b">Pride's End</div>
+                  <div class="ch-date-b">2 weeks ago</div>
+                </div>
+                <div class="ch-dot-b ch-dot-read"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Screen 4: Reader -->
+    <div class="phone-wrap">
+      <div class="screen-label">Reader</div>
+      <div class="phone">
+        <div class="screen" style="background:#050508">
+          <div class="status-bar" style="position:absolute;top:0;left:0;right:0;z-index:20">
+            <div class="dynamic-island"></div>
+            <span class="status-time">9:41</span>
+            <div class="status-icons">
+              <svg viewBox="0 0 17 12"><rect x="0" y="3" width="3" height="9" rx="1"/><rect x="4.5" y="2" width="3" height="10" rx="1"/><rect x="9" y="0" width="3" height="12" rx="1"/></svg>
+              <svg viewBox="0 0 25 12"><rect x="0.5" y="0.5" width="21" height="11" rx="3.5" stroke="white" stroke-width="1" fill="none"/><rect x="2" y="2" width="15" height="8" rx="2" fill="white"/></svg>
+            </div>
+          </div>
+          <!-- progress line -->
+          <div class="progress-line">
+            <div class="progress-fill"></div>
+          </div>
+          <div class="reader-chrome-b" style="position:absolute;top:54px;left:0;right:0;z-index:10">
+            <div class="reader-back">‹</div>
+            <div class="reader-chapter">Ch. 108 — Journey's End</div>
+            <div class="reader-more">⋯</div>
+          </div>
+          <!-- manga page -->
+          <div class="reader-page-b">
+            <div class="page-art">
+              <div class="p-row" style="flex:2">
+                <div class="p-panel" style="flex:2">
+                  <div class="p-fill" style="background:linear-gradient(160deg,#0d0d20 0%,#1a1a3e 40%,#2d1b4e 100%)"></div>
+                </div>
+                <div style="display:flex;flex-direction:column;flex:1">
+                  <div class="p-panel">
+                    <div class="p-fill" style="background:linear-gradient(180deg,#0f0f24,#1e1240)"></div>
+                  </div>
+                  <div class="p-panel">
+                    <div class="p-fill" style="background:linear-gradient(180deg,#150d2e,#0a0a1a)"></div>
+                  </div>
+                </div>
+              </div>
+              <div class="p-row" style="flex:1">
+                <div class="p-panel"><div class="p-fill" style="background:linear-gradient(90deg,#0a0a1a,#12102a)"></div></div>
+                <div class="p-panel"><div class="p-fill" style="background:linear-gradient(90deg,#1a1040,#0f1830)"></div></div>
+                <div class="p-panel"><div class="p-fill" style="background:linear-gradient(90deg,#080818,#151530)"></div></div>
+              </div>
+              <div class="p-row" style="flex:1.2">
+                <div class="p-panel" style="flex:3">
+                  <div class="p-fill" style="background:linear-gradient(135deg,#0e0e22,#1a103c,#2a1560)"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- page pill -->
+          <div class="page-pill">38 / 108</div>
+          <div class="tab-bar" style="position:absolute;bottom:0;left:0;right:0">
+            <div class="tab-item"><svg viewBox="0 0 24 24"><path d="M19 3H5C3.9 3 3 3.9 3 5v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg><span>Library</span></div>
+            <div class="tab-item"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg><span>Browse</span></div>
+            <div class="tab-item active"><svg viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg><span>Downloads</span></div>
+            <div class="tab-item"><svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94s-.02-.64-.07-.94l2.03-1.58-1.92-3.32-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54H9.81l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96L3.52 8.87l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94L3.5 13.92l1.92 3.32 2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54h3.84l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96 1.92-3.32-2.04-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg><span>Downloads</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+</body>
+</html>
