@@ -1,4 +1,7 @@
+import 'dart:ui';
+
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/services.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../browse/browse_screen.dart';
@@ -6,53 +9,293 @@ import '../downloads/downloads_screen.dart';
 import '../library/library_screen.dart';
 import '../settings/settings_screen.dart';
 
-class RootScaffold extends StatelessWidget {
+class RootScaffold extends StatefulWidget {
   const RootScaffold({super.key});
 
   @override
+  State<RootScaffold> createState() => _RootScaffoldState();
+}
+
+class _RootScaffoldState extends State<RootScaffold> {
+  int _selectedIndex = 0;
+
+  void _onTap(int index) {
+    if (_selectedIndex == index) return;
+    HapticFeedback.selectionClick();
+    setState(() => _selectedIndex = index);
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return CupertinoTabScaffold(
-      tabBar: CupertinoTabBar(
-        backgroundColor: AppColors.tabBarBackground,
-        activeColor: AppColors.accent,
-        inactiveColor: AppColors.textTertiary,
-        border: const Border(
-          top: BorderSide(color: AppColors.border, width: 0.5),
-        ),
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(CupertinoIcons.book),
-            activeIcon: Icon(CupertinoIcons.book_fill),
-            label: 'Library',
+    final bottomPadding = MediaQuery.of(context).padding.bottom;
+
+    return CupertinoPageScaffold(
+      backgroundColor: AppColors.background,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          // ── Tab content ───────────────────────────────────────────────
+          IndexedStack(
+            index: _selectedIndex,
+            children: const [
+              LibraryScreen(),
+              BrowseScreen(),
+              DownloadsScreen(),
+              SettingsScreen(),
+            ],
           ),
-          BottomNavigationBarItem(
-            icon: Icon(CupertinoIcons.globe),
-            activeIcon: Icon(CupertinoIcons.globe),
-            label: 'Browse',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(CupertinoIcons.arrow_down_circle),
-            activeIcon: Icon(CupertinoIcons.arrow_down_circle_fill),
-            label: 'Downloads',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(CupertinoIcons.settings),
-            activeIcon: Icon(CupertinoIcons.settings_solid),
-            label: 'Settings',
+
+          // ── Floating glass navigation bar ─────────────────────────────
+          Positioned(
+            bottom: bottomPadding + 12,
+            left: 20,
+            right: 20,
+            child: _GlassNavBar(
+              selectedIndex: _selectedIndex,
+              onTap: _onTap,
+            ),
           ),
         ],
       ),
-      tabBuilder: (context, index) {
-        return CupertinoTabView(
-          builder: (context) => switch (index) {
-            0 => const LibraryScreen(),
-            1 => const BrowseScreen(),
-            2 => const DownloadsScreen(),
-            3 => const SettingsScreen(),
-            _ => const SizedBox.shrink(),
-          },
-        );
-      },
     );
   }
+}
+
+// ── Glass navigation bar ──────────────────────────────────────────────────
+
+class _GlassNavBar extends StatefulWidget {
+  const _GlassNavBar({
+    required this.selectedIndex,
+    required this.onTap,
+  });
+
+  final int selectedIndex;
+  final ValueChanged<int> onTap;
+
+  @override
+  State<_GlassNavBar> createState() => _GlassNavBarState();
+}
+
+class _GlassNavBarState extends State<_GlassNavBar>
+    with TickerProviderStateMixin {
+  late final AnimationController _indicatorCtrl;
+  late Animation<double> _indicatorPos;
+  int _prevIndex = 0;
+
+  static const _tabs = [
+    _TabItem(icon: CupertinoIcons.book, activeIcon: CupertinoIcons.book_fill, label: 'Library'),
+    _TabItem(icon: CupertinoIcons.globe, activeIcon: CupertinoIcons.globe, label: 'Browse'),
+    _TabItem(icon: CupertinoIcons.arrow_down_circle, activeIcon: CupertinoIcons.arrow_down_circle_fill, label: 'Downloads'),
+    _TabItem(icon: CupertinoIcons.settings, activeIcon: CupertinoIcons.settings_solid, label: 'Settings'),
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _indicatorCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 380),
+    );
+    _indicatorPos = Tween<double>(
+      begin: widget.selectedIndex.toDouble(),
+      end: widget.selectedIndex.toDouble(),
+    ).animate(
+      CurvedAnimation(parent: _indicatorCtrl, curve: Curves.easeOutCubic),
+    );
+  }
+
+  @override
+  void didUpdateWidget(_GlassNavBar old) {
+    super.didUpdateWidget(old);
+    if (old.selectedIndex != widget.selectedIndex) {
+      _indicatorPos = Tween<double>(
+        begin: _prevIndex.toDouble(),
+        end: widget.selectedIndex.toDouble(),
+      ).animate(
+        CurvedAnimation(parent: _indicatorCtrl, curve: Curves.easeOutCubic),
+      );
+      _indicatorCtrl.forward(from: 0);
+      _prevIndex = widget.selectedIndex;
+    }
+  }
+
+  @override
+  void dispose() {
+    _indicatorCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(28),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
+        child: Container(
+          height: 64,
+          decoration: BoxDecoration(
+            color: const Color(0xFF1A1A22).withOpacity(0.80),
+            borderRadius: BorderRadius.circular(28),
+            border: Border.all(
+              color: const Color(0xFFFFFFFF).withOpacity(0.12),
+              width: 0.5,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF000000).withOpacity(0.35),
+                blurRadius: 30,
+                spreadRadius: -6,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Stack(
+            children: [
+              // Animated pill indicator
+              AnimatedBuilder(
+                animation: _indicatorPos,
+                builder: (_, __) {
+                  return Positioned(
+                    top: 8,
+                    bottom: 8,
+                    left: _indicatorPos.value / (_tabs.length - 1) *
+                            (MediaQuery.of(context).size.width - 40 - 16) +
+                        8,
+                    width: (MediaQuery.of(context).size.width - 40 - 16) /
+                        _tabs.length,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: AppColors.accent.withOpacity(0.20),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: AppColors.accent.withOpacity(0.35),
+                          width: 0.5,
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+
+              // Tab icons + labels
+              Row(
+                children: List.generate(_tabs.length, (i) {
+                  final isActive = i == widget.selectedIndex;
+                  return Expanded(
+                    child: _TabButton(
+                      tab: _tabs[i],
+                      isActive: isActive,
+                      onTap: () => widget.onTap(i),
+                    ),
+                  );
+                }),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _TabButton extends StatefulWidget {
+  const _TabButton({
+    required this.tab,
+    required this.isActive,
+    required this.onTap,
+  });
+
+  final _TabItem tab;
+  final bool isActive;
+  final VoidCallback onTap;
+
+  @override
+  State<_TabButton> createState() => _TabButtonState();
+}
+
+class _TabButtonState extends State<_TabButton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _scaleCtrl;
+  late final Animation<double> _scale;
+
+  @override
+  void initState() {
+    super.initState();
+    _scaleCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 220),
+      value: widget.isActive ? 1.0 : 0.0,
+    );
+    _scale = Tween<double>(begin: 0.85, end: 1.12).animate(
+      CurvedAnimation(parent: _scaleCtrl, curve: Curves.easeOutBack),
+    );
+  }
+
+  @override
+  void didUpdateWidget(_TabButton old) {
+    super.didUpdateWidget(old);
+    if (old.isActive != widget.isActive) {
+      if (widget.isActive) {
+        _scaleCtrl.forward();
+      } else {
+        _scaleCtrl.reverse();
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _scaleCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: widget.onTap,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          AnimatedBuilder(
+            animation: _scale,
+            builder: (_, child) => Transform.scale(
+              scale: _scale.value,
+              child: child,
+            ),
+            child: Icon(
+              widget.isActive ? widget.tab.activeIcon : widget.tab.icon,
+              size: 22,
+              color: widget.isActive ? AppColors.accent : AppColors.textTertiary,
+            ),
+          ),
+          const SizedBox(height: 3),
+          AnimatedDefaultTextStyle(
+            duration: const Duration(milliseconds: 200),
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight:
+                  widget.isActive ? FontWeight.w600 : FontWeight.w400,
+              color: widget.isActive
+                  ? AppColors.accent
+                  : AppColors.textTertiary,
+            ),
+            child: Text(widget.tab.label),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TabItem {
+  const _TabItem({
+    required this.icon,
+    required this.activeIcon,
+    required this.label,
+  });
+
+  final IconData icon;
+  final IconData activeIcon;
+  final String label;
 }
