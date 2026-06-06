@@ -34,6 +34,18 @@ class _RootScaffoldState extends State<RootScaffold> {
       child: Stack(
         fit: StackFit.expand,
         children: [
+          // Ambient gradient gives BackdropFilter something to blur —
+          // without this, glass on solid #0A0A0F looks identical to no blur.
+          const DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: RadialGradient(
+                center: Alignment(0.0, -0.55),
+                radius: 1.1,
+                colors: [Color(0xFF14142E), Color(0xFF0A0A0F)],
+              ),
+            ),
+          ),
+
           // ── Tab content ───────────────────────────────────────────────
           IndexedStack(
             index: _selectedIndex,
@@ -127,70 +139,111 @@ class _GlassNavBarState extends State<_GlassNavBar>
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(28),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
-        child: Container(
-          height: 64,
-          decoration: BoxDecoration(
-            color: const Color(0xFF1A1A22).withOpacity(0.80),
-            borderRadius: BorderRadius.circular(28),
-            border: Border.all(
-              color: const Color(0xFFFFFFFF).withOpacity(0.12),
-              width: 0.5,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF000000).withOpacity(0.35),
-                blurRadius: 30,
-                spreadRadius: -6,
-                offset: const Offset(0, 8),
-              ),
-            ],
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF000000).withOpacity(0.45),
+            blurRadius: 40,
+            spreadRadius: -4,
+            offset: const Offset(0, 12),
           ),
-          child: Stack(
-            children: [
-              // Animated pill indicator
-              AnimatedBuilder(
-                animation: _indicatorPos,
-                builder: (_, __) {
-                  return Positioned(
-                    top: 8,
-                    bottom: 8,
-                    left: _indicatorPos.value / (_tabs.length - 1) *
-                            (MediaQuery.of(context).size.width - 40 - 16) +
-                        8,
-                    width: (MediaQuery.of(context).size.width - 40 - 16) /
-                        _tabs.length,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: AppColors.accent.withOpacity(0.20),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: AppColors.accent.withOpacity(0.35),
-                          width: 0.5,
-                        ),
+          BoxShadow(
+            color: AppColors.accent.withOpacity(0.08),
+            blurRadius: 30,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(28),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 40, sigmaY: 40),
+          child: Container(
+            height: 64,
+            decoration: BoxDecoration(
+              // Slightly blue-tinted dark glass
+              color: const Color(0xFF16162A).withOpacity(0.82),
+              borderRadius: BorderRadius.circular(28),
+              border: Border.all(
+                color: const Color(0xFFFFFFFF).withOpacity(0.18),
+                width: 0.75,
+              ),
+            ),
+            child: Stack(
+              children: [
+                // Specular highlight on top edge
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: 28,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(28),
+                      ),
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          const Color(0xFFFFFFFF).withOpacity(0.14),
+                          const Color(0x00FFFFFF),
+                        ],
                       ),
                     ),
-                  );
-                },
-              ),
+                  ),
+                ),
 
-              // Tab icons + labels
-              Row(
-                children: List.generate(_tabs.length, (i) {
-                  final isActive = i == widget.selectedIndex;
-                  return Expanded(
-                    child: _TabButton(
-                      tab: _tabs[i],
-                      isActive: isActive,
-                      onTap: () => widget.onTap(i),
-                    ),
-                  );
-                }),
-              ),
-            ],
+                // Animated pill indicator
+                AnimatedBuilder(
+                  animation: _indicatorPos,
+                  builder: (_, __) {
+                    return Positioned(
+                      top: 8,
+                      bottom: 8,
+                      left: _indicatorPos.value / (_tabs.length - 1) *
+                                  (MediaQuery.of(context).size.width - 40 - 16) +
+                              8,
+                      width: (MediaQuery.of(context).size.width - 40 - 16) /
+                          _tabs.length,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: AppColors.accent.withOpacity(0.25),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: AppColors.accent.withOpacity(0.50),
+                            width: 0.75,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppColors.accent.withOpacity(0.20),
+                              blurRadius: 12,
+                              spreadRadius: -2,
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+
+                // Tab icons + labels
+                Row(
+                  children: List.generate(_tabs.length, (i) {
+                    final isActive = i == widget.selectedIndex;
+                    return Expanded(
+                      child: _TabButton(
+                        tab: _tabs[i],
+                        isActive: isActive,
+                        onTap: () => widget.onTap(i),
+                      ),
+                    );
+                  }),
+                ),
+              ],
+            ),
           ),
         ),
       ),
