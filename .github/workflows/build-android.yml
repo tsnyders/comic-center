@@ -3,6 +3,9 @@ name: Build Android APK
 on:
   workflow_dispatch:
 
+permissions:
+  contents: write  # needed to create releases and upload assets
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -25,11 +28,32 @@ jobs:
         run: flutter pub get
 
       - name: Build debug APK
-        run: flutter build apk --debug
+        run: flutter build apk --debug 2>&1 | tee build_output.txt
 
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
+      - name: Generate release tag
+        id: tag
+        run: echo "tag=v1.0.0-beta.$(date +'%Y%m%d-%H%M')" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release with APK
+        uses: softprops/action-gh-release@v2
         with:
-          name: comic-center-android
-          path: build/app/outputs/flutter-apk/app-debug.apk
-          retention-days: 7
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: "Comic Center ${{ steps.tag.outputs.tag }}"
+          body: |
+            ## Comic Center — Beta Build
+
+            Android APK for testing. Install by:
+            1. Download `comic-center-debug.apk` below
+            2. On your Android device, allow installs from unknown sources (Settings → Security)
+            3. Open the downloaded APK and install
+
+            ### What's included
+            - MangaDex, AllManga, AsuraScans sources
+            - Glassmorphism UI with floating glass nav bar
+            - Dark and Light mode (Settings → Appearance)
+            - Library, Downloads, Reader with chapter sync
+
+            > ⚠️ This is a debug/beta build for testing purposes.
+          files: build/app/outputs/flutter-apk/app-debug.apk
+          prerelease: true
+          make_latest: true
