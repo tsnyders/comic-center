@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Concept A — Cupertino Grid</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #1c1c1e;
+    font-family: -apple-system, "SF Pro Display", "SF Pro Text", Helvetica, sans-serif;
+    display: flex;
+    gap: 24px;
+    padding: 40px;
+    justify-content: center;
+    align-items: flex-start;
+    min-height: 100vh;
+  }
+
+  .label {
+    color: #ebebf5;
+    font-size: 13px;
+    font-weight: 600;
+    text-align: center;
+    margin-bottom: 12px;
+    letter-spacing: 0.3px;
+    opacity: 0.7;
+    text-transform: uppercase;
+  }
+
+  /* iPhone frame */
+  .phone {
+    width: 393px;
+    height: 852px;
+    background: #000;
+    border-radius: 54px;
+    padding: 12px;
+    box-shadow:
+      0 0 0 1px #3a3a3c,
+      0 40px 80px rgba(0,0,0,0.9),
+      inset 0 0 0 2px #1c1c1e;
+    position: relative;
+    flex-shrink: 0;
+  }
+  .screen {
+    width: 100%;
+    height: 100%;
+    background: #f2f2f7;
+    border-radius: 44px;
+    overflow: hidden;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Status bar */
+  .status-bar {
+    height: 54px;
+    background: #f2f2f7;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    padding: 0 28px 8px;
+    flex-shrink: 0;
+    position: relative;
+    z-index: 10;
+  }
+  .status-bar.dark { background: #000; }
+  .status-time { font-size: 15px; font-weight: 600; color: #000; }
+  .status-time.white { color: #fff; }
+  .status-icons { display: flex; gap: 6px; align-items: center; }
+  .status-icons svg { width: 16px; height: 12px; fill: #000; }
+  .status-icons.white svg { fill: #fff; }
+  .dynamic-island {
+    position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+    width: 120px; height: 34px; background: #000; border-radius: 20px;
+  }
+
+  /* Navigation bar */
+  .nav-bar {
+    background: rgba(242,242,247,0.85);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-bottom: 0.5px solid rgba(60,60,67,0.18);
+    padding: 8px 20px 12px;
+    flex-shrink: 0;
+  }
+  .nav-bar.dark-nav {
+    background: rgba(28,28,30,0.85);
+    border-bottom: 0.5px solid rgba(255,255,255,0.1);
+  }
+  .nav-row { display: flex; align-items: center; justify-content: space-between; }
+  .nav-title {
+    font-size: 28px; font-weight: 700; color: #000; letter-spacing: -0.5px;
+    margin-bottom: 8px;
+  }
+  .nav-title.white { color: #fff; }
+  .nav-icon { color: #007aff; font-size: 17px; font-weight: 400; cursor: pointer; }
+  .search-bar {
+    background: rgba(118,118,128,0.12);
+    border-radius: 10px;
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: rgba(60,60,67,0.6);
+    font-size: 15px;
+  }
+  .search-bar svg { width: 14px; height: 14px; fill: rgba(60,60,67,0.6); flex-shrink: 0; }
+
+  /* Segmented control */
+  .segment-wrap { padding: 8px 20px; background: #f2f2f7; flex-shrink: 0; }
+  .segment {
+    background: rgba(118,118,128,0.12);
+    border-radius: 9px;
+    padding: 2px;
+    display: flex;
+  }
+  .seg-item {
+    flex: 1; text-align: center; padding: 6px 4px;
+    font-size: 13px; font-weight: 500; color: rgba(60,60,67,0.7);
+    border-radius: 7px;
+  }
+  .seg-item.active {
+    background: #fff;
+    color: #000;
+    font-weight: 600;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.08);
+  }
+
+  /* Scroll area */
+  .scroll-area { flex: 1; overflow: hidden; }
+
+  /* Grid */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    padding: 12px 16px;
+  }
+  .manga-card {
+    display: flex; flex-direction: column; gap: 4px; cursor: pointer;
+  }
+  .cover {
+    width: 100%; aspect-ratio: 2/3; border-radius: 8px;
+    position: relative; overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  }
+  .cover img { width: 100%; height: 100%; object-fit: cover; }
+  .cover-gradient {
+    position: absolute; bottom: 0; left: 0; right: 0; height: 40%;
+    background: linear-gradient(transparent, rgba(0,0,0,0.5));
+    pointer-events: none;
+  }
+  .badge {
+    position: absolute; top: 6px; right: 6px;
+    background: #ff3b30; color: #fff;
+    font-size: 11px; font-weight: 700;
+    padding: 2px 6px; border-radius: 10px;
+    min-width: 20px; text-align: center;
+  }
+  .card-title {
+    font-size: 11px; font-weight: 500; color: #000;
+    line-height: 1.3; overflow: hidden;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    text-overflow: ellipsis;
+  }
+
+  /* Tab bar */
+  .tab-bar {
+    background: rgba(242,242,247,0.92);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-top: 0.5px solid rgba(60,60,67,0.18);
+    display: flex;
+    padding: 8px 0 24px;
+    flex-shrink: 0;
+  }
+  .tab-item {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; gap: 3px; cursor: pointer;
+  }
+  .tab-item svg { width: 24px; height: 24px; }
+  .tab-item span { font-size: 10px; font-weight: 500; }
+  .tab-item.active span { color: #007aff; }
+  .tab-item.active svg { fill: #007aff; }
+  .tab-item:not(.active) span { color: rgba(60,60,67,0.5); }
+  .tab-item:not(.active) svg { fill: rgba(60,60,67,0.5); }
+
+  /* List sections */
+  .list-section { padding: 0 20px 16px; }
+  .list-header {
+    font-size: 13px; font-weight: 600; color: rgba(60,60,67,0.6);
+    text-transform: uppercase; letter-spacing: 0.5px;
+    padding: 8px 0 6px 16px;
+  }
+  .list-group {
+    background: #fff;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 1px 0 rgba(60,60,67,0.1);
+  }
+  .list-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 16px;
+    border-bottom: 0.5px solid rgba(60,60,67,0.12);
+    background: #fff;
+  }
+  .list-row:last-child { border-bottom: none; }
+  .source-icon {
+    width: 40px; height: 40px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; flex-shrink: 0;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+  }
+  .list-row-content { flex: 1; }
+  .list-row-title { font-size: 15px; font-weight: 500; color: #000; }
+  .list-row-sub { font-size: 13px; color: rgba(60,60,67,0.5); margin-top: 1px; }
+  .list-row-trailing {
+    display: flex; align-items: center; gap: 6px;
+  }
+  .version-tag {
+    font-size: 12px; color: rgba(60,60,67,0.4);
+    background: rgba(60,60,67,0.08); padding: 2px 8px;
+    border-radius: 6px;
+  }
+  .chevron { color: rgba(60,60,67,0.3); font-size: 14px; }
+  .install-btn {
+    background: #007aff; color: #fff;
+    font-size: 13px; font-weight: 600;
+    padding: 5px 14px; border-radius: 14px;
+    border: none; cursor: pointer;
+  }
+
+  /* Detail screen */
+  .detail-hero {
+    height: 280px; position: relative; overflow: hidden; flex-shrink: 0;
+  }
+  .hero-bg {
+    width: 100%; height: 100%; object-fit: cover;
+    filter: blur(24px) brightness(0.6) saturate(1.4);
+    transform: scale(1.1);
+  }
+  .hero-content {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    padding: 20px 20px 16px;
+    display: flex; gap: 14px; align-items: flex-end;
+  }
+  .hero-cover {
+    width: 100px; height: 150px; border-radius: 10px;
+    object-fit: cover; flex-shrink: 0;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  }
+  .hero-meta { flex: 1; padding-bottom: 4px; }
+  .hero-title { font-size: 19px; font-weight: 700; color: #fff; line-height: 1.2; margin-bottom: 4px; }
+  .hero-author { font-size: 14px; color: rgba(255,255,255,0.7); margin-bottom: 8px; }
+  .hero-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+  .tag {
+    font-size: 11px; font-weight: 500;
+    padding: 3px 8px; border-radius: 6px;
+    background: rgba(255,255,255,0.2); color: #fff;
+    backdrop-filter: blur(10px);
+  }
+  .detail-body { flex: 1; overflow: hidden; background: #f2f2f7; }
+  .detail-nav {
+    position: absolute; top: 54px; left: 0; right: 0;
+    display: flex; justify-content: space-between;
+    padding: 0 20px; z-index: 5;
+  }
+  .detail-nav-btn {
+    width: 32px; height: 32px; border-radius: 16px;
+    background: rgba(0,0,0,0.4); backdrop-filter: blur(10px);
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 16px; cursor: pointer;
+  }
+  .chapter-list-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 14px 20px 8px;
+  }
+  .section-title { font-size: 17px; font-weight: 600; color: #000; }
+  .chapter-count { font-size: 14px; color: rgba(60,60,67,0.5); }
+  .chapter-row {
+    display: flex; align-items: center;
+    padding: 12px 20px;
+    border-bottom: 0.5px solid rgba(60,60,67,0.1);
+    background: #fff; margin: 0 16px; border-radius: 0;
+    gap: 12px;
+  }
+  .chapter-row:first-child { border-radius: 12px 12px 0 0; }
+  .chapter-row:last-child { border-bottom: none; border-radius: 0 0 12px 12px; }
+  .ch-num { font-size: 15px; font-weight: 600; color: #000; width: 30px; }
+  .ch-info { flex: 1; }
+  .ch-title { font-size: 14px; color: #000; }
+  .ch-date { font-size: 12px; color: rgba(60,60,67,0.5); margin-top: 1px; }
+  .ch-trailing { display: flex; align-items: center; gap: 8px; }
+  .dl-icon { color: rgba(60,60,67,0.3); font-size: 16px; }
+  .unread-dot { width: 8px; height: 8px; border-radius: 4px; background: #007aff; }
+  .read-dot { opacity: 0; }
+
+  /* Sticky button */
+  .sticky-btn {
+    padding: 12px 20px 0;
+    background: #f2f2f7;
+    flex-shrink: 0;
+  }
+  .cta-btn {
+    width: 100%; padding: 14px;
+    background: #007aff; color: #fff;
+    font-size: 17px; font-weight: 600;
+    border: none; border-radius: 14px; cursor: pointer;
+    letter-spacing: -0.1px;
+  }
+
+  /* Reader screen */
+  .reader-screen {
+    background: #000;
+    flex: 1;
+    display: flex; flex-direction: column;
+    position: relative;
+    overflow: hidden;
+  }
+  .reader-nav {
+    background: rgba(0,0,0,0.75);
+    backdrop-filter: blur(20px);
+    padding: 8px 20px 12px;
+    display: flex; align-items: center; gap: 12px;
+    flex-shrink: 0; z-index: 5;
+  }
+  .reader-close { color: #fff; font-size: 22px; width: 32px; }
+  .reader-title { flex: 1; color: #fff; font-size: 15px; font-weight: 600; text-align: center; }
+  .reader-menu { color: #fff; font-size: 22px; width: 32px; text-align: right; }
+  .reader-pages { flex: 1; display: flex; }
+  .reader-page { flex: 1; object-fit: contain; }
+  .reader-page-mock {
+    flex: 1;
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+  .manga-panel-row { display: flex; flex: 1; }
+  .panel {
+    flex: 1; background: #1a1a2e;
+    border: 1.5px solid #000;
+    display: flex; align-items: center; justify-content: center;
+    position: relative; overflow: hidden;
+  }
+  .panel-inner {
+    width: 100%; height: 100%;
+    background: linear-gradient(135deg, #16213e 0%, #0f3460 50%, #533483 100%);
+    opacity: 0.8;
+  }
+  .panel-line {
+    position: absolute; width: 60%; height: 2px;
+    background: rgba(255,255,255,0.15); top: 40%;
+  }
+  .reader-scrubber {
+    background: rgba(0,0,0,0.75);
+    backdrop-filter: blur(20px);
+    padding: 12px 20px 8px;
+    flex-shrink: 0;
+  }
+  .scrubber-track {
+    height: 4px; background: rgba(255,255,255,0.2);
+    border-radius: 2px; position: relative; margin-bottom: 6px;
+  }
+  .scrubber-fill { height: 100%; width: 35%; background: #007aff; border-radius: 2px; }
+  .scrubber-thumb {
+    position: absolute; top: 50%; transform: translate(-50%, -50%);
+    left: 35%;
+    width: 20px; height: 20px; background: #fff;
+    border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+  }
+  .scrubber-labels {
+    display: flex; justify-content: space-between;
+    font-size: 11px; color: rgba(255,255,255,0.4);
+  }
+
+  .concept-title {
+    color: #fff; font-size: 20px; font-weight: 700;
+    text-align: center; margin-bottom: 20px;
+    letter-spacing: -0.3px;
+  }
+  .screen-label {
+    color: rgba(255,255,255,0.5); font-size: 11px;
+    text-align: center; margin-bottom: 8px;
+    text-transform: uppercase; letter-spacing: 1px; font-weight: 600;
+  }
+  .phone-wrap { display: flex; flex-direction: column; }
+  .phones-row { display: flex; gap: 24px; }
+  .concept-col { display: flex; flex-direction: column; gap: 32px; }
+</style>
+</head>
+<body>
+
+<div class="concept-col">
+  <div class="concept-title">Concept A — "Cupertino Grid"</div>
+  <div class="phones-row">
+
+    <!-- Screen 1: Library -->
+    <div class="phone-wrap">
+      <div class="screen-label">Library</div>
+      <div class="phone">
+        <div class="screen">
+          <!-- Status bar -->
+          <div class="status-bar">
+            <div class="dynamic-island"></div>
+            <span class="status-time">9:41</span>
+            <div class="status-icons">
+              <svg viewBox="0 0 17 12"><rect x="0" y="3" width="3" height="9" rx="1"/><rect x="4.5" y="2" width="3" height="10" rx="1"/><rect x="9" y="0" width="3" height="12" rx="1"/><rect x="13.5" y="0" width="3" height="12" rx="1" opacity="0.3"/></svg>
+              <svg viewBox="0 0 16 12"><path d="M8 2.4C5.6 2.4 3.4 3.4 1.8 5L0 3.2C2.1 1.2 4.9 0 8 0s5.9 1.2 8 3.2L14.2 5C12.6 3.4 10.4 2.4 8 2.4z"/><path d="M8 5.6c-1.5 0-2.8.6-3.8 1.5L2.4 5.3C3.8 4 5.8 3.2 8 3.2s4.2.8 5.6 2.1l-1.8 1.8C10.8 6.2 9.5 5.6 8 5.6z"/><circle cx="8" cy="10" r="2"/></svg>
+              <svg viewBox="0 0 25 12"><rect x="0.5" y="0.5" width="21" height="11" rx="3.5" stroke="currentColor" stroke-width="1" fill="none"/><rect x="2" y="2" width="15" height="8" rx="2" fill="currentColor"/><path d="M23 4v4a2 2 0 000-4z" fill="currentColor" opacity="0.4"/></svg>
+            </div>
+          </div>
+          <!-- Nav bar -->
+          <div class="nav-bar">
+            <div class="nav-row">
+              <div class="nav-title">Library</div>
+              <div style="display:flex;gap:16px">
+                <span class="nav-icon">↕</span>
+                <span class="nav-icon">⊞</span>
+              </div>
+            </div>
+            <div class="search-bar">
+              <svg viewBox="0 0 14 14"><circle cx="6" cy="6" r="5" stroke="currentColor" stroke-width="1.5" fill="none"/><line x1="10" y1="10" x2="13" y2="13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+              Search library
+            </div>
+          </div>
+          <!-- Segmented control -->
+          <div class="segment-wrap">
+            <div class="segment">
+              <div class="seg-item active">All</div>
+              <div class="seg-item">Reading</div>
+              <div class="seg-item">Completed</div>
+              <div class="seg-item">Favourites</div>
+            </div>
+          </div>
+          <!-- Grid -->
+          <div class="scroll-area">
+            <div class="grid">
+              <div class="manga-card">
+                <div class="cover" style="background:linear-gradient(135deg,#667eea,#764ba2)">
+                  <div class="badge">3</div>
+                  <div class="cover-gradient"></div>
+                </div>
+                <div class="card-title">One Piece</div>
+              </div>
+              <div class="manga-card">
+                <div class="cover" style="background:linear-gradient(135deg,#f093fb,#f5576c)">
+                  <div class="badge">12</div>
+                  <div class="cover-gradient"></div>
+                </div>
+                <div class="card-title">Demon Slayer</div>
+              </div>
+              <div class="manga-card">
+                <div class="cover" style="background:linear-gradient(135deg,#4facfe,#00f2fe)">
+                  <div class="cover-gradient"></div>
+                </div>
+                <div class="card-title">Solo Leveling</div>
+              </div>
+              <div class="manga-card">
+                <div class="cover" style="background:linear-gradient(135deg,#43e97b,#38f9d7)">
+                  <div class="badge">1</div>
+                  <div class="cover-gradient"></div>
+                </div>
+                <div class="card-title">Attack on Titan</div>
+              </div>
+              <div class="manga-card">
+                <div class="cover" style="background:linear-gradient(135deg,#fa709a,#fee140)">
+                  <div class="cover-gradient"></div>
+                </div>
+                <div class="card-title">Vinland Saga</div>
+              </div>
+              <div class="manga-card">
+                <div class="cover" style="background:linear-gradient(135deg,#a18cd1,#fbc2eb)">
+                  <div class="badge">5</div>
+                  <div class="cover-gradient"></div>
+                </div>
+                <div class="card-title">Mushishi</div>
+              </div>
+              <div class="manga-card">
+                <div class="cover" style="background:linear-gradient(135deg,#fccb90,#d57eeb)">
+                  <div class="cover-gradient"></div>
+                </div>
+                <div class="card-title">Berserk</div>
+              </div>
+              <div class="manga-card">
+                <div class="cover" style="background:linear-gradient(135deg,#a1c4fd,#c2e9fb)">
+                  <div class="badge">7</div>
+                  <div class="cover-gradient"></div>
+                </div>
+                <div class="card-title">Tower of God</div>
+              </div>
+              <div class="manga-card">
+                <div class="cover" style="background:linear-gradient(135deg,#fd7043,#ffb74d)">
+                  <div class="cover-gradient"></div>
+                </div>
+                <div class="card-title">Chainsaw Man</div>
+              </div>
+            </div>
+          </div>
+          <!-- Tab bar -->
+          <div class="tab-bar">
+            <div class="tab-item active">
+              <svg viewBox="0 0 24 24"><path d="M19 3H5C3.9 3 3 3.9 3 5v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+              <span>Library</span>
+            </div>
+            <div class="tab-item">
+              <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
+              <span>Browse</span>
+            </div>
+            <div class="tab-item">
+              <svg viewBox="0 0 24 24"><path d="M5 20h14v-2H5v2zm7-18L5.33 9h4.84v6h3.66V9h4.84L12 2z" transform="scale(-1,1) translate(-24,0)"/><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+              <span>Downloads</span>
+            </div>
+            <div class="tab-item">
+              <svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+              <span>Settings</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Screen 2: Browse -->
+    <div class="phone-wrap">
+      <div class="screen-label">Browse</div>
+      <div class="phone">
+        <div class="screen">
+          <div class="status-bar">
+            <div class="dynamic-island"></div>
+            <span class="status-time">9:41</span>
+            <div class="status-icons">
+              <svg viewBox="0 0 17 12"><rect x="0" y="3" width="3" height="9" rx="1"/><rect x="4.5" y="2" width="3" height="10" rx="1"/><rect x="9" y="0" width="3" height="12" rx="1"/><rect x="13.5" y="0" width="3" height="12" rx="1" opacity="0.3"/></svg>
+              <svg viewBox="0 0 25 12"><rect x="0.5" y="0.5" width="21" height="11" rx="3.5" stroke="currentColor" stroke-width="1" fill="none"/><rect x="2" y="2" width="15" height="8" rx="2" fill="currentColor"/></svg>
+            </div>
+          </div>
+          <div class="nav-bar">
+            <div class="nav-row">
+              <div class="nav-title">Browse</div>
+              <span class="nav-icon">＋</span>
+            </div>
+            <div class="search-bar">
+              <svg viewBox="0 0 14 14"><circle cx="6" cy="6" r="5" stroke="currentColor" stroke-width="1.5" fill="none"/><line x1="10" y1="10" x2="13" y2="13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+              Search all sources
+            </div>
+          </div>
+          <div class="scroll-area">
+            <div class="list-section">
+              <div class="list-header">Installed Sources</div>
+              <div class="list-group">
+                <div class="list-row">
+                  <div class="source-icon" style="background:linear-gradient(135deg,#667eea,#764ba2)">🔷</div>
+                  <div class="list-row-content">
+                    <div class="list-row-title">MangaDex</div>
+                    <div class="list-row-sub">🌐 Multi-language</div>
+                  </div>
+                  <div class="list-row-trailing">
+                    <span class="version-tag">v1.4</span>
+                    <span class="chevron">›</span>
+                  </div>
+                </div>
+                <div class="list-row">
+                  <div class="source-icon" style="background:linear-gradient(135deg,#f093fb,#f5576c)">🔴</div>
+                  <div class="list-row-content">
+                    <div class="list-row-title">MangaPlus</div>
+                    <div class="list-row-sub">🇯🇵 Japanese / English</div>
+                  </div>
+                  <div class="list-row-trailing">
+                    <span class="version-tag">v2.1</span>
+                    <span class="chevron">›</span>
+                  </div>
+                </div>
+                <div class="list-row">
+                  <div class="source-icon" style="background:linear-gradient(135deg,#43e97b,#38f9d7)">🟢</div>
+                  <div class="list-row-content">
+                    <div class="list-row-title">Webtoon XYZ</div>
+                    <div class="list-row-sub">🇰🇷 Korean</div>
+                  </div>
+                  <div class="list-row-trailing">
+                    <span class="version-tag">v1.0</span>
+                    <span class="chevron">›</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="list-section">
+              <div class="list-header">Browse Repository</div>
+              <div class="list-group">
+                <div class="list-row">
+                  <div class="source-icon" style="background:linear-gradient(135deg,#fccb90,#d57eeb)">🟣</div>
+                  <div class="list-row-content">
+                    <div class="list-row-title">Batoto</div>
+                    <div class="list-row-sub">🌐 Multi-language</div>
+                  </div>
+                  <div class="list-row-trailing">
+                    <button class="install-btn">Get</button>
+                  </div>
+                </div>
+                <div class="list-row">
+                  <div class="source-icon" style="background:linear-gradient(135deg,#4facfe,#00f2fe)">🔵</div>
+                  <div class="list-row-content">
+                    <div class="list-row-title">Manga Här</div>
+                    <div class="list-row-sub">🇸🇪 Swedish</div>
+                  </div>
+                  <div class="list-row-trailing">
+                    <button class="install-btn">Get</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="tab-bar">
+            <div class="tab-item">
+              <svg viewBox="0 0 24 24" fill="rgba(60,60,67,0.5)"><path d="M19 3H5C3.9 3 3 3.9 3 5v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+              <span style="font-size:10px;color:rgba(60,60,67,0.5)">Library</span>
+            </div>
+            <div class="tab-item active">
+              <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
+              <span>Browse</span>
+            </div>
+            <div class="tab-item">
+              <svg viewBox="0 0 24 24" fill="rgba(60,60,67,0.5)"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+              <span style="font-size:10px;color:rgba(60,60,67,0.5)">Downloads</span>
+            </div>
+            <div class="tab-item">
+              <svg viewBox="0 0 24 24" fill="rgba(60,60,67,0.5)"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+              <span style="font-size:10px;color:rgba(60,60,67,0.5)">Settings</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Screen 3: Title Detail -->
+    <div class="phone-wrap">
+      <div class="screen-label">Title Detail</div>
+      <div class="phone">
+        <div class="screen">
+          <div class="status-bar" style="position:absolute;top:0;left:0;right:0;background:transparent;z-index:10">
+            <div class="dynamic-island"></div>
+            <span class="status-time white">9:41</span>
+            <div class="status-icons white">
+              <svg viewBox="0 0 17 12"><rect x="0" y="3" width="3" height="9" rx="1"/><rect x="4.5" y="2" width="3" height="10" rx="1"/><rect x="9" y="0" width="3" height="12" rx="1"/></svg>
+              <svg viewBox="0 0 25 12"><rect x="0.5" y="0.5" width="21" height="11" rx="3.5" stroke="white" stroke-width="1" fill="none"/><rect x="2" y="2" width="15" height="8" rx="2" fill="white"/></svg>
+            </div>
+          </div>
+          <div class="detail-nav">
+            <div class="detail-nav-btn">‹</div>
+            <div class="detail-nav-btn">+</div>
+          </div>
+          <div class="detail-hero">
+            <div style="width:100%;height:100%;background:linear-gradient(135deg,#667eea 0%,#764ba2 50%,#f093fb 100%);filter:blur(0px) brightness(0.7)"></div>
+            <div class="hero-content">
+              <div class="hero-cover" style="background:linear-gradient(135deg,#667eea,#764ba2)"></div>
+              <div class="hero-meta">
+                <div class="hero-title">Fullmetal Alchemist</div>
+                <div class="hero-author">Hiromu Arakawa</div>
+                <div class="hero-tags">
+                  <span class="tag">Action</span>
+                  <span class="tag">Adventure</span>
+                  <span class="tag">Completed</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="detail-body">
+            <div style="padding:14px 20px 10px;background:#f2f2f7;">
+              <div style="font-size:13px;color:rgba(60,60,67,0.7);line-height:1.5">
+                In an alchemical ritual gone wrong, Edward Elric lost his arm and leg, while his brother Alphonse became nothing but a soul in a suit of armor...
+              </div>
+            </div>
+            <div class="chapter-list-header">
+              <div class="section-title">Chapters</div>
+              <div class="chapter-count">108 chapters</div>
+            </div>
+            <div style="padding:0 16px">
+              <div class="chapter-row">
+                <div class="ch-num">108</div>
+                <div class="ch-info">
+                  <div class="ch-title">Journey's End</div>
+                  <div class="ch-date">2 days ago</div>
+                </div>
+                <div class="ch-trailing">
+                  <div class="unread-dot"></div>
+                  <div class="dl-icon">↓</div>
+                </div>
+              </div>
+              <div class="chapter-row">
+                <div class="ch-num">107</div>
+                <div class="ch-info">
+                  <div class="ch-title">The Final Battle</div>
+                  <div class="ch-date">1 week ago</div>
+                </div>
+                <div class="ch-trailing">
+                  <div class="unread-dot"></div>
+                  <div class="dl-icon">↓</div>
+                </div>
+              </div>
+              <div class="chapter-row">
+                <div class="ch-num">106</div>
+                <div class="ch-info">
+                  <div class="ch-title">Pride's End</div>
+                  <div class="ch-date">2 weeks ago</div>
+                </div>
+                <div class="ch-trailing">
+                  <div class="read-dot unread-dot"></div>
+                  <div class="dl-icon" style="color:#007aff">✓</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="sticky-btn">
+            <button class="cta-btn">Continue Reading  ›</button>
+          </div>
+          <div style="height:8px;background:#f2f2f7"></div>
+          <div class="tab-bar">
+            <div class="tab-item active">
+              <svg viewBox="0 0 24 24"><path d="M19 3H5C3.9 3 3 3.9 3 5v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+              <span>Library</span>
+            </div>
+            <div class="tab-item"><svg viewBox="0 0 24 24" fill="rgba(60,60,67,0.5)"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg><span style="font-size:10px;color:rgba(60,60,67,0.5)">Browse</span></div>
+            <div class="tab-item"><svg viewBox="0 0 24 24" fill="rgba(60,60,67,0.5)"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg><span style="font-size:10px;color:rgba(60,60,67,0.5)">Downloads</span></div>
+            <div class="tab-item"><svg viewBox="0 0 24 24" fill="rgba(60,60,67,0.5)"><circle cx="12" cy="12" r="3"/><path d="M19.14 12.94c.04-.3.06-.61.06-.94s-.02-.64-.07-.94l2.03-1.58-1.92-3.32-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54H9.81l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96L3.52 8.87l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94L3.5 13.92l1.92 3.32 2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54h3.84l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96 1.92-3.32-2.04-1.58z"/></svg><span style="font-size:10px;color:rgba(60,60,67,0.5)">Settings</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Screen 4: Reader -->
+    <div class="phone-wrap">
+      <div class="screen-label">Reader</div>
+      <div class="phone">
+        <div class="screen" style="background:#000">
+          <div class="status-bar dark">
+            <div class="dynamic-island"></div>
+            <span class="status-time white">9:41</span>
+            <div class="status-icons white">
+              <svg viewBox="0 0 17 12"><rect x="0" y="3" width="3" height="9" rx="1"/><rect x="4.5" y="2" width="3" height="10" rx="1"/><rect x="9" y="0" width="3" height="12" rx="1"/></svg>
+              <svg viewBox="0 0 25 12"><rect x="0.5" y="0.5" width="21" height="11" rx="3.5" stroke="white" stroke-width="1" fill="none"/><rect x="2" y="2" width="15" height="8" rx="2" fill="white"/></svg>
+            </div>
+          </div>
+          <div class="reader-nav">
+            <div class="reader-close">✕</div>
+            <div class="reader-title">Ch. 108 — Journey's End</div>
+            <div class="reader-menu">⋯</div>
+          </div>
+          <!-- Page mock -->
+          <div class="reader-page-mock">
+            <div class="manga-panel-row" style="flex:1.2">
+              <div class="panel" style="flex:1.5"><div class="panel-inner"></div></div>
+              <div style="display:flex;flex-direction:column;flex:1">
+                <div class="panel"><div class="panel-inner" style="background:linear-gradient(180deg,#0f3460,#533483)"></div></div>
+                <div class="panel"><div class="panel-inner" style="background:linear-gradient(180deg,#533483,#16213e)"></div></div>
+              </div>
+            </div>
+            <div class="manga-panel-row" style="flex:1">
+              <div class="panel"><div class="panel-inner" style="background:linear-gradient(90deg,#1a1a2e,#16213e)"></div></div>
+              <div class="panel"><div class="panel-inner" style="background:linear-gradient(90deg,#0f3460,#533483)"></div></div>
+              <div class="panel"><div class="panel-inner" style="background:linear-gradient(90deg,#16213e,#0f3460)"></div></div>
+            </div>
+          </div>
+          <!-- Scrubber -->
+          <div class="reader-scrubber">
+            <div class="scrubber-track">
+              <div class="scrubber-fill"></div>
+              <div class="scrubber-thumb"></div>
+            </div>
+            <div class="scrubber-labels">
+              <span>1</span><span>Page 38 of 108</span><span>108</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+</body>
+</html>
