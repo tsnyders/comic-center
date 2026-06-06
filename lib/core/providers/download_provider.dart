@@ -12,7 +12,7 @@ import 'database_provider.dart';
 import 'settings_provider.dart';
 import 'source_registry_provider.dart';
 
-// ── Active download queue stream ─────────────────────────────────────────
+// ── Queue stream: pending + downloading + paused + failed ─────────────────────
 
 final downloadQueueProvider = StreamProvider<List<DownloadEntry>>((ref) {
   final isar = ref.watch(isarProvider);
@@ -21,6 +21,10 @@ final downloadQueueProvider = StreamProvider<List<DownloadEntry>>((ref) {
       .statusEqualTo(DownloadStatus.downloading)
       .or()
       .statusEqualTo(DownloadStatus.pending)
+      .or()
+      .statusEqualTo(DownloadStatus.paused)
+      .or()
+      .statusEqualTo(DownloadStatus.failed)
       .watch(fireImmediately: true);
 });
 
@@ -33,7 +37,7 @@ final downloadHistoryProvider = StreamProvider<List<DownloadEntry>>((ref) {
       .watch(fireImmediately: true);
 });
 
-// ── Manager ───────────────────────────────────────────────────────────────
+// ── Manager ───────────────────────────────────────────────────────────────────
 
 class DownloadManager extends AsyncNotifier<void> {
   final _dio = Dio(BaseOptions(
@@ -51,7 +55,6 @@ class DownloadManager extends AsyncNotifier<void> {
   }) async {
     final isar = ref.read(isarProvider);
     await isar.writeTxn(() async {
-      // Don't re-queue if already pending, in-progress, or done.
       final exists = await isar.downloadEntrys
           .filter()
           .chapterIdEqualTo(chapter.id)
@@ -59,17 +62,15 @@ class DownloadManager extends AsyncNotifier<void> {
       if (exists != null &&
           (exists.status == DownloadStatus.pending ||
               exists.status == DownloadStatus.downloading ||
-              exists.status == DownloadStatus.completed)) {
-        return;
-      }
+              exists.status == DownloadStatus.completed)) return;
       final entry = DownloadEntry()
-        ..chapterId = chapter.id
-        ..mangaId = manga.id
-        ..mangaTitle = manga.title
-        ..chapterTitle = chapter.title
+        ..chapterId     = chapter.id
+        ..mangaId       = manga.id
+        ..mangaTitle    = manga.title
+        ..chapterTitle  = chapter.title
         ..chapterNumber = chapter.number ?? 0
-        ..status = DownloadStatus.pending
-        ..queuedAt = DateTime.now();
+        ..status        = DownloadStatus.pending
+        ..queuedAt      = DateTime.now();
       await isar.downloadEntrys.put(entry);
     });
     _processQueue();
@@ -89,9 +90,29 @@ class DownloadManager extends AsyncNotifier<void> {
     await isar.writeTxn(() async {
       final entry = await isar.downloadEntrys.get(downloadId);
       if (entry == null) return;
-      entry.status = DownloadStatus.paused;
-      await isar.downloadEntrys.put(entry);
+      if (entry.status == DownloadStatus.pending ||
+          entry.status == DownloadStatus.downloading) {
+        entry.status = DownloadStatus.paused;
+        await isar.downloadEntrys.put(entry);
+      }
     });
+  }
+
+  Future<void> resume(int downloadId) async {
+    final isar = ref.read(isarProvider);
+    await isar.writeTxn(() async {
+      final entry = await isar.downloadEntrys.get(downloadId);
+      if (entry == null) return;
+      if (entry.status == DownloadStatus.paused ||
+          entry.status == DownloadStatus.failed) {
+        entry
+          ..status        = DownloadStatus.pending
+          ..downloadedPages = 0
+          ..errorMessage  = null;
+        await isar.downloadEntrys.put(entry);
+      }
+    });
+    if (!_isProcessing) _processQueue();
   }
 
   Future<void> cancel(int downloadId) async {
@@ -99,13 +120,13 @@ class DownloadManager extends AsyncNotifier<void> {
     await isar.writeTxn(() => isar.downloadEntrys.delete(downloadId));
   }
 
+  Future<void> retry(int downloadId) => resume(downloadId);
+
   void _processQueue() async {
     if (_isProcessing) return;
     _isProcessing = true;
-
-    final isar = ref.read(isarProvider);
+    final isar     = ref.read(isarProvider);
     final location = ref.read(downloadLocationProvider);
-
     try {
       while (true) {
         final pending = await isar.downloadEntrys
@@ -126,14 +147,14 @@ class DownloadManager extends AsyncNotifier<void> {
     DownloadLocation location,
   ) async {
     await isar.writeTxn(() async {
-      entry.status = DownloadStatus.downloading;
+      entry.status    = DownloadStatus.downloading;
       entry.startedAt = DateTime.now();
       await isar.downloadEntrys.put(entry);
     });
 
     try {
       final chapter = await isar.chapterEntrys.get(entry.chapterId);
-      final manga = await isar.mangaEntrys.get(entry.mangaId);
+      final manga   = await isar.mangaEntrys.get(entry.mangaId);
       if (chapter == null || manga == null) {
         throw Exception('Chapter/manga missing from database');
       }
@@ -144,7 +165,6 @@ class DownloadManager extends AsyncNotifier<void> {
       }
 
       final pageUrls = await source.fetchPageUrls(chapter.sourceChapterId);
-
       await isar.writeTxn(() async {
         entry.totalPages = pageUrls.length;
         await isar.downloadEntrys.put(entry);
@@ -152,24 +172,24 @@ class DownloadManager extends AsyncNotifier<void> {
 
       if (location == DownloadLocation.googleDrive) {
         throw Exception(
-          'Google Drive requires OAuth setup.\n'
-          'Go to Settings → Downloads → Storage Location and choose Local, '
-          'or configure google-services.json for Drive support.',
+          'Google Drive download storage is not yet configured.\n'
+          'Change to Local Storage in Settings → Downloads.',
         );
       }
 
-      // ── Local download ────────────────────────────────────────────────
-      final docDir = await getApplicationDocumentsDirectory();
-      final chapterDir =
-          '${docDir.path}/downloads/${entry.mangaId}/${entry.chapterId}';
+      final docDir     = await getApplicationDocumentsDirectory();
+      final chapterDir = '${docDir.path}/downloads/${entry.mangaId}/${entry.chapterId}';
       await Directory(chapterDir).create(recursive: true);
 
       for (var i = 0; i < pageUrls.length; i++) {
+        // Check if paused mid-download
+        final current = await isar.downloadEntrys.get(entry.id);
+        if (current?.status == DownloadStatus.paused) return;
+
         final padded = i.toString().padLeft(4, '0');
-        final ext = _ext(pageUrls[i]);
         await _dio.download(
           pageUrls[i],
-          '$chapterDir/page_$padded$ext',
+          '$chapterDir/page_$padded${_ext(pageUrls[i])}',
           options: source.imageHeaders.isNotEmpty
               ? Options(headers: source.imageHeaders)
               : null,
@@ -182,27 +202,26 @@ class DownloadManager extends AsyncNotifier<void> {
 
       await isar.writeTxn(() async {
         entry
-          ..status = DownloadStatus.completed
+          ..status       = DownloadStatus.completed
           ..downloadPath = chapterDir
-          ..completedAt = DateTime.now();
+          ..completedAt  = DateTime.now();
         await isar.downloadEntrys.put(entry);
-
         final ch = await isar.chapterEntrys.get(entry.chapterId);
         if (ch != null) {
           ch
-            ..isDownloaded = true
-            ..downloadPath = chapterDir
-            ..pageCount = pageUrls.length
-            ..downloadedAt = DateTime.now();
+            ..isDownloaded  = true
+            ..downloadPath  = chapterDir
+            ..pageCount     = pageUrls.length
+            ..downloadedAt  = DateTime.now();
           await isar.chapterEntrys.put(ch);
         }
       });
     } catch (e) {
       await isar.writeTxn(() async {
         entry
-          ..status = DownloadStatus.failed
+          ..status       = DownloadStatus.failed
           ..errorMessage = e.toString()
-          ..retryCount = entry.retryCount + 1;
+          ..retryCount   = entry.retryCount + 1;
         await isar.downloadEntrys.put(entry);
       });
     }
@@ -210,9 +229,9 @@ class DownloadManager extends AsyncNotifier<void> {
 
   String _ext(String url) {
     final path = url.split('?').first.toLowerCase();
-    if (path.endsWith('.png')) return '.png';
+    if (path.endsWith('.png'))  return '.png';
     if (path.endsWith('.webp')) return '.webp';
-    if (path.endsWith('.gif')) return '.gif';
+    if (path.endsWith('.gif'))  return '.gif';
     return '.jpg';
   }
 }

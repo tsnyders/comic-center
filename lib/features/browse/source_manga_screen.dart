@@ -108,6 +108,40 @@ class _SourceMangaScreenState extends ConsumerState<SourceMangaScreen> {
     setState(() {});
   }
 
+  void _showSortSheet(BuildContext context) {
+    final current = ref.read(browseModeProvider(widget.sourceId));
+    showCupertinoModalPopup<void>(
+      context: context,
+      builder: (_) => CupertinoActionSheet(
+        title: const Text('Sort By'),
+        actions: [
+          CupertinoActionSheetAction(
+            isDefaultAction: current == BrowseMode.popular,
+            onPressed: () {
+              ref.read(browseModeProvider(widget.sourceId).notifier).state =
+                  BrowseMode.popular;
+              Navigator.pop(context);
+            },
+            child: const Text('Popular'),
+          ),
+          CupertinoActionSheetAction(
+            isDefaultAction: current == BrowseMode.latest,
+            onPressed: () {
+              ref.read(browseModeProvider(widget.sourceId).notifier).state =
+                  BrowseMode.latest;
+              Navigator.pop(context);
+            },
+            child: const Text('Latest'),
+          ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final source = ref.watch(sourceByIdProvider(widget.sourceId));
@@ -161,7 +195,7 @@ class _SourceMangaScreenState extends ConsumerState<SourceMangaScreen> {
                   ),
                   CupertinoButton(
                     padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                     onPressed: _searchActive ? _dismissSearch : _activateSearch,
                     child: Icon(
                       _searchActive
@@ -171,6 +205,17 @@ class _SourceMangaScreenState extends ConsumerState<SourceMangaScreen> {
                       size: 20,
                     ),
                   ),
+                  if (!_searchActive)
+                    CupertinoButton(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 8),
+                      onPressed: () => _showSortSheet(context),
+                      child: const Icon(
+                        CupertinoIcons.slider_horizontal_3,
+                        color: AppColors.accent,
+                        size: 20,
+                      ),
+                    ),
                 ],
               ),
             ),

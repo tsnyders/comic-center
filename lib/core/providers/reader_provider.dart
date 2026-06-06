@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../extensions/source_interface.dart';
 import 'source_registry_provider.dart';
 
-// ── Chapter pages ─────────────────────────────────────────────────────────
+// ── Chapter pages ─────────────────────────────────────────────────────────────
 
 final chapterPagesProvider =
     FutureProvider.family<List<String>, _ChapterKey>((ref, key) async {
@@ -32,24 +32,32 @@ ChapterKey chapterKey({required String sourceId, required String chapterId}) =>
 
 typedef ChapterKey = _ChapterKey;
 
-// ── Reading direction ─────────────────────────────────────────────────────
+// ── Reading options ───────────────────────────────────────────────────────────
 
 enum ReadingDirection { ltr, rtl, vertical }
+enum PageScaleMode    { fitWidth, fitHeight, original }
+enum ReaderBackground { black, white, sepia }
 
 final readingDirectionProvider =
     StateProvider<ReadingDirection>((_) => ReadingDirection.ltr);
 
-// ── Reader UI state ───────────────────────────────────────────────────────
+final pageScaleModeProvider =
+    StateProvider<PageScaleMode>((_) => PageScaleMode.fitWidth);
+
+final readerBackgroundProvider =
+    StateProvider<ReaderBackground>((_) => ReaderBackground.black);
+
+// ── Reader UI state ───────────────────────────────────────────────────────────
 
 class ReaderState {
   const ReaderState({
-    this.currentPage = 0,
-    this.totalPages = 0,
+    this.currentPage  = 0,
+    this.totalPages   = 0,
     this.chromeVisible = false,
   });
 
-  final int currentPage;
-  final int totalPages;
+  final int  currentPage;
+  final int  totalPages;
   final bool chromeVisible;
 
   double get progress =>
@@ -57,9 +65,9 @@ class ReaderState {
 
   ReaderState copyWith({int? currentPage, int? totalPages, bool? chromeVisible}) =>
       ReaderState(
-        currentPage: currentPage ?? this.currentPage,
-        totalPages: totalPages ?? this.totalPages,
-        chromeVisible: chromeVisible ?? this.chromeVisible,
+        currentPage   : currentPage   ?? this.currentPage,
+        totalPages    : totalPages    ?? this.totalPages,
+        chromeVisible : chromeVisible ?? this.chromeVisible,
       );
 }
 
