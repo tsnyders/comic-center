@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write  # needed to create releases and upload assets
+  contents: write
 
 jobs:
   build:
@@ -28,7 +28,21 @@ jobs:
         run: flutter pub get
 
       - name: Build debug APK
-        run: flutter build apk --debug 2>&1 | tee build_output.txt
+        run: flutter build apk --debug
+
+      - name: Verify APK exists and rename
+        run: |
+          set -e
+          echo "── Build output tree ──"
+          ls -la build/app/outputs/flutter-apk/ || true
+          APK=build/app/outputs/flutter-apk/app-debug.apk
+          if [ ! -f "$APK" ]; then
+            echo "::error::APK not found at $APK"
+            find build -name "*.apk" -ls
+            exit 1
+          fi
+          cp "$APK" comic-center-debug.apk
+          echo "APK size: $(du -h comic-center-debug.apk)"
 
       - name: Generate release tag
         id: tag
@@ -38,14 +52,17 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.tag.outputs.tag }}
-          name: "Comic Center ${{ steps.tag.outputs.tag }}"
+          name: Comic Center ${{ steps.tag.outputs.tag }}
           body: |
             ## Comic Center — Beta Build
 
-            Android APK for testing. Install by:
-            1. Download `comic-center-debug.apk` below
-            2. On your Android device, allow installs from unknown sources (Settings → Security)
-            3. Open the downloaded APK and install
+            Android APK for testing.
+
+            ### Install
+            1. Download **comic-center-debug.apk** below
+            2. On your Android device, allow installs from unknown sources
+               (Settings → Apps → Special permissions → Install unknown apps)
+            3. Open the downloaded APK and tap Install
 
             ### What's included
             - MangaDex, AllManga, AsuraScans sources
@@ -53,7 +70,9 @@ jobs:
             - Dark and Light mode (Settings → Appearance)
             - Library, Downloads, Reader with chapter sync
 
-            > ⚠️ This is a debug/beta build for testing purposes.
-          files: build/app/outputs/flutter-apk/app-debug.apk
+            > Debug build for testing.
+          files: comic-center-debug.apk
           prerelease: true
-          make_latest: true
+          fail_on_unmatched_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
