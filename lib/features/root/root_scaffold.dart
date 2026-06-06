@@ -30,21 +30,29 @@ class _RootScaffoldState extends State<RootScaffold> {
     final bottomPadding = MediaQuery.of(context).padding.bottom;
 
     return CupertinoPageScaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: CupertinoTheme.of(context).scaffoldBackgroundColor,
       child: Stack(
         fit: StackFit.expand,
         children: [
-          // Ambient gradient gives BackdropFilter something to blur —
-          // without this, glass on solid #0A0A0F looks identical to no blur.
-          const DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: RadialGradient(
-                center: Alignment(0.0, -0.55),
-                radius: 1.1,
-                colors: [Color(0xFF14142E), Color(0xFF0A0A0F)],
+          // Ambient gradient — gives BackdropFilter something colorful to blur.
+          Builder(builder: (ctx) {
+            final isDark =
+                CupertinoTheme.of(ctx).brightness == Brightness.dark;
+            return DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: RadialGradient(
+                  center: const Alignment(0.0, -0.4),
+                  radius: 1.4,
+                  colors: isDark
+                      ? const [Color(0xFF0D1B3E), Color(0xFF0A0A0F)]
+                      : [
+                          const Color(0xFF3B82F6).withOpacity(0.10),
+                          const Color(0xFFF2F2F7),
+                        ],
+                ),
               ),
-            ),
-          ),
+            );
+          }),
 
           // ── Tab content ───────────────────────────────────────────────
           IndexedStack(
@@ -139,18 +147,20 @@ class _GlassNavBarState extends State<_GlassNavBar>
 
   @override
   Widget build(BuildContext context) {
+    final isDark = CupertinoTheme.of(context).brightness == Brightness.dark;
+
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(28),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF000000).withOpacity(0.45),
+            color: const Color(0xFF000000).withOpacity(isDark ? 0.45 : 0.15),
             blurRadius: 40,
             spreadRadius: -4,
             offset: const Offset(0, 12),
           ),
           BoxShadow(
-            color: AppColors.accent.withOpacity(0.08),
+            color: AppColors.accent.withOpacity(0.10),
             blurRadius: 30,
             offset: const Offset(0, 6),
           ),
@@ -163,11 +173,16 @@ class _GlassNavBarState extends State<_GlassNavBar>
           child: Container(
             height: 64,
             decoration: BoxDecoration(
-              // Slightly blue-tinted dark glass
-              color: const Color(0xFF16162A).withOpacity(0.82),
+              color: (isDark
+                      ? const Color(0xFF16162A)
+                      : const Color(0xFFF0F0FA))
+                  .withOpacity(isDark ? 0.82 : 0.72),
               borderRadius: BorderRadius.circular(28),
               border: Border.all(
-                color: const Color(0xFFFFFFFF).withOpacity(0.18),
+                color: (isDark
+                        ? const Color(0xFFFFFFFF)
+                        : const Color(0xFF000000))
+                    .withOpacity(isDark ? 0.18 : 0.10),
                 width: 0.75,
               ),
             ),
@@ -188,7 +203,8 @@ class _GlassNavBarState extends State<_GlassNavBar>
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
                         colors: [
-                          const Color(0xFFFFFFFF).withOpacity(0.14),
+                          const Color(0xFFFFFFFF)
+                              .withOpacity(isDark ? 0.14 : 0.50),
                           const Color(0x00FFFFFF),
                         ],
                       ),
@@ -203,7 +219,7 @@ class _GlassNavBarState extends State<_GlassNavBar>
                     return Positioned(
                       top: 8,
                       bottom: 8,
-                      left: _indicatorPos.value / (_tabs.length - 1) *
+                      left: _indicatorPos.value / _tabs.length *
                                   (MediaQuery.of(context).size.width - 40 - 16) +
                               8,
                       width: (MediaQuery.of(context).size.width - 40 - 16) /

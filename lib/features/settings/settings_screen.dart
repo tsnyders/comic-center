@@ -13,9 +13,10 @@ class SettingsScreen extends ConsumerWidget {
     final topPadding = MediaQuery.of(context).padding.top;
     final bottomPadding = MediaQuery.of(context).padding.bottom;
     final dlLocation = ref.watch(downloadLocationProvider);
+    final brightness = ref.watch(brightnessProvider);
 
     return CupertinoPageScaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: CupertinoTheme.of(context).scaffoldBackgroundColor,
       child: CustomScrollView(
         physics: const BouncingScrollPhysics(),
         slivers: [
@@ -34,6 +35,19 @@ class SettingsScreen extends ConsumerWidget {
               ),
             ),
           ),
+
+          // ── Appearance ───────────────────────────────────────────────
+          _buildSection(context, 'Appearance', [
+            _SettingRow(
+              icon: CupertinoIcons.moon_stars,
+              label: 'Theme',
+              trailing: _ThemePicker(
+                brightness: brightness,
+                onChanged: (b) =>
+                    ref.read(brightnessProvider.notifier).state = b,
+              ),
+            ),
+          ]),
 
           // ── Library ──────────────────────────────────────────────────
           _buildSection(context, 'Library', [
@@ -171,6 +185,34 @@ class SettingsScreen extends ConsumerWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+// ── Theme / brightness picker ─────────────────────────────────────────────
+
+class _ThemePicker extends StatelessWidget {
+  const _ThemePicker({required this.brightness, required this.onChanged});
+  final Brightness brightness;
+  final ValueChanged<Brightness> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _Pill(
+          label: 'Dark',
+          selected: brightness == Brightness.dark,
+          onTap: () => onChanged(Brightness.dark),
+        ),
+        const SizedBox(width: 6),
+        _Pill(
+          label: 'Light',
+          selected: brightness == Brightness.light,
+          onTap: () => onChanged(Brightness.light),
+        ),
+      ],
     );
   }
 }

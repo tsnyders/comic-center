@@ -43,7 +43,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     final library = ref.watch(filteredLibraryProvider);
 
     return CupertinoPageScaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: CupertinoTheme.of(context).scaffoldBackgroundColor,
       child: Stack(
         children: [
           // Ambient radial glow

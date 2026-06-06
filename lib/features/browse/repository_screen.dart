@@ -83,7 +83,7 @@ class _RepositoryScreenState extends ConsumerState<RepositoryScreen> {
     final topPadding = MediaQuery.of(context).padding.top;
 
     return CupertinoPageScaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: CupertinoTheme.of(context).scaffoldBackgroundColor,
       child: CustomScrollView(
         physics: const BouncingScrollPhysics(),
         slivers: [

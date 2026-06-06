@@ -111,7 +111,7 @@ class _SourceMangaScreenState extends ConsumerState<SourceMangaScreen> {
     final source = ref.watch(sourceByIdProvider(widget.sourceId));
     if (source == null) {
       return CupertinoPageScaffold(
-        backgroundColor: AppColors.background,
+        backgroundColor: CupertinoTheme.of(context).scaffoldBackgroundColor,
         child: Center(
           child: Text('Source not found', style: AppTextStyles.bodyMedium),
         ),
@@ -124,7 +124,7 @@ class _SourceMangaScreenState extends ConsumerState<SourceMangaScreen> {
     final bottomPadding = MediaQuery.of(context).padding.bottom;
 
     return CupertinoPageScaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: CupertinoTheme.of(context).scaffoldBackgroundColor,
       child: CustomScrollView(
         physics: const BouncingScrollPhysics(),
         slivers: [
