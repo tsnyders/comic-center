@@ -87,12 +87,18 @@ class DownloadsScreen extends ConsumerWidget {
   }
 }
 
-class _DownloadTile extends StatelessWidget {
+class _DownloadTile extends ConsumerWidget {
   const _DownloadTile({required this.entry});
   final DownloadEntry entry;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final manager = ref.read(downloadManagerProvider.notifier);
+    final isActive = entry.status == DownloadStatus.downloading ||
+        entry.status == DownloadStatus.pending;
+    final isPaused = entry.status == DownloadStatus.paused;
+    final isFailed = entry.status == DownloadStatus.failed;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(14),
@@ -108,7 +114,8 @@ class _DownloadTile extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(entry.mangaTitle,
-                    style: AppTextStyles.bodyMedium.copyWith(fontWeight: FontWeight.w600),
+                    style: AppTextStyles.bodyMedium
+                        .copyWith(fontWeight: FontWeight.w600),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis),
               ),
@@ -120,17 +127,89 @@ class _DownloadTile extends StatelessWidget {
               style: AppTextStyles.bodySmall),
           if (entry.status == DownloadStatus.downloading) ...[
             const SizedBox(height: 8),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(2),
-              child: LinearProgressIndicator(
-                value: entry.progress,
-                backgroundColor: AppColors.surface,
-                valueColor: const AlwaysStoppedAnimation(AppColors.accent),
-                minHeight: 4,
+            LinearProgressIndicator(
+              value: entry.progress,
+              backgroundColor: AppColors.surface,
+              valueColor: const AlwaysStoppedAnimation(AppColors.accent),
+              minHeight: 4,
+            ),
+            const SizedBox(height: 2),
+            Text(
+              '${entry.downloadedPages} / ${entry.totalPages} pages',
+              style: AppTextStyles.caption.copyWith(
+                color: AppColors.textTertiary,
               ),
             ),
           ],
+          if (entry.status != DownloadStatus.completed) ...[
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                if (isActive)
+                  _ActionChip(
+                    icon: CupertinoIcons.pause_fill,
+                    label: 'Pause',
+                    onTap: () => manager.pause(entry.id),
+                  ),
+                if (isPaused || isFailed)
+                  _ActionChip(
+                    icon: CupertinoIcons.play_fill,
+                    label: isFailed ? 'Retry' : 'Resume',
+                    onTap: () => manager.resume(entry.id),
+                  ),
+                const SizedBox(width: 8),
+                _ActionChip(
+                  icon: CupertinoIcons.xmark,
+                  label: 'Cancel',
+                  destructive: true,
+                  onTap: () => manager.cancel(entry.id),
+                ),
+              ],
+            ),
+          ],
         ],
+      ),
+    );
+  }
+}
+
+class _ActionChip extends StatelessWidget {
+  const _ActionChip({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.destructive = false,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final bool destructive;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = destructive ? AppColors.unread : AppColors.accent;
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.12),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: color.withOpacity(0.3), width: 0.5),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 12, color: color),
+            const SizedBox(width: 5),
+            Text(
+              label,
+              style: AppTextStyles.caption
+                  .copyWith(color: color, fontWeight: FontWeight.w600),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/providers/reader_provider.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_text_styles.dart';
 import 'widgets/page_pill.dart';
 import 'widgets/progress_line.dart';
 import 'widgets/reader_chrome.dart';
@@ -30,9 +31,7 @@ class ReaderScreen extends ConsumerStatefulWidget {
 }
 
 class _ReaderScreenState extends ConsumerState<ReaderScreen> {
-  late final PageController _pageController;
-
-  // Pill fades in when a swipe begins, fades out after idle.
+  late PageController _pageController;
   bool _pillVisible = false;
 
   @override
@@ -59,11 +58,19 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
         chapterId: widget.sourceChapterId,
       )),
     );
-    final readerState = ref.watch(readerProvider);
+    final readerState  = ref.watch(readerProvider);
+    final direction    = ref.watch(readingDirectionProvider);
+    final background   = ref.watch(readerBackgroundProvider);
     final chromeVisible = readerState.chromeVisible;
 
+    final bgColor = switch (background) {
+      ReaderBackground.black => AppColors.readerBackground,
+      ReaderBackground.white => const Color(0xFFFFFFFF),
+      ReaderBackground.sepia => const Color(0xFFF5E6C8),
+    };
+
     return CupertinoPageScaffold(
-      backgroundColor: AppColors.readerBackground,
+      backgroundColor: bgColor,
       child: pagesAsync.when(
         loading: () => const Center(child: CupertinoActivityIndicator()),
         error: (e, _) => Center(
@@ -75,6 +82,9 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
             ref.read(readerProvider.notifier).setTotalPages(pages.length);
           });
 
+          final isVertical = direction == ReadingDirection.vertical;
+          final isRtl      = direction == ReadingDirection.rtl;
+
           return Stack(
             children: [
               // ── Page view ──────────────────────────────────────────────
@@ -83,6 +93,9 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                     ref.read(readerProvider.notifier).toggleChrome(),
                 child: PageView.builder(
                   controller: _pageController,
+                  scrollDirection:
+                      isVertical ? Axis.vertical : Axis.horizontal,
+                  reverse: isRtl,
                   itemCount: pages.length,
                   onPageChanged: (i) {
                     ref.read(readerProvider.notifier).setPage(i);
@@ -94,6 +107,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                   itemBuilder: (context, i) => _ReaderPage(
                     url: pages[i],
                     index: i,
+                    background: background,
                   ),
                 ),
               ),
@@ -146,45 +160,179 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   void _showSettings(BuildContext context) {
     showCupertinoModalPopup<void>(
       context: context,
-      builder: (_) => CupertinoActionSheet(
-        title: const Text('Reader Settings'),
-        actions: [
-          CupertinoActionSheetAction(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Left-to-Right'),
+      builder: (_) => const _ReaderSettingsSheet(),
+    );
+  }
+}
+
+// ── Reader settings bottom sheet ───────────────────────────────────────────
+
+class _ReaderSettingsSheet extends ConsumerWidget {
+  const _ReaderSettingsSheet();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final direction  = ref.watch(readingDirectionProvider);
+    final scale      = ref.watch(pageScaleModeProvider);
+    final background = ref.watch(readerBackgroundProvider);
+
+    return Container(
+      decoration: const BoxDecoration(
+        color: Color(0xFF1C1C24),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      padding: EdgeInsets.only(
+        top: 12,
+        left: 20,
+        right: 20,
+        bottom: MediaQuery.of(context).padding.bottom + 24,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Handle
+          Center(
+            child: Container(
+              width: 36,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: 16),
+              decoration: BoxDecoration(
+                color: AppColors.borderStrong,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
           ),
-          CupertinoActionSheetAction(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Right-to-Left'),
+
+          Text('Reader Settings', style: AppTextStyles.sectionTitle),
+          const SizedBox(height: 20),
+
+          // Direction
+          Text('DIRECTION', style: AppTextStyles.labelSmall),
+          const SizedBox(height: 8),
+          _OptionRow<ReadingDirection>(
+            value: direction,
+            options: const [
+              (ReadingDirection.ltr, 'Left → Right'),
+              (ReadingDirection.rtl, 'Right → Left'),
+              (ReadingDirection.vertical, 'Vertical'),
+            ],
+            onChanged: (v) =>
+                ref.read(readingDirectionProvider.notifier).state = v,
           ),
-          CupertinoActionSheetAction(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Vertical Scroll'),
+
+          const SizedBox(height: 16),
+
+          // Scale
+          Text('PAGE SCALE', style: AppTextStyles.labelSmall),
+          const SizedBox(height: 8),
+          _OptionRow<PageScaleMode>(
+            value: scale,
+            options: const [
+              (PageScaleMode.fitWidth, 'Fit Width'),
+              (PageScaleMode.fitHeight, 'Fit Height'),
+              (PageScaleMode.original, 'Original'),
+            ],
+            onChanged: (v) =>
+                ref.read(pageScaleModeProvider.notifier).state = v,
+          ),
+
+          const SizedBox(height: 16),
+
+          // Background
+          Text('BACKGROUND', style: AppTextStyles.labelSmall),
+          const SizedBox(height: 8),
+          _OptionRow<ReaderBackground>(
+            value: background,
+            options: const [
+              (ReaderBackground.black, 'Black'),
+              (ReaderBackground.white, 'White'),
+              (ReaderBackground.sepia, 'Sepia'),
+            ],
+            onChanged: (v) =>
+                ref.read(readerBackgroundProvider.notifier).state = v,
           ),
         ],
-        cancelButton: CupertinoActionSheetAction(
-          isDestructiveAction: false,
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
-        ),
       ),
+    );
+  }
+}
+
+class _OptionRow<T> extends StatelessWidget {
+  const _OptionRow({
+    required this.value,
+    required this.options,
+    required this.onChanged,
+  });
+
+  final T value;
+  final List<(T, String)> options;
+  final ValueChanged<T> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: options.map((opt) {
+        final selected = value == opt.$1;
+        return GestureDetector(
+          onTap: () => onChanged(opt.$1),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 140),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+            decoration: BoxDecoration(
+              color: selected ? AppColors.accent : AppColors.surface,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: selected ? AppColors.accent : AppColors.borderStrong,
+                width: 0.5,
+              ),
+            ),
+            child: Text(
+              opt.$2,
+              style: AppTextStyles.bodySmall.copyWith(
+                color: selected
+                    ? CupertinoColors.white
+                    : AppColors.textSecondary,
+                fontWeight:
+                    selected ? FontWeight.w600 : FontWeight.w400,
+              ),
+            ),
+          ),
+        );
+      }).toList(),
     );
   }
 }
 
 // ── Single page widget ─────────────────────────────────────────────────────
 
-class _ReaderPage extends StatelessWidget {
-  const _ReaderPage({required this.url, required this.index});
+class _ReaderPage extends ConsumerWidget {
+  const _ReaderPage({
+    required this.url,
+    required this.index,
+    required this.background,
+  });
 
   final String url;
   final int index;
+  final ReaderBackground background;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final scale = ref.watch(pageScaleModeProvider);
+
+    final fit = switch (scale) {
+      PageScaleMode.fitWidth  => BoxFit.fitWidth,
+      PageScaleMode.fitHeight => BoxFit.fitHeight,
+      PageScaleMode.original  => BoxFit.none,
+    };
+
     return ExtendedImage.network(
       url,
-      fit: BoxFit.contain,
+      fit: fit,
       mode: ExtendedImageMode.gesture,
       initGestureConfigHandler: (_) => GestureConfig(
         minScale: 0.9,
@@ -210,12 +358,13 @@ class _ReaderPage extends StatelessWidget {
                       color: AppColors.textTertiary, size: 32),
                   const SizedBox(height: 8),
                   Text('Failed to load page ${index + 1}',
-                      style: const TextStyle(color: AppColors.textTertiary)),
+                      style: const TextStyle(
+                          color: AppColors.textTertiary)),
                 ],
               ),
             );
           case LoadState.completed:
-            return null; // use default rendering
+            return null;
         }
       },
     );

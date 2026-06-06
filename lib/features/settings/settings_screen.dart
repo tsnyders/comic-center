@@ -1,19 +1,29 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/providers/library_provider.dart';
+import '../../core/providers/reader_provider.dart';
 import '../../core/providers/settings_provider.dart';
+import '../../core/services/backup_service.dart';
+import '../../core/services/update_service.dart';
+import '../../core/providers/database_provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../library/category_management_screen.dart';
+import 'backup_restore_screen.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final topPadding = MediaQuery.of(context).padding.top;
+    final topPadding    = MediaQuery.of(context).padding.top;
     final bottomPadding = MediaQuery.of(context).padding.bottom;
-    final dlLocation = ref.watch(downloadLocationProvider);
-    final brightness = ref.watch(brightnessProvider);
+    final dlLocation    = ref.watch(downloadLocationProvider);
+    final brightness    = ref.watch(brightnessProvider);
+    final direction     = ref.watch(readingDirectionProvider);
+    final scale         = ref.watch(pageScaleModeProvider);
+    final background    = ref.watch(readerBackgroundProvider);
 
     return CupertinoPageScaffold(
       backgroundColor: CupertinoTheme.of(context).scaffoldBackgroundColor,
@@ -55,6 +65,11 @@ class SettingsScreen extends ConsumerWidget {
               icon: CupertinoIcons.folder,
               label: 'Categories',
               trailing: const _Chevron(),
+              onTap: () => Navigator.of(context, rootNavigator: true).push(
+                CupertinoPageRoute<void>(
+                  builder: (_) => const CategoryManagementScreen(),
+                ),
+              ),
             ),
             _SettingRow(
               icon: CupertinoIcons.repeat,
@@ -68,25 +83,43 @@ class SettingsScreen extends ConsumerWidget {
             _SettingRow(
               icon: CupertinoIcons.book,
               label: 'Reading Direction',
-              trailing: const Text(
-                'L→R',
-                style: TextStyle(color: AppColors.textTertiary, fontSize: 14),
+              trailing: _SegmentedPicker<ReadingDirection>(
+                value: direction,
+                items: const [
+                  (ReadingDirection.ltr, 'L→R'),
+                  (ReadingDirection.rtl, 'R→L'),
+                  (ReadingDirection.vertical, 'Vert'),
+                ],
+                onChanged: (v) =>
+                    ref.read(readingDirectionProvider.notifier).state = v,
               ),
             ),
             _SettingRow(
               icon: CupertinoIcons.resize_h,
               label: 'Page Scale',
-              trailing: const Text(
-                'Fit Width',
-                style: TextStyle(color: AppColors.textTertiary, fontSize: 14),
+              trailing: _SegmentedPicker<PageScaleMode>(
+                value: scale,
+                items: const [
+                  (PageScaleMode.fitWidth, 'Width'),
+                  (PageScaleMode.fitHeight, 'Height'),
+                  (PageScaleMode.original, '1:1'),
+                ],
+                onChanged: (v) =>
+                    ref.read(pageScaleModeProvider.notifier).state = v,
               ),
             ),
             _SettingRow(
               icon: CupertinoIcons.moon,
               label: 'Background',
-              trailing: const Text(
-                'Black',
-                style: TextStyle(color: AppColors.textTertiary, fontSize: 14),
+              trailing: _SegmentedPicker<ReaderBackground>(
+                value: background,
+                items: const [
+                  (ReaderBackground.black, 'Black'),
+                  (ReaderBackground.white, 'White'),
+                  (ReaderBackground.sepia, 'Sepia'),
+                ],
+                onChanged: (v) =>
+                    ref.read(readerBackgroundProvider.notifier).state = v,
               ),
             ),
           ]),
@@ -121,6 +154,7 @@ class SettingsScreen extends ConsumerWidget {
               icon: CupertinoIcons.cloud_download,
               label: 'Check for Updates',
               trailing: const _Chevron(),
+              onTap: () => _checkForUpdates(context),
             ),
           ]),
 
@@ -130,11 +164,17 @@ class SettingsScreen extends ConsumerWidget {
               icon: CupertinoIcons.arrow_up_doc,
               label: 'Export Backup',
               trailing: const _Chevron(),
+              onTap: () => _exportBackup(context, ref),
             ),
             _SettingRow(
               icon: CupertinoIcons.arrow_down_doc,
               label: 'Restore Backup',
               trailing: const _Chevron(),
+              onTap: () => Navigator.of(context, rootNavigator: true).push(
+                CupertinoPageRoute<void>(
+                  builder: (_) => const BackupRestoreScreen(),
+                ),
+              ),
             ),
           ]),
 
@@ -156,11 +196,7 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildSection(
-    BuildContext context,
-    String title,
-    List<Widget> rows,
-  ) {
+  Widget _buildSection(BuildContext context, String title, List<Widget> rows) {
     return SliverToBoxAdapter(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
@@ -185,6 +221,171 @@ class SettingsScreen extends ConsumerWidget {
           ],
         ),
       ),
+    );
+  }
+
+  static Future<void> _checkForUpdates(BuildContext context) async {
+    showCupertinoDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const CupertinoAlertDialog(
+        title: Text('Checking for Updates'),
+        content: Padding(
+          padding: EdgeInsets.only(top: 12),
+          child: CupertinoActivityIndicator(),
+        ),
+      ),
+    );
+
+    try {
+      final release = await UpdateService.fetchLatestRelease();
+      if (!context.mounted) return;
+      Navigator.of(context, rootNavigator: true).pop();
+
+      if (release == null) {
+        showCupertinoDialog<void>(
+          context: context,
+          builder: (_) => CupertinoAlertDialog(
+            title: const Text('No Updates Found'),
+            content: const Text(
+                'Could not reach the update server. Check your connection.'),
+            actions: [
+              CupertinoDialogAction(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+        return;
+      }
+
+      showCupertinoDialog<void>(
+        context: context,
+        builder: (_) => CupertinoAlertDialog(
+          title: Text('Version ${release.tag}'),
+          content: Text(release.body.length > 200
+              ? '${release.body.substring(0, 200)}…'
+              : release.body),
+          actions: [
+            CupertinoDialogAction(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Later'),
+            ),
+            if (release.apkUrl != null)
+              CupertinoDialogAction(
+                onPressed: () {
+                  Navigator.pop(context);
+                  UpdateService.openUrl(release.apkUrl!);
+                },
+                child: const Text('Download'),
+              ),
+          ],
+        ),
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      Navigator.of(context, rootNavigator: true).pop();
+      showCupertinoDialog<void>(
+        context: context,
+        builder: (_) => CupertinoAlertDialog(
+          title: const Text('Error'),
+          content: Text(e.toString()),
+          actions: [
+            CupertinoDialogAction(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+    }
+  }
+
+  static Future<void> _exportBackup(BuildContext context, WidgetRef ref) async {
+    showCupertinoDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const CupertinoAlertDialog(
+        title: Text('Exporting Backup'),
+        content: Padding(
+          padding: EdgeInsets.only(top: 12),
+          child: CupertinoActivityIndicator(),
+        ),
+      ),
+    );
+
+    try {
+      final isar       = ref.read(isarProvider);
+      final categories = ref.read(libraryCategoriesProvider);
+      final backup     = await BackupService.export(
+        isar: isar,
+        categories: categories,
+      );
+      if (!context.mounted) return;
+      Navigator.of(context, rootNavigator: true).pop();
+      showCupertinoDialog<void>(
+        context: context,
+        builder: (_) => CupertinoAlertDialog(
+          title: const Text('Backup Exported'),
+          content: Text(
+            'Saved ${backup.mangaCount ?? 0} manga to:\n${backup.file.path}',
+          ),
+          actions: [
+            CupertinoDialogAction(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      Navigator.of(context, rootNavigator: true).pop();
+      showCupertinoDialog<void>(
+        context: context,
+        builder: (_) => CupertinoAlertDialog(
+          title: const Text('Export Failed'),
+          content: Text(e.toString()),
+          actions: [
+            CupertinoDialogAction(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+    }
+  }
+}
+
+// ── Generic segmented picker ─────────────────────────────────────────────────
+
+class _SegmentedPicker<T> extends StatelessWidget {
+  const _SegmentedPicker({
+    required this.value,
+    required this.items,
+    required this.onChanged,
+  });
+
+  final T value;
+  final List<(T, String)> items;
+  final ValueChanged<T> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (var i = 0; i < items.length; i++) ...[
+          if (i > 0) const SizedBox(width: 4),
+          _Pill(
+            label: items[i].$2,
+            selected: value == items[i].$1,
+            onTap: () => onChanged(items[i].$1),
+          ),
+        ],
+      ],
     );
   }
 }
@@ -257,14 +458,12 @@ class _Pill extends StatelessWidget {
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
         decoration: BoxDecoration(
           color: selected ? AppColors.accent : AppColors.surface,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: selected
-                ? AppColors.accent
-                : AppColors.borderStrong,
+            color: selected ? AppColors.accent : AppColors.borderStrong,
             width: 0.5,
           ),
         ),
@@ -272,7 +471,7 @@ class _Pill extends StatelessWidget {
           label,
           style: TextStyle(
             color: selected ? CupertinoColors.white : AppColors.textSecondary,
-            fontSize: 12,
+            fontSize: 11,
             fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
           ),
         ),
@@ -323,11 +522,12 @@ class _SettingRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
+      behavior: HitTestBehavior.opaque,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
         decoration: const BoxDecoration(
-          border:
-              Border(bottom: BorderSide(color: AppColors.border, width: 0.5)),
+          border: Border(
+              bottom: BorderSide(color: AppColors.border, width: 0.5)),
         ),
         child: Row(
           children: [

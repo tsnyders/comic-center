@@ -292,6 +292,8 @@ class _DetailSheet extends ConsumerWidget {
                             );
                       },
                     ),
+                    onManageCategories: () =>
+                        _showCategorySheet(context, ref, manga),
                   ),
                 ),
               ),
@@ -357,6 +359,36 @@ class _DetailSheet extends ConsumerWidget {
           ),
         ),
       ),
+    );
+  }
+
+  static void _showCategorySheet(
+    BuildContext context,
+    WidgetRef ref,
+    MangaEntry manga,
+  ) {
+    final allCats = ref.read(libraryCategoriesProvider).where((c) => c != 'All').toList();
+    if (allCats.isEmpty) {
+      showCupertinoDialog<void>(
+        context: context,
+        builder: (_) => CupertinoAlertDialog(
+          title: const Text('No Categories'),
+          content: const Text(
+              'Create categories in Settings → Categories first.'),
+          actions: [
+            CupertinoDialogAction(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
+    showCupertinoModalPopup<void>(
+      context: context,
+      builder: (_) => _CategorySheet(manga: manga, allCategories: allCats),
     );
   }
 
@@ -454,11 +486,13 @@ class _ActionRow extends ConsumerWidget {
     required this.manga,
     required this.chapters,
     required this.onShowDownloadSheet,
+    required this.onManageCategories,
   });
 
   final MangaEntry manga;
   final AsyncValue<List<ChapterEntry>> chapters;
   final VoidCallback onShowDownloadSheet;
+  final VoidCallback onManageCategories;
 
   void _continueReading(BuildContext context, List<ChapterEntry> chs) {
     if (chs.isEmpty) return;
@@ -530,7 +564,147 @@ class _ActionRow extends ConsumerWidget {
             ),
           ),
         ),
+        const SizedBox(width: 10),
+        GestureDetector(
+          onTap: onManageCategories,
+          child: Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: AppColors.surfaceElevated,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: AppColors.borderStrong, width: 0.5),
+            ),
+            child: const Center(
+              child: Icon(
+                CupertinoIcons.folder_badge_plus,
+                color: AppColors.textSecondary,
+                size: 20,
+              ),
+            ),
+          ),
+        ),
       ],
+    );
+  }
+}
+
+// ── Category assignment sheet ──────────────────────────────────────────────
+
+class _CategorySheet extends ConsumerStatefulWidget {
+  const _CategorySheet({
+    required this.manga,
+    required this.allCategories,
+  });
+
+  final MangaEntry manga;
+  final List<String> allCategories;
+
+  @override
+  ConsumerState<_CategorySheet> createState() => _CategorySheetState();
+}
+
+class _CategorySheetState extends ConsumerState<_CategorySheet> {
+  late List<String> _selected;
+
+  @override
+  void initState() {
+    super.initState();
+    _selected = List.from(widget.manga.categories);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: Color(0xFF1C1C24),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      padding: EdgeInsets.only(
+        top: 12,
+        left: 20,
+        right: 20,
+        bottom: MediaQuery.of(context).padding.bottom + 20,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Container(
+              width: 36,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: 16),
+              decoration: BoxDecoration(
+                color: AppColors.borderStrong,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          Text('Add to Category', style: AppTextStyles.sectionTitle),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: widget.allCategories.map((cat) {
+              final isSelected = _selected.contains(cat);
+              return GestureDetector(
+                onTap: () => setState(() {
+                  if (isSelected) {
+                    _selected.remove(cat);
+                  } else {
+                    _selected.add(cat);
+                  }
+                }),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 140),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 7),
+                  decoration: BoxDecoration(
+                    color: isSelected ? AppColors.accent : AppColors.surface,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: isSelected
+                          ? AppColors.accent
+                          : AppColors.borderStrong,
+                      width: 0.5,
+                    ),
+                  ),
+                  child: Text(
+                    cat,
+                    style: AppTextStyles.bodySmall.copyWith(
+                      color: isSelected
+                          ? CupertinoColors.white
+                          : AppColors.textSecondary,
+                      fontWeight: isSelected
+                          ? FontWeight.w600
+                          : FontWeight.w400,
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            child: CupertinoButton(
+              color: AppColors.accent,
+              borderRadius: BorderRadius.circular(14),
+              onPressed: () async {
+                await ref
+                    .read(libraryNotifierProvider.notifier)
+                    .updateCategories(widget.manga.id, _selected);
+                if (context.mounted) Navigator.of(context).pop();
+              },
+              child: const Text(
+                'Save',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
