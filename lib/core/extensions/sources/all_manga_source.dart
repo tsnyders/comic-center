@@ -143,18 +143,34 @@ class AllMangaSource implements MangaSource {
       hash: _hashPages,
       variables: {
         'mangaId': mangaId,
+        'translationType': 'sub',
         'chapterString': chapterNum,
         'limit': 1000,
         'offset': 0,
       },
     );
 
-    final edges =
-        (data['chapterPages']?['edges'] as List? ?? []);
+    final edges = (data['chapterPages']?['edges'] as List? ?? []);
     final urls = <String>[];
     for (final edge in edges) {
-      final pics = (edge as Map<String, dynamic>)['pictureUrls'] as List? ?? [];
-      urls.addAll(pics.cast<String>());
+      final pics =
+          (edge as Map<String, dynamic>)['pictureUrls'] as List? ?? [];
+      for (final pic in pics) {
+        final String? raw;
+        if (pic is String) {
+          raw = pic;
+        } else if (pic is Map<String, dynamic>) {
+          raw = pic['url'] as String?;
+        } else {
+          raw = null;
+        }
+        if (raw == null || raw.isEmpty) continue;
+        // Relative paths need the image CDN prepended.
+        final url = raw.startsWith('http')
+            ? raw
+            : 'https://ytimgf.fast4speed.rsvp$raw';
+        urls.add(url);
+      }
     }
     return urls;
   }
@@ -172,10 +188,11 @@ class AllMangaSource implements MangaSource {
         'isManga': true,
         if (sortBy != null) 'sortBy': sortBy,
         'allowAdult': false,
+        'allowUnknown': false,
       },
       'limit': 20,
       'page': page,
-      'translationType': 'en',
+      'translationType': 'sub',
       'countryOrigin': 'ALL',
     };
 
@@ -211,8 +228,22 @@ class AllMangaSource implements MangaSource {
 
   String? _coverUrl(String? thumb) {
     if (thumb == null || thumb.isEmpty) return null;
-    if (thumb.startsWith('http')) return thumb;
-    return 'https://ytimgf.fast4speed.rsvp/thumbnails/$thumb';
+    if (thumb.startsWith('http')) {
+      // Normalize the numbered filename to 001.jpg for consistent cover art,
+      // then apply the w=250 size param the CDN whitelists.
+      final normalized = thumb.replaceAllMapped(
+        RegExp(r'\d+\.(jpg|png|webp)'),
+        (m) => '001.${m[1]}',
+      );
+      return '$normalized?w=250';
+    }
+    // Relative path: prepend the static asset CDN.
+    final clean = thumb.startsWith('/') ? thumb : '/$thumb';
+    final normalized = clean.replaceAllMapped(
+      RegExp(r'\d+\.(jpg|png|webp)'),
+      (m) => '001.${m[1]}',
+    );
+    return 'https://wp.youtube-anime.com/aln.youtube-anime.com$normalized?w=250';
   }
 
   String? _firstAuthor(dynamic authors) {
