@@ -20,29 +20,24 @@ subprojects {
 }
 
 // isar_flutter_libs 3.x ships without a `namespace` in its build.gradle,
-// which is required by AGP 8+. Inject it from the manifest at config time.
-subprojects {
-    afterEvaluate {
-        if (project.plugins.hasPlugin("com.android.library")) {
-            val android = project.extensions.findByName("android")
-                ?: return@afterEvaluate
-            val getNs = runCatching {
-                android.javaClass.getMethod("getNamespace").invoke(android)
-            }.getOrNull()
-            if (getNs == null) {
-                val manifest = project.file("src/main/AndroidManifest.xml")
-                if (manifest.exists()) {
-                    val pkg = manifest.readText()
-                        .substringAfter("package=\"", "")
-                        .substringBefore("\"", "")
-                    if (pkg.isNotEmpty()) {
-                        runCatching {
-                            android.javaClass.getMethod("setNamespace", String::class.java)
-                                .invoke(android, pkg)
-                        }
-                    }
-                }
-            }
+// which is required by AGP 8+. gradle.afterProject fires after each project
+// finishes evaluating and avoids the "already evaluated" error from afterEvaluate.
+gradle.afterProject {
+    if (!plugins.hasPlugin("com.android.library")) return@afterProject
+    val android = extensions.findByName("android") ?: return@afterProject
+    val getNs = runCatching {
+        android.javaClass.getMethod("getNamespace").invoke(android)
+    }.getOrNull()
+    if (getNs != null) return@afterProject
+    val manifest = file("src/main/AndroidManifest.xml")
+    if (!manifest.exists()) return@afterProject
+    val pkg = manifest.readText()
+        .substringAfter("package=\"", "")
+        .substringBefore("\"", "")
+    if (pkg.isNotEmpty()) {
+        runCatching {
+            android.javaClass.getMethod("setNamespace", String::class.java)
+                .invoke(android, pkg)
         }
     }
 }
