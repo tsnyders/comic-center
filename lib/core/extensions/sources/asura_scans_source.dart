@@ -108,19 +108,19 @@ class AsuraScansSource implements MangaSource {
     return list.map<ChapterInfo>((ch) {
       final m = ch as Map<String, dynamic>;
       final uuid = (m['id'] ?? m['uuid'] ?? '') as String;
-      final num = (m['number'] ?? m['chapter_number'] as num?)
+      final chNum = (m['number'] ?? m['chapter_number'] as num?)
           ?.toDouble();
       final title =
-          m['title'] as String? ?? 'Chapter ${num?.toStringAsFixed(0) ?? '?'}';
+          m['title'] as String? ?? 'Chapter ${chNum?.toStringAsFixed(0) ?? '?'}';
 
       return ChapterInfo(
         id: '$mangaId::$uuid',
         title: title,
-        number: num,
+        number: chNum,
         uploadDate: m['created_at'] != null
             ? DateTime.tryParse(m['created_at'] as String)
             : null,
-        url: '$baseUrl/series/$mangaId/chapter/${num?.toStringAsFixed(0) ?? uuid}',
+        url: '$baseUrl/series/$mangaId/chapter/${chNum?.toStringAsFixed(0) ?? uuid}',
       );
     }).toList()
       ..sort((a, b) => (a.number ?? 0).compareTo(b.number ?? 0));
