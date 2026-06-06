@@ -1,31 +1,18 @@
 import 'dart:ui';
 
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/material.dart' show DraggableScrollableController, DraggableScrollableSheet;
+import 'package:flutter/material.dart' show DraggableScrollableSheet;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:isar/isar.dart';
 
 import '../../core/database/models/chapter_entry.dart';
 import '../../core/database/models/manga_entry.dart';
-import '../../core/providers/database_provider.dart';
+import '../../core/providers/browse_provider.dart';
 import '../../core/providers/library_provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../shared/widgets/cover_image.dart';
 import '../reader/reader_screen.dart';
 import 'widgets/chapter_list_tile.dart';
-
-// ── Chapter loader ─────────────────────────────────────────────────────────
-
-final _chaptersProvider =
-    FutureProvider.family<List<ChapterEntry>, int>((ref, mangaId) async {
-  final isar = ref.watch(isarProvider);
-  return isar.chapterEntrys
-      .filter()
-      .mangaIdEqualTo(mangaId)
-      .sortByNumberDesc()
-      .findAll();
-});
 
 // ── Screen ─────────────────────────────────────────────────────────────────
 
@@ -177,19 +164,19 @@ class _AddToLibraryButton extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final inLibrary = manga.inLibrary;
+    // Watch live state so the button reacts immediately after add/remove.
+    final live = ref.watch(liveMangaProvider(manga.id)).valueOrNull ?? manga;
+    final inLibrary = live.inLibrary;
     return _NavButton(
       onTap: () {
         if (inLibrary) {
           ref.read(libraryNotifierProvider.notifier).removeFromLibrary(manga.id);
         } else {
-          ref.read(libraryNotifierProvider.notifier).addToLibrary(manga);
+          ref.read(libraryNotifierProvider.notifier).addToLibrary(live);
         }
       },
       child: Icon(
-        inLibrary
-            ? CupertinoIcons.bookmark_fill
-            : CupertinoIcons.bookmark,
+        inLibrary ? CupertinoIcons.bookmark_fill : CupertinoIcons.bookmark,
         color: inLibrary ? AppColors.accent : AppColors.textPrimary,
         size: 18,
       ),
@@ -210,7 +197,10 @@ class _DetailSheet extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final chapters = ref.watch(_chaptersProvider(manga.id));
+    // Use live manga so chapter count updates after sync.
+    final liveManga =
+        ref.watch(liveMangaProvider(manga.id)).valueOrNull ?? manga;
+    final chapters = ref.watch(chapterSyncProvider(manga.id));
 
     return ClipRRect(
       borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
@@ -250,15 +240,15 @@ class _DetailSheet extends ConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(manga.title, style: AppTextStyles.sheetTitle),
+                      Text(liveManga.title, style: AppTextStyles.sheetTitle),
                       const SizedBox(height: 4),
                       Text(
                         [
-                          if (manga.author != null) manga.author!,
+                          if (liveManga.author != null) liveManga.author!,
                           '·',
-                          _capitalise(manga.status),
+                          _capitalise(liveManga.status),
                           '·',
-                          '${manga.chapterCount} ch',
+                          '${liveManga.chapterCount} ch',
                         ].join(' '),
                         style: AppTextStyles.sheetAuthor,
                       ),
@@ -274,7 +264,9 @@ class _DetailSheet extends ConsumerWidget {
                   child: Wrap(
                     spacing: 6,
                     runSpacing: 6,
-                    children: manga.genres.map((g) => _GenreChip(label: g)).toList(),
+                    children: liveManga.genres
+                        .map((g) => _GenreChip(label: g))
+                        .toList(),
                   ),
                 ),
               ),
@@ -283,17 +275,18 @@ class _DetailSheet extends ConsumerWidget {
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-                  child: _ActionRow(manga: manga),
+                  child: _ActionRow(manga: manga, chapters: chapters),
                 ),
               ),
 
               // Description
-              if (manga.description != null && manga.description!.isNotEmpty)
+              if (liveManga.description != null &&
+                  liveManga.description!.isNotEmpty)
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
                     child: Text(
-                      manga.description!,
+                      liveManga.description!,
                       style: AppTextStyles.bodySmall.copyWith(height: 1.5),
                       maxLines: 4,
                       overflow: TextOverflow.ellipsis,
@@ -306,7 +299,7 @@ class _DetailSheet extends ConsumerWidget {
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
                   child: Text(
-                    '${manga.chapterCount} Chapters'.toUpperCase(),
+                    '${liveManga.chapterCount} Chapters'.toUpperCase(),
                     style: AppTextStyles.labelSmall.copyWith(
                       letterSpacing: 0.5,
                     ),
@@ -385,46 +378,76 @@ class _GenreChip extends StatelessWidget {
 }
 
 class _ActionRow extends ConsumerWidget {
-  const _ActionRow({required this.manga});
+  const _ActionRow({
+    required this.manga,
+    required this.chapters,
+  });
+
   final MangaEntry manga;
+  final AsyncValue<List<ChapterEntry>> chapters;
+
+  void _continueReading(BuildContext context, List<ChapterEntry> chs) {
+    if (chs.isEmpty) return;
+    // Chapters are sorted descending (latest first).
+    // Reading order is ascending, so reversed = ascending.
+    final ascending = chs.reversed.toList();
+    final target = ascending.firstWhere(
+      (c) => !c.isRead,
+      orElse: () => ascending.last,
+    );
+    Navigator.of(context, rootNavigator: true).push(
+      CupertinoPageRoute(
+        fullscreenDialog: true,
+        builder: (_) => ReaderScreen(
+          mangaId: manga.id,
+          chapterId: target.id,
+          sourceId: manga.sourceId,
+          sourceChapterId: target.sourceChapterId,
+          chapterTitle: target.title,
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final chs = chapters.valueOrNull ?? [];
     return Row(
       children: [
         Expanded(
           child: CupertinoButton(
             padding: const EdgeInsets.symmetric(vertical: 13),
-            color: AppColors.accent,
+            color: chs.isEmpty ? AppColors.surfaceElevated : AppColors.accent,
             borderRadius: BorderRadius.circular(14),
-            onPressed: () {},
-            child: const Text(
-              '▶  Continue Reading',
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: CupertinoColors.white,
-              ),
-            ),
+            onPressed: chs.isEmpty ? null : () => _continueReading(context, chs),
+            child: chapters.isLoading
+                ? const CupertinoActivityIndicator()
+                : Text(
+                    '▶  Continue Reading',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: chs.isEmpty
+                          ? AppColors.textTertiary
+                          : CupertinoColors.white,
+                    ),
+                  ),
           ),
         ),
         const SizedBox(width: 10),
-        GestureDetector(
-          onTap: () {},
-          child: Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: AppColors.surfaceElevated,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AppColors.borderStrong, width: 0.5),
-            ),
-            child: const Center(
-              child: Icon(
-                CupertinoIcons.arrow_down_circle,
-                color: AppColors.textSecondary,
-                size: 20,
-              ),
+        Container(
+          width: 48,
+          height: 48,
+          decoration: BoxDecoration(
+            color: AppColors.surfaceElevated,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: AppColors.borderStrong, width: 0.5),
+          ),
+          child: const Center(
+            child: Icon(
+              CupertinoIcons.arrow_down_circle,
+              color: AppColors.textSecondary,
+              size: 20,
             ),
           ),
         ),

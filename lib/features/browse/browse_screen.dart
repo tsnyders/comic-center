@@ -4,11 +4,20 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/providers/source_registry_provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
+import 'source_manga_screen.dart';
 import 'widgets/featured_source_card.dart';
 import 'widgets/source_row.dart';
 
 class BrowseScreen extends ConsumerWidget {
   const BrowseScreen({super.key});
+
+  void _openSource(BuildContext context, String sourceId) {
+    Navigator.of(context).push(
+      CupertinoPageRoute<void>(
+        builder: (_) => SourceMangaScreen(sourceId: sourceId),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -61,6 +70,7 @@ class BrowseScreen extends ConsumerWidget {
                         gradient: const LinearGradient(
                           colors: [Color(0xFF667EEA), Color(0xFF764BA2)],
                         ),
+                        onTap: () => _openSource(context, 'mangadex_en_v5'),
                       ),
                       const SizedBox(width: 12),
                       FeaturedSourcePlaceholderCard(
@@ -102,6 +112,7 @@ class BrowseScreen extends ConsumerWidget {
                 itemBuilder: (context, i) => SourceRow(
                   source: sources[i],
                   action: SourceRowAction.open,
+                  onTap: () => _openSource(context, sources[i].id),
                 ),
               ),
             ),
