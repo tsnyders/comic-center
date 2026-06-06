@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:isar/isar.dart';
@@ -7,6 +9,8 @@ import '../database/models/chapter_entry.dart';
 import '../database/models/download_entry.dart';
 import '../database/models/manga_entry.dart';
 import 'database_provider.dart';
+import 'settings_provider.dart';
+import 'source_registry_provider.dart';
 
 // ── Active download queue stream ─────────────────────────────────────────
 
@@ -32,7 +36,10 @@ final downloadHistoryProvider = StreamProvider<List<DownloadEntry>>((ref) {
 // ── Manager ───────────────────────────────────────────────────────────────
 
 class DownloadManager extends AsyncNotifier<void> {
-  final _dio = Dio();
+  final _dio = Dio(BaseOptions(
+    connectTimeout: const Duration(seconds: 20),
+    receiveTimeout: const Duration(seconds: 60),
+  ));
   bool _isProcessing = false;
 
   @override
@@ -44,6 +51,17 @@ class DownloadManager extends AsyncNotifier<void> {
   }) async {
     final isar = ref.read(isarProvider);
     await isar.writeTxn(() async {
+      // Don't re-queue if already pending, in-progress, or done.
+      final exists = await isar.downloadEntrys
+          .filter()
+          .chapterIdEqualTo(chapter.id)
+          .findFirst();
+      if (exists != null &&
+          (exists.status == DownloadStatus.pending ||
+              exists.status == DownloadStatus.downloading ||
+              exists.status == DownloadStatus.completed)) {
+        return;
+      }
       final entry = DownloadEntry()
         ..chapterId = chapter.id
         ..mangaId = manga.id
@@ -55,6 +73,15 @@ class DownloadManager extends AsyncNotifier<void> {
       await isar.downloadEntrys.put(entry);
     });
     _processQueue();
+  }
+
+  Future<void> enqueueAll({
+    required MangaEntry manga,
+    required List<ChapterEntry> chapters,
+  }) async {
+    for (final ch in chapters) {
+      await enqueue(manga: manga, chapter: ch);
+    }
   }
 
   Future<void> pause(int downloadId) async {
@@ -77,6 +104,7 @@ class DownloadManager extends AsyncNotifier<void> {
     _isProcessing = true;
 
     final isar = ref.read(isarProvider);
+    final location = ref.read(downloadLocationProvider);
 
     try {
       while (true) {
@@ -85,7 +113,7 @@ class DownloadManager extends AsyncNotifier<void> {
             .statusEqualTo(DownloadStatus.pending)
             .findFirst();
         if (pending == null) break;
-        await _downloadChapter(pending, isar);
+        await _downloadChapter(pending, isar, location);
       }
     } finally {
       _isProcessing = false;
@@ -95,8 +123,8 @@ class DownloadManager extends AsyncNotifier<void> {
   Future<void> _downloadChapter(
     DownloadEntry entry,
     Isar isar,
+    DownloadLocation location,
   ) async {
-    // Mark as downloading
     await isar.writeTxn(() async {
       entry.status = DownloadStatus.downloading;
       entry.startedAt = DateTime.now();
@@ -104,12 +132,53 @@ class DownloadManager extends AsyncNotifier<void> {
     });
 
     try {
-      final dir = await getApplicationDocumentsDirectory();
-      final chapterDir =
-          '${dir.path}/downloads/${entry.mangaId}/${entry.chapterId}';
+      final chapter = await isar.chapterEntrys.get(entry.chapterId);
+      final manga = await isar.mangaEntrys.get(entry.mangaId);
+      if (chapter == null || manga == null) {
+        throw Exception('Chapter/manga missing from database');
+      }
 
-      // TODO: fetch page URLs via the source and download each page
-      // This is Phase 3 territory — stub for now.
+      final source = ref.read(sourceByIdProvider(manga.sourceId));
+      if (source == null) {
+        throw Exception('Source "${manga.sourceId}" is not installed');
+      }
+
+      final pageUrls = await source.fetchPageUrls(chapter.sourceChapterId);
+
+      await isar.writeTxn(() async {
+        entry.totalPages = pageUrls.length;
+        await isar.downloadEntrys.put(entry);
+      });
+
+      if (location == DownloadLocation.googleDrive) {
+        throw Exception(
+          'Google Drive requires OAuth setup.\n'
+          'Go to Settings → Downloads → Storage Location and choose Local, '
+          'or configure google-services.json for Drive support.',
+        );
+      }
+
+      // ── Local download ────────────────────────────────────────────────
+      final docDir = await getApplicationDocumentsDirectory();
+      final chapterDir =
+          '${docDir.path}/downloads/${entry.mangaId}/${entry.chapterId}';
+      await Directory(chapterDir).create(recursive: true);
+
+      for (var i = 0; i < pageUrls.length; i++) {
+        final padded = i.toString().padLeft(4, '0');
+        final ext = _ext(pageUrls[i]);
+        await _dio.download(
+          pageUrls[i],
+          '$chapterDir/page_$padded$ext',
+          options: source.imageHeaders.isNotEmpty
+              ? Options(headers: source.imageHeaders)
+              : null,
+        );
+        await isar.writeTxn(() async {
+          entry.downloadedPages = i + 1;
+          await isar.downloadEntrys.put(entry);
+        });
+      }
 
       await isar.writeTxn(() async {
         entry
@@ -118,13 +187,14 @@ class DownloadManager extends AsyncNotifier<void> {
           ..completedAt = DateTime.now();
         await isar.downloadEntrys.put(entry);
 
-        final chapter = await isar.chapterEntrys.get(entry.chapterId);
-        if (chapter != null) {
-          chapter
+        final ch = await isar.chapterEntrys.get(entry.chapterId);
+        if (ch != null) {
+          ch
             ..isDownloaded = true
             ..downloadPath = chapterDir
+            ..pageCount = pageUrls.length
             ..downloadedAt = DateTime.now();
-          await isar.chapterEntrys.put(chapter);
+          await isar.chapterEntrys.put(ch);
         }
       });
     } catch (e) {
@@ -136,6 +206,14 @@ class DownloadManager extends AsyncNotifier<void> {
         await isar.downloadEntrys.put(entry);
       });
     }
+  }
+
+  String _ext(String url) {
+    final path = url.split('?').first.toLowerCase();
+    if (path.endsWith('.png')) return '.png';
+    if (path.endsWith('.webp')) return '.webp';
+    if (path.endsWith('.gif')) return '.gif';
+    return '.jpg';
   }
 }
 

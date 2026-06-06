@@ -7,7 +7,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/database/models/chapter_entry.dart';
 import '../../core/database/models/manga_entry.dart';
 import '../../core/providers/browse_provider.dart';
+import '../../core/providers/download_provider.dart';
 import '../../core/providers/library_provider.dart';
+import '../../core/providers/settings_provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../shared/widgets/cover_image.dart';
@@ -275,7 +277,22 @@ class _DetailSheet extends ConsumerWidget {
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-                  child: _ActionRow(manga: manga, chapters: chapters),
+                  child: _ActionRow(
+                    manga: manga,
+                    chapters: chapters,
+                    onShowDownloadSheet: () => _showDownloadSheet(
+                      context: context,
+                      ref: ref,
+                      title: 'Download All Chapters',
+                      onConfirm: () {
+                        final chs = chapters.valueOrNull ?? [];
+                        ref.read(downloadManagerProvider.notifier).enqueueAll(
+                              manga: manga,
+                              chapters: chs,
+                            );
+                      },
+                    ),
+                  ),
                 ),
               ),
 
@@ -325,6 +342,9 @@ class _DetailSheet extends ConsumerWidget {
                     itemBuilder: (context, i) => ChapterListTile(
                       chapter: chs[i],
                       onTap: () => _openReader(context, chs[i]),
+                      onDownload: chs[i].isDownloaded
+                          ? null
+                          : () => _downloadChapter(context, ref, chs[i]),
                     ),
                   ),
                 ),
@@ -350,6 +370,58 @@ class _DetailSheet extends ConsumerWidget {
           sourceId: manga.sourceId,
           sourceChapterId: chapter.sourceChapterId,
           chapterTitle: chapter.title,
+        ),
+      ),
+    );
+  }
+
+  void _downloadChapter(
+    BuildContext context,
+    WidgetRef ref,
+    ChapterEntry chapter,
+  ) {
+    _showDownloadSheet(
+      context: context,
+      ref: ref,
+      title: 'Download Chapter ${chapter.number?.toStringAsFixed(0) ?? '?'}',
+      onConfirm: () {
+        ref.read(downloadManagerProvider.notifier).enqueue(
+              manga: manga,
+              chapter: chapter,
+            );
+      },
+    );
+  }
+
+  static void _showDownloadSheet({
+    required BuildContext context,
+    required WidgetRef ref,
+    required String title,
+    required VoidCallback onConfirm,
+  }) {
+    final location = ref.read(downloadLocationProvider);
+    final locationLabel =
+        location == DownloadLocation.local ? 'Local Storage' : 'Google Drive';
+
+    showCupertinoModalPopup<void>(
+      context: context,
+      builder: (_) => CupertinoActionSheet(
+        title: Text(title),
+        message: Text('Save to: $locationLabel\n'
+            'Change storage location in Settings → Downloads.'),
+        actions: [
+          CupertinoActionSheetAction(
+            onPressed: () {
+              Navigator.pop(context);
+              onConfirm();
+            },
+            child: const Text('Download'),
+          ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          isDestructiveAction: false,
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
         ),
       ),
     );
@@ -381,10 +453,12 @@ class _ActionRow extends ConsumerWidget {
   const _ActionRow({
     required this.manga,
     required this.chapters,
+    required this.onShowDownloadSheet,
   });
 
   final MangaEntry manga;
   final AsyncValue<List<ChapterEntry>> chapters;
+  final VoidCallback onShowDownloadSheet;
 
   void _continueReading(BuildContext context, List<ChapterEntry> chs) {
     if (chs.isEmpty) return;
@@ -435,19 +509,24 @@ class _ActionRow extends ConsumerWidget {
           ),
         ),
         const SizedBox(width: 10),
-        Container(
-          width: 48,
-          height: 48,
-          decoration: BoxDecoration(
-            color: AppColors.surfaceElevated,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: AppColors.borderStrong, width: 0.5),
-          ),
-          child: const Center(
-            child: Icon(
-              CupertinoIcons.arrow_down_circle,
-              color: AppColors.textSecondary,
-              size: 20,
+        GestureDetector(
+          onTap: chs.isEmpty ? null : onShowDownloadSheet,
+          child: Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: AppColors.surfaceElevated,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: AppColors.borderStrong, width: 0.5),
+            ),
+            child: Center(
+              child: Icon(
+                CupertinoIcons.arrow_down_circle,
+                color: chs.isEmpty
+                    ? AppColors.textQuaternary
+                    : AppColors.textSecondary,
+                size: 20,
+              ),
             ),
           ),
         ),
