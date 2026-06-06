@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/extensions/models/manga_summary.dart';
 import '../../core/providers/browse_provider.dart';
 import '../../core/providers/database_provider.dart';
 import '../../core/providers/source_registry_provider.dart';
@@ -39,7 +40,7 @@ class _SourceMangaScreenState extends ConsumerState<SourceMangaScreen> {
     return BrowseArgs(sourceId: widget.sourceId, mode: mode);
   }
 
-  Future<void> _openManga(String mangaId) async {
+  Future<void> _openManga(MangaSummary summary) async {
     final source = ref.read(sourceByIdProvider(widget.sourceId));
     if (source == null) return;
     final isar = ref.read(isarProvider);
@@ -60,7 +61,8 @@ class _SourceMangaScreenState extends ConsumerState<SourceMangaScreen> {
       final entry = await upsertMangaEntry(
         isar: isar,
         source: source,
-        mangaId: mangaId,
+        mangaId: summary.id,
+        summary: summary,
       );
       if (!mounted) return;
       Navigator.of(context).pop(); // dismiss loader
@@ -267,7 +269,7 @@ class _SourceMangaScreenState extends ConsumerState<SourceMangaScreen> {
                       itemBuilder: (context, i) => _MangaCard(
                         title: mangas[i].title,
                         coverUrl: mangas[i].coverUrl,
-                        onTap: () => _openManga(mangas[i].id),
+                        onTap: () => _openManga(mangas[i]),
                       ),
                     ),
                   ),
