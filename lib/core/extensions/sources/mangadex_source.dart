@@ -44,6 +44,9 @@ class MangaDexSource implements MangaSource {
   Map<String, String> get imageHeaders => const {};
 
   @override
+  List<SourceFilter> getFilters() => const [];
+
+  @override
   Future<List<MangaSummary>> fetchPopular({int page = 1}) async {
     final resp = await _dio.get<Map<String, dynamic>>(
       '/manga',
