@@ -130,7 +130,7 @@ class DemonicScansSource implements MangaSource {
         doc.querySelector('h1.big-fat-titles')?.text.trim() ?? mangaId;
 
     final rawCover =
-        doc.querySelector('div#manga-page > img')?.attributes['src'] ?? '';
+        doc.querySelector('div#manga-page img')?.attributes['src'] ?? '';
     final coverUrl = _absolute(rawCover);
 
     final genres = doc
@@ -176,7 +176,7 @@ class DemonicScansSource implements MangaSource {
 
     // Chapters appear newest-first in HTML; reverse for ascending order
     final els = doc
-        .querySelectorAll('div#chapters-list > a.chplinks')
+        .querySelectorAll('div#chapters-list a.chplinks')
         .toList()
         .reversed
         .toList();
