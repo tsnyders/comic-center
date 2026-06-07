@@ -59,7 +59,7 @@ class _ExtensionEntry {
   static const _nativePkgs = {
     'eu.kanade.tachiyomi.extension.en.mangadex',
     'eu.kanade.tachiyomi.extension.en.allmanga',
-    'eu.kanade.tachiyomi.extension.en.comick',
+    'eu.kanade.tachiyomi.extension.en.mangademon',
   };
 
   bool get isNativelySupported => _nativePkgs.contains(pkg);
@@ -140,7 +140,7 @@ class _RepositoryScreenState extends ConsumerState<RepositoryScreen> {
               delegate: SliverChildListDelegate([
                 _NativeExtensionTile(name: 'MangaDex', lang: 'EN', version: '1.0.0'),
                 _NativeExtensionTile(name: 'AllManga', lang: 'EN', version: '1.0.0'),
-                _NativeExtensionTile(name: 'ComicK', lang: 'EN', version: '1.0.0'),
+                _NativeExtensionTile(name: 'DemonicScans', lang: 'EN', version: '1.0.0'),
               ]),
             ),
           ),
