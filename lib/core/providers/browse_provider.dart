@@ -53,8 +53,8 @@ final browseMangaProvider =
   }
   return switch (args.mode) {
     BrowseMode.popular => source.fetchPopular(page: args.page),
-    BrowseMode.latest => source.fetchLatestUpdates(page: args.page),
-    BrowseMode.search => source.search(args.query, page: args.page),
+    BrowseMode.latest  => source.fetchLatestUpdates(page: args.page),
+    BrowseMode.search  => source.search(args.query, page: args.page),
   };
 });
 
@@ -66,10 +66,6 @@ bool _isRealTitle(String? s) {
   return t.isNotEmpty && t.toLowerCase() != 'unknown';
 }
 
-/// Gets an existing [MangaEntry] from the DB or creates one by fetching
-/// full detail from [source]. If [summary] is provided, its title/cover
-/// are used as a fallback when the source's detail endpoint returns
-/// nothing useful. Does not fetch chapters.
 Future<MangaEntry> upsertMangaEntry({
   required Isar isar,
   required MangaSource source,
@@ -83,7 +79,6 @@ Future<MangaEntry> upsertMangaEntry({
       .sourceKeyEqualTo(sourceKey)
       .findFirst();
 
-  // Reuse existing entry only if it has real data.
   if (existing != null && _isRealTitle(existing.title)) return existing;
 
   MangaDetailLike detail;
@@ -101,25 +96,23 @@ Future<MangaEntry> upsertMangaEntry({
 
   final entry = existing ?? MangaEntry();
   entry
-    ..sourceKey = sourceKey
-    ..sourceId = source.id
+    ..sourceKey     = sourceKey
+    ..sourceId      = source.id
     ..sourceMangaId = mangaId
-    ..sourceUrl = detail.url ?? summary?.url ?? ''
-    ..title = title
-    ..coverUrl = coverUrl ?? entry.coverUrl
-    ..author = detail.author ?? entry.author
-    ..artist = detail.artist ?? entry.artist
-    ..description = detail.description ?? entry.description
-    ..status = detail.status == 'unknown' ? entry.status : detail.status
-    ..lastUpdated = DateTime.now();
+    ..sourceUrl     = detail.url ?? summary?.url ?? ''
+    ..title         = title
+    ..coverUrl      = coverUrl ?? entry.coverUrl
+    ..author        = detail.author ?? entry.author
+    ..artist        = detail.artist ?? entry.artist
+    ..description   = detail.description ?? entry.description
+    ..status        = detail.status == 'unknown' ? entry.status : detail.status
+    ..lastUpdated   = DateTime.now();
   if (detail.genres.isNotEmpty) entry.genres = detail.genres;
 
   await isar.writeTxn(() => isar.mangaEntrys.put(entry));
   return entry;
 }
 
-/// Wrapper that always exposes title as a non-null String even when the
-/// underlying detail call fails entirely.
 class MangaDetailLike {
   MangaDetailLike({
     required this.title,
@@ -157,8 +150,6 @@ class MangaDetailLike {
 
 // ── Chapter sync ──────────────────────────────────────────────────────────
 
-/// Loads chapters for [mangaId] from the DB, fetching from the source if
-/// the DB is empty. The result is always sorted descending (latest first).
 final chapterSyncProvider =
     FutureProvider.family<List<ChapterEntry>, int>((ref, mangaId) async {
   final isar = ref.watch(isarProvider);
@@ -183,14 +174,14 @@ final chapterSyncProvider =
   final entries = infos
       .map(
         (info) => ChapterEntry()
-          ..mangaId = mangaId
+          ..mangaId         = mangaId
           ..sourceChapterId = info.id
-          ..title = info.title
-          ..number = info.number
-          ..volume = info.volume
-          ..scanlator = info.scanlator
-          ..language = info.language
-          ..uploadDate = info.uploadDate,
+          ..title           = info.title
+          ..number          = info.number
+          ..volume          = info.volume
+          ..scanlator       = info.scanlator
+          ..language        = info.language
+          ..uploadDate      = info.uploadDate,
       )
       .toList();
 
@@ -199,7 +190,7 @@ final chapterSyncProvider =
     final m = await isar.mangaEntrys.get(mangaId);
     if (m != null) {
       m.chapterCount = entries.length;
-      m.unreadCount = entries.length;
+      m.unreadCount  = entries.length;
       await isar.mangaEntrys.put(m);
     }
   });
@@ -218,3 +209,62 @@ final liveMangaProvider =
   final isar = ref.watch(isarProvider);
   return isar.mangaEntrys.watchObject(mangaId, fireImmediately: true);
 });
+
+// ── Chapter refresh (pull-to-refresh) ────────────────────────────────────
+
+/// Re-fetches chapters from the source and upserts them into the DB,
+/// preserving existing read/download status on already-known chapters.
+Future<void> refreshMangaChapters({
+  required Isar isar,
+  required MangaSource source,
+  required int mangaId,
+  required String sourceMangaId,
+}) async {
+  final infos = await source.fetchChapterList(sourceMangaId);
+  if (infos.isEmpty) return;
+
+  await isar.writeTxn(() async {
+    for (final info in infos) {
+      final existing = await isar.chapterEntrys
+          .filter()
+          .mangaIdEqualTo(mangaId)
+          .and()
+          .sourceChapterIdEqualTo(info.id)
+          .findFirst();
+
+      if (existing != null) {
+        existing
+          ..title      = info.title
+          ..number     = info.number
+          ..uploadDate = info.uploadDate;
+        await isar.chapterEntrys.put(existing);
+      } else {
+        final entry = ChapterEntry()
+          ..mangaId         = mangaId
+          ..sourceChapterId = info.id
+          ..title           = info.title
+          ..number          = info.number
+          ..volume          = info.volume
+          ..scanlator       = info.scanlator
+          ..language        = info.language
+          ..uploadDate      = info.uploadDate;
+        await isar.chapterEntrys.put(entry);
+      }
+    }
+
+    final total = await isar.chapterEntrys.filter().mangaIdEqualTo(mangaId).count();
+    final read  = await isar.chapterEntrys
+        .filter()
+        .mangaIdEqualTo(mangaId)
+        .isReadEqualTo(true)
+        .count();
+    final manga = await isar.mangaEntrys.get(mangaId);
+    if (manga != null) {
+      manga
+        ..chapterCount = total
+        ..unreadCount  = (total - read).clamp(0, 9999)
+        ..lastUpdated  = DateTime.now();
+      await isar.mangaEntrys.put(manga);
+    }
+  });
+}

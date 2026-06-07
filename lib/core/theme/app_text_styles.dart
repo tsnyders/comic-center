@@ -6,7 +6,6 @@ abstract final class AppTextStyles {
   static const displayTitle = TextStyle(
     fontSize: 44,
     fontWeight: FontWeight.w800,
-    color: AppColors.textPrimary,
     letterSpacing: -1.5,
     height: 1.0,
   );
@@ -23,14 +22,12 @@ abstract final class AppTextStyles {
   static const navTitle = TextStyle(
     fontSize: 17,
     fontWeight: FontWeight.w600,
-    color: AppColors.textPrimary,
     letterSpacing: -0.2,
   );
 
   static const sectionTitle = TextStyle(
     fontSize: 19,
     fontWeight: FontWeight.w700,
-    color: AppColors.textPrimary,
     letterSpacing: -0.3,
   );
 
@@ -38,14 +35,12 @@ abstract final class AppTextStyles {
   static const bodyLarge = TextStyle(
     fontSize: 17,
     fontWeight: FontWeight.w400,
-    color: AppColors.textPrimary,
     letterSpacing: -0.1,
   );
 
   static const bodyMedium = TextStyle(
     fontSize: 15,
     fontWeight: FontWeight.w400,
-    color: AppColors.textPrimary,
   );
 
   static const bodySmall = TextStyle(
@@ -92,7 +87,6 @@ abstract final class AppTextStyles {
   static const buttonPrimary = TextStyle(
     fontSize: 15,
     fontWeight: FontWeight.w600,
-    color: AppColors.textPrimary,
     letterSpacing: -0.1,
   );
 
@@ -100,7 +94,6 @@ abstract final class AppTextStyles {
   static const sheetTitle = TextStyle(
     fontSize: 22,
     fontWeight: FontWeight.w700,
-    color: AppColors.textPrimary,
     letterSpacing: -0.5,
   );
 
@@ -127,7 +120,6 @@ abstract final class AppTextStyles {
   static const sourceName = TextStyle(
     fontSize: 15,
     fontWeight: FontWeight.w600,
-    color: AppColors.textPrimary,
   );
 
   static const sourceMeta = TextStyle(

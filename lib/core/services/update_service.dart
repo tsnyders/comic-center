@@ -19,6 +19,15 @@ class ReleaseInfo {
   final String? apkUrl;
 }
 
+/// Thrown when we cannot reach the update server or parse its response.
+/// Distinct from returning null (which means "no releases published yet").
+class UpdateCheckException implements Exception {
+  const UpdateCheckException(this.message);
+  final String message;
+  @override
+  String toString() => message;
+}
+
 class UpdateService {
   static const _repo    = 'tsnyders/comic-center';
   static const _channel = MethodChannel('yomi/platform');
@@ -28,7 +37,9 @@ class UpdateService {
     receiveTimeout: const Duration(seconds: 10),
   ));
 
-  /// Returns the latest release from GitHub, or null if the request fails.
+  /// Returns the latest release from GitHub.
+  /// Returns null if no releases have been published yet (HTTP 404).
+  /// Throws [UpdateCheckException] for network/parse failures.
   static Future<ReleaseInfo?> fetchLatestRelease() async {
     try {
       final resp = await _dio.get<dynamic>(
@@ -49,8 +60,16 @@ class UpdateService {
         publishedAt : d['published_at'] as String? ?? '',
         apkUrl      : apkUrl,
       );
-    } catch (_) {
-      return null;
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 404) {
+        // 404 means no releases exist yet — that is not a network error.
+        return null;
+      }
+      throw UpdateCheckException(
+        e.message ?? 'Network error while checking for updates',
+      );
+    } catch (e) {
+      throw UpdateCheckException(e.toString());
     }
   }
 

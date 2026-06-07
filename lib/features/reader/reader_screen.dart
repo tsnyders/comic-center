@@ -50,6 +50,14 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     super.dispose();
   }
 
+  void _onSeek(int page) {
+    _pageController.animateToPage(
+      page,
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.easeInOut,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final pagesAsync = ref.watch(
@@ -58,9 +66,9 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
         chapterId: widget.sourceChapterId,
       )),
     );
-    final readerState  = ref.watch(readerProvider);
-    final direction    = ref.watch(readingDirectionProvider);
-    final background   = ref.watch(readerBackgroundProvider);
+    final readerState   = ref.watch(readerProvider);
+    final direction     = ref.watch(readingDirectionProvider);
+    final background    = ref.watch(readerBackgroundProvider);
     final chromeVisible = readerState.chromeVisible;
 
     final bgColor = switch (background) {
@@ -78,9 +86,17 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
               style: const TextStyle(color: AppColors.textSecondary)),
         ),
         data: (pages) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            ref.read(readerProvider.notifier).setTotalPages(pages.length);
-          });
+          // Only call setTotalPages when the count actually changes to avoid
+          // an infinite rebuild loop (setTotalPages triggers a state update
+          // which triggers build which would call setTotalPages again).
+          final currentTotal = ref.read(readerProvider).totalPages;
+          if (currentTotal != pages.length) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) {
+                ref.read(readerProvider.notifier).setTotalPages(pages.length);
+              }
+            });
+          }
 
           final isVertical = direction == ReadingDirection.vertical;
           final isRtl      = direction == ReadingDirection.rtl;
@@ -134,6 +150,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                       totalPages: readerState.totalPages,
                       onClose: () => Navigator.of(context).pop(),
                       onSettings: () => _showSettings(context),
+                      onSeek: _onSeek,
                     ),
                   ),
                 ),
@@ -191,7 +208,6 @@ class _ReaderSettingsSheet extends ConsumerWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Handle
           Center(
             child: Container(
               width: 36,
@@ -204,11 +220,14 @@ class _ReaderSettingsSheet extends ConsumerWidget {
             ),
           ),
 
-          Text('Reader Settings', style: AppTextStyles.sectionTitle),
+          Text('Reader Settings',
+              style: AppTextStyles.sectionTitle
+                  .copyWith(color: AppColors.textPrimary)),
           const SizedBox(height: 20),
 
-          // Direction
-          Text('DIRECTION', style: AppTextStyles.labelSmall),
+          Text('DIRECTION',
+              style: AppTextStyles.labelSmall
+                  .copyWith(color: AppColors.textTertiary)),
           const SizedBox(height: 8),
           _OptionRow<ReadingDirection>(
             value: direction,
@@ -222,9 +241,9 @@ class _ReaderSettingsSheet extends ConsumerWidget {
           ),
 
           const SizedBox(height: 16),
-
-          // Scale
-          Text('PAGE SCALE', style: AppTextStyles.labelSmall),
+          Text('PAGE SCALE',
+              style: AppTextStyles.labelSmall
+                  .copyWith(color: AppColors.textTertiary)),
           const SizedBox(height: 8),
           _OptionRow<PageScaleMode>(
             value: scale,
@@ -238,9 +257,9 @@ class _ReaderSettingsSheet extends ConsumerWidget {
           ),
 
           const SizedBox(height: 16),
-
-          // Background
-          Text('BACKGROUND', style: AppTextStyles.labelSmall),
+          Text('BACKGROUND',
+              style: AppTextStyles.labelSmall
+                  .copyWith(color: AppColors.textTertiary)),
           const SizedBox(height: 8),
           _OptionRow<ReaderBackground>(
             value: background,
@@ -286,13 +305,15 @@ class _OptionRow<T> extends StatelessWidget {
               color: selected ? AppColors.accent : AppColors.surface,
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: selected ? AppColors.accent : AppColors.borderStrong,
+                color:
+                    selected ? AppColors.accent : AppColors.borderStrong,
                 width: 0.5,
               ),
             ),
             child: Text(
               opt.$2,
-              style: AppTextStyles.bodySmall.copyWith(
+              style: TextStyle(
+                fontSize: 13,
                 color: selected
                     ? CupertinoColors.white
                     : AppColors.textSecondary,

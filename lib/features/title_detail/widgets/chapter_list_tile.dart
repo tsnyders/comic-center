@@ -1,10 +1,13 @@
 import 'package:flutter/cupertino.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/database/models/chapter_entry.dart';
+import '../../../core/database/models/download_entry.dart';
+import '../../../core/providers/download_provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 
-class ChapterListTile extends StatelessWidget {
+class ChapterListTile extends ConsumerWidget {
   const ChapterListTile({
     super.key,
     required this.chapter,
@@ -17,7 +20,11 @@ class ChapterListTile extends StatelessWidget {
   final VoidCallback? onDownload;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final queueStatus = ref
+        .watch(chapterDownloadStatusProvider(chapter.id))
+        .valueOrNull;
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -29,7 +36,6 @@ class ChapterListTile extends StatelessWidget {
         ),
         child: Row(
           children: [
-            // Chapter number
             SizedBox(
               width: 40,
               child: Text(
@@ -38,12 +44,11 @@ class ChapterListTile extends StatelessWidget {
                   fontWeight: FontWeight.w700,
                   color: chapter.isRead
                       ? AppColors.textTertiary
-                      : AppColors.textPrimary,
+                      : null,
                 ),
               ),
             ),
 
-            // Title + date
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -53,7 +58,7 @@ class ChapterListTile extends StatelessWidget {
                     style: AppTextStyles.bodySmall.copyWith(
                       color: chapter.isRead
                           ? AppColors.textTertiary
-                          : AppColors.textPrimary,
+                          : context.textSecondaryColor,
                       fontWeight: FontWeight.w500,
                     ),
                     maxLines: 1,
@@ -63,14 +68,15 @@ class ChapterListTile extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       _formatDate(chapter.uploadDate!),
-                      style: AppTextStyles.caption,
+                      style: AppTextStyles.caption.copyWith(
+                        color: context.textTertiaryColor,
+                      ),
                     ),
                   ],
                 ],
               ),
             ),
 
-            // Trailing indicators
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -84,21 +90,11 @@ class ChapterListTile extends StatelessWidget {
                       shape: BoxShape.circle,
                     ),
                   ),
-                if (chapter.isDownloaded)
-                  const Icon(
-                    CupertinoIcons.checkmark_circle_fill,
-                    size: 16,
-                    color: AppColors.downloaded,
-                  )
-                else
-                  GestureDetector(
-                    onTap: onDownload,
-                    child: const Icon(
-                      CupertinoIcons.arrow_down_circle,
-                      size: 16,
-                      color: AppColors.textTertiary,
-                    ),
-                  ),
+                _DownloadIndicator(
+                  chapter: chapter,
+                  queueStatus: queueStatus,
+                  onDownload: onDownload,
+                ),
               ],
             ),
           ],
@@ -116,5 +112,62 @@ class ChapterListTile extends StatelessWidget {
     if (diff.inDays < 30) return '${(diff.inDays / 7).floor()}w ago';
     if (diff.inDays < 365) return '${(diff.inDays / 30).floor()}mo ago';
     return '${(diff.inDays / 365).floor()}y ago';
+  }
+}
+
+class _DownloadIndicator extends StatelessWidget {
+  const _DownloadIndicator({
+    required this.chapter,
+    required this.queueStatus,
+    required this.onDownload,
+  });
+
+  final ChapterEntry chapter;
+  final String? queueStatus;
+  final VoidCallback? onDownload;
+
+  @override
+  Widget build(BuildContext context) {
+    if (chapter.isDownloaded || queueStatus == DownloadStatus.completed) {
+      return const Icon(
+        CupertinoIcons.checkmark_circle_fill,
+        size: 16,
+        color: AppColors.downloaded,
+      );
+    }
+
+    return switch (queueStatus) {
+      DownloadStatus.pending => const Icon(
+          CupertinoIcons.clock,
+          size: 16,
+          color: AppColors.warning,
+        ),
+      DownloadStatus.downloading => const SizedBox(
+          width: 16,
+          height: 16,
+          child: CupertinoActivityIndicator(radius: 7),
+        ),
+      DownloadStatus.paused => const Icon(
+          CupertinoIcons.pause_circle,
+          size: 16,
+          color: AppColors.warning,
+        ),
+      DownloadStatus.failed => GestureDetector(
+          onTap: onDownload,
+          child: const Icon(
+            CupertinoIcons.xmark_circle,
+            size: 16,
+            color: AppColors.unread,
+          ),
+        ),
+      _ => GestureDetector(
+          onTap: onDownload,
+          child: const Icon(
+            CupertinoIcons.arrow_down_circle,
+            size: 16,
+            color: AppColors.textTertiary,
+          ),
+        ),
+    };
   }
 }
