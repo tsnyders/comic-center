@@ -40,6 +40,7 @@ dependencies:
   googleapis: ^12.0.0
   googleapis_auth: ^1.6.0
   google_sign_in: ^6.2.1
+  http: ^1.2.0
 
   # Icons
   cupertino_icons: ^1.0.6
