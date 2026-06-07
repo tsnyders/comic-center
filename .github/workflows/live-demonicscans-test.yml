@@ -1,0 +1,26 @@
+name: Live DemonicScans Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      slug:
+        description: 'Optional manga slug to drill into (e.g. Murim-Login). Leave blank to use the first popular title.'
+        required: false
+        default: ''
+
+jobs:
+  live-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.1'
+          channel: 'stable'
+
+      - name: Flutter pub get
+        run: flutter pub get
+
+      - name: Run live DemonicScans test
+        run: dart run tool/live_demonicscans_test.dart ${{ github.event.inputs.slug }}
