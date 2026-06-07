@@ -6,6 +6,7 @@ import 'core/database/isar_service.dart';
 import 'core/extensions/source_registry.dart';
 import 'core/providers/database_provider.dart';
 import 'core/services/extension_manager.dart';
+import 'core/services/whats_new_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,10 +26,14 @@ void main() async {
     SourceRegistry.instance.register(source);
   }
 
+  // Check if the app version changed since the last launch.
+  final showWhatsNew = await WhatsNewService.checkAndMark();
+
   runApp(
     ProviderScope(
       overrides: [
         isarProvider.overrideWithValue(isar),
+        showWhatsNewProvider.overrideWithValue(showWhatsNew),
       ],
       child: const YomiApp(),
     ),

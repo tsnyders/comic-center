@@ -2,27 +2,59 @@ import 'dart:ui';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/services/update_service.dart';
+import '../../core/services/whats_new_service.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_text_styles.dart';
 import '../browse/browse_screen.dart';
 import '../downloads/downloads_screen.dart';
 import '../library/library_screen.dart';
+import '../settings/changelog_screen.dart';
 import '../settings/settings_screen.dart';
 
-class RootScaffold extends StatefulWidget {
+class RootScaffold extends ConsumerStatefulWidget {
   const RootScaffold({super.key});
 
   @override
-  State<RootScaffold> createState() => _RootScaffoldState();
+  ConsumerState<RootScaffold> createState() => _RootScaffoldState();
 }
 
-class _RootScaffoldState extends State<RootScaffold> {
+class _RootScaffoldState extends ConsumerState<RootScaffold> {
   int _selectedIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    // Show "What's New" dialog on first launch after a version update.
+    if (ref.read(showWhatsNewProvider)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _showWhatsNewDialog(context);
+      });
+    }
+  }
 
   void _onTap(int index) {
     if (_selectedIndex == index) return;
     HapticFeedback.selectionClick();
     setState(() => _selectedIndex = index);
+  }
+
+  Future<void> _showWhatsNewDialog(BuildContext context) async {
+    ReleaseInfo? release;
+    try {
+      release = await UpdateService.fetchLatestRelease();
+    } catch (_) {
+      // Silently skip if offline — user can always tap "What's New" in Settings.
+      return;
+    }
+    if (release == null || !context.mounted) return;
+
+    showCupertinoDialog<void>(
+      context: context,
+      builder: (_) => _WhatsNewDialog(release: release!),
+    );
   }
 
   @override
@@ -367,4 +399,80 @@ class _TabItem {
   final IconData icon;
   final IconData activeIcon;
   final String label;
+}
+
+// ── What's New dialog ─────────────────────────────────────────────────────────
+
+class _WhatsNewDialog extends StatelessWidget {
+  const _WhatsNewDialog({required this.release});
+  final ReleaseInfo release;
+
+  String _formatDate(DateTime? dt) {
+    if (dt == null) return '';
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ];
+    return '${months[dt.month - 1]} ${dt.day}, ${dt.year}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final body = release.body.trim();
+    final date = _formatDate(release.publishedAtDate);
+
+    return CupertinoAlertDialog(
+      title: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(CupertinoIcons.sparkles, size: 16, color: AppColors.accent),
+          const SizedBox(width: 6),
+          Text('What\'s New in ${release.tag}'),
+        ],
+      ),
+      content: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (date.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 4, bottom: 10),
+              child: Text(
+                date,
+                style: AppTextStyles.caption.copyWith(
+                  color: AppColors.textTertiary,
+                ),
+              ),
+            ),
+          if (body.isNotEmpty)
+            Text(
+              // Show first 300 chars to keep dialog manageable.
+              body.length > 300 ? '${body.substring(0, 300)}…' : body,
+              style: AppTextStyles.bodySmall,
+            )
+          else
+            Text(
+              'Bug fixes and improvements.',
+              style: AppTextStyles.bodySmall,
+            ),
+        ],
+      ),
+      actions: [
+        CupertinoDialogAction(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Dismiss'),
+        ),
+        CupertinoDialogAction(
+          onPressed: () {
+            Navigator.pop(context);
+            Navigator.of(context, rootNavigator: true).push(
+              CupertinoPageRoute<void>(
+                builder: (_) => const ChangelogScreen(),
+              ),
+            );
+          },
+          child: const Text('Full Changelog'),
+        ),
+      ],
+    );
+  }
 }

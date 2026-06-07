@@ -10,13 +10,18 @@ class ReleaseInfo {
     required this.body,
     required this.publishedAt,
     this.apkUrl,
+    this.isPrerelease = false,
   });
 
-  final String  tag;
-  final String  name;
-  final String  body;
-  final String  publishedAt;
+  final String tag;
+  final String name;
+  final String body;
+  final String publishedAt;
   final String? apkUrl;
+  final bool isPrerelease;
+
+  /// Parsed publish date, or null if the string is malformed.
+  DateTime? get publishedAtDate => DateTime.tryParse(publishedAt);
 }
 
 /// Thrown when we cannot reach the update server or parse its response.
@@ -45,24 +50,9 @@ class UpdateService {
       final resp = await _dio.get<dynamic>(
         'https://api.github.com/repos/$_repo/releases/latest',
       );
-      final d = resp.data as Map<String, dynamic>;
-      final assets = (d['assets'] as List?) ?? [];
-      final apkUrl = assets
-          .cast<Map<String, dynamic>>()
-          .where((a) => (a['name'] as String).toLowerCase().endsWith('.apk'))
-          .map((a) => a['browser_download_url'] as String)
-          .firstOrNull;
-
-      return ReleaseInfo(
-        tag         : d['tag_name'] as String? ?? '',
-        name        : d['name']       as String? ?? '',
-        body        : d['body']       as String? ?? '',
-        publishedAt : d['published_at'] as String? ?? '',
-        apkUrl      : apkUrl,
-      );
+      return _parseRelease(resp.data as Map<String, dynamic>);
     } on DioException catch (e) {
       if (e.response?.statusCode == 404) {
-        // 404 means no releases exist yet — that is not a network error.
         return null;
       }
       throw UpdateCheckException(
@@ -71,6 +61,44 @@ class UpdateService {
     } catch (e) {
       throw UpdateCheckException(e.toString());
     }
+  }
+
+  /// Returns up to 30 most-recent releases, newest first.
+  /// Throws [UpdateCheckException] on network/parse failures.
+  static Future<List<ReleaseInfo>> fetchReleases() async {
+    try {
+      final resp = await _dio.get<dynamic>(
+        'https://api.github.com/repos/$_repo/releases',
+        queryParameters: {'per_page': 30},
+      );
+      final list = resp.data as List;
+      return list
+          .map((e) => _parseRelease(e as Map<String, dynamic>))
+          .toList();
+    } on DioException catch (e) {
+      throw UpdateCheckException(
+        e.message ?? 'Network error while fetching changelog',
+      );
+    } catch (e) {
+      throw UpdateCheckException(e.toString());
+    }
+  }
+
+  static ReleaseInfo _parseRelease(Map<String, dynamic> d) {
+    final assets = (d['assets'] as List?) ?? [];
+    final apkUrl = assets
+        .cast<Map<String, dynamic>>()
+        .where((a) => (a['name'] as String).toLowerCase().endsWith('.apk'))
+        .map((a) => a['browser_download_url'] as String)
+        .firstOrNull;
+    return ReleaseInfo(
+      tag         : d['tag_name']    as String? ?? '',
+      name        : d['name']        as String? ?? '',
+      body        : d['body']        as String? ?? '',
+      publishedAt : d['published_at'] as String? ?? '',
+      apkUrl      : apkUrl,
+      isPrerelease: d['prerelease']  as bool?   ?? false,
+    );
   }
 
   /// Open a URL via the native Android intent (VIEW action).
@@ -82,3 +110,4 @@ class UpdateService {
     }
   }
 }
+
