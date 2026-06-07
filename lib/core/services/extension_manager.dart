@@ -108,8 +108,8 @@ abstract final class ExtensionManager {
         hasNsfw: false,
       ),
       (
-        sourceId: 'comick_en',
-        name: 'ComicK',
+        sourceId: 'demonicscans_en',
+        name: 'DemonicScans',
         version: '1.0.0',
         language: 'en',
         hasNsfw: false,
