@@ -108,8 +108,8 @@ abstract final class ExtensionManager {
         hasNsfw: false,
       ),
       (
-        sourceId: 'asurascans_en',
-        name: 'AsuraScans',
+        sourceId: 'comick_en',
+        name: 'ComicK',
         version: '1.0.0',
         language: 'en',
         hasNsfw: false,

@@ -24,7 +24,7 @@ final _sourceGradients = <String, LinearGradient>{
     end: Alignment.bottomRight,
     colors: [Color(0xFF11998E), Color(0xFF38EF7D)],
   ),
-  'asurascans_en': const LinearGradient(
+  'comick_en': const LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
     colors: [Color(0xFFFF416C), Color(0xFFFF4B2B)],
