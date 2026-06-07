@@ -36,7 +36,8 @@ Future<void> main(List<String> args) async {
 
   // ── 1. Popular ───────────────────────────────────────────────────────────
   stdout.writeln('① fetchPopular(page: 1)');
-  String? firstSlug = args.isNotEmpty ? args.first : null;
+  // Join all args with '-' so "Murim Login" and "Murim-Login" both work.
+  String? firstSlug = args.isNotEmpty ? args.join('-') : null;
   try {
     final popular = await source.fetchPopular(page: 1);
     _check('returned items', popular.isNotEmpty, '${popular.length} titles');
