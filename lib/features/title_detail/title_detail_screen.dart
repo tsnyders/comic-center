@@ -376,7 +376,7 @@ class _DetailSheet extends ConsumerWidget {
                     itemCount: chs.length,
                     itemBuilder: (context, i) => ChapterListTile(
                       chapter: chs[i],
-                      onTap: () => _openReader(context, chs[i]),
+                      onTap: () => _openReader(context, chs, i),
                       onDownload: chs[i].isDownloaded
                           ? null
                           : () => _downloadChapter(context, ref, chs[i]),
@@ -425,10 +425,19 @@ class _DetailSheet extends ConsumerWidget {
     );
   }
 
-  void _openReader(BuildContext context, ChapterEntry chapter) {
+  void _openReader(
+      BuildContext context, List<ChapterEntry> chs, int index) {
+    final chapter = chs[index];
     final isWebtoon = _isWebtoon(manga);
+    final summaries = chs
+        .map((c) => ReaderChapterSummary(
+              id: c.id,
+              sourceChapterId: c.sourceChapterId,
+              title: c.title,
+            ))
+        .toList();
     Navigator.of(context, rootNavigator: true).push(
-      CupertinoPageRoute(
+      CupertinoPageRoute<void>(
         fullscreenDialog: true,
         builder: (_) => ReaderScreen(
           mangaId: manga.id,
@@ -437,6 +446,8 @@ class _DetailSheet extends ConsumerWidget {
           sourceChapterId: chapter.sourceChapterId,
           chapterTitle: chapter.title,
           isWebtoon: isWebtoon,
+          chapters: summaries,
+          chapterIndex: index,
         ),
       ),
     );
@@ -531,15 +542,21 @@ class _ActionRow extends ConsumerWidget {
 
   void _continueReading(BuildContext context, List<ChapterEntry> chs) {
     if (chs.isEmpty) return;
-    // Chapters are sorted descending (latest first).
-    // Reading order is ascending, so reversed = ascending.
-    final ascending = chs.reversed.toList();
-    final target = ascending.firstWhere(
-      (c) => !c.isRead,
-      orElse: () => ascending.last,
-    );
+    // chs is sorted descending (latest first). Reading order is ascending.
+    // Find the first unread chapter in ascending order (i.e., last unread from
+    // the end of chs).
+    final targetIdx = chs.lastIndexWhere((c) => !c.isRead);
+    final index = targetIdx >= 0 ? targetIdx : 0;
+    final target = chs[index];
+    final summaries = chs
+        .map((c) => ReaderChapterSummary(
+              id: c.id,
+              sourceChapterId: c.sourceChapterId,
+              title: c.title,
+            ))
+        .toList();
     Navigator.of(context, rootNavigator: true).push(
-      CupertinoPageRoute(
+      CupertinoPageRoute<void>(
         fullscreenDialog: true,
         builder: (_) => ReaderScreen(
           mangaId: manga.id,
@@ -548,6 +565,8 @@ class _ActionRow extends ConsumerWidget {
           sourceChapterId: target.sourceChapterId,
           chapterTitle: target.title,
           isWebtoon: _isWebtoon(manga),
+          chapters: summaries,
+          chapterIndex: index,
         ),
       ),
     );
