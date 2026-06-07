@@ -11,6 +11,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../library/category_management_screen.dart';
 import 'backup_restore_screen.dart';
+import 'changelog_screen.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -151,12 +152,6 @@ class SettingsScreen extends ConsumerWidget {
               label: 'Repository URL',
               trailing: const _Chevron(),
             ),
-            _SettingRow(
-              icon: CupertinoIcons.cloud_download,
-              label: 'Check for Updates',
-              trailing: const _Chevron(),
-              onTap: () => _checkForUpdates(context),
-            ),
           ]),
 
           // ── Backup & Sync ─────────────────────────────────────────────
@@ -188,6 +183,22 @@ class SettingsScreen extends ConsumerWidget {
                 '1.0.0',
                 style: TextStyle(color: AppColors.textTertiary, fontSize: 14),
               ),
+            ),
+            _SettingRow(
+              icon: CupertinoIcons.sparkles,
+              label: 'What\'s New',
+              trailing: const _Chevron(),
+              onTap: () => Navigator.of(context, rootNavigator: true).push(
+                CupertinoPageRoute<void>(
+                  builder: (_) => const ChangelogScreen(),
+                ),
+              ),
+            ),
+            _SettingRow(
+              icon: CupertinoIcons.cloud_download,
+              label: 'Check for Updates',
+              trailing: const _Chevron(),
+              onTap: () => _checkForUpdates(context),
             ),
           ]),
 

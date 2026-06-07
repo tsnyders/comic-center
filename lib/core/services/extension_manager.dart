@@ -84,6 +84,12 @@ abstract final class ExtensionManager {
     });
   }
 
+  /// Seeds defaults if the DB has no sources yet. Call once at startup.
+  static Future<void> initializeIfEmpty(Isar isar) async {
+    final count = await isar.sourceEntrys.count();
+    if (count == 0) await seedDefaults(isar);
+  }
+
   /// Seed all bundled sources on first run (empty DB).
   static Future<void> seedDefaults(Isar isar) async {
     const defaults = [
