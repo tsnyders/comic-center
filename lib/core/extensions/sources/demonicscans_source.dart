@@ -268,25 +268,43 @@ class DemonicScansSource implements MangaSource {
   }
 
   /// Extracts the manga slug from a URL (e.g. "/manga/Murim-Login" → "Murim-Login").
+  ///
+  /// DemonicScans serves percent-encoded slugs in href attributes (e.g.
+  /// `%2D` for hyphens, sometimes double-encoded). We fully decode so the
+  /// canonical form is stored — that way Dio won't re-encode `%` chars and
+  /// double-encode the URL when we fetch details/chapters.
   String _slug(String href) {
-    try {
-      final segments = Uri.parse(href).pathSegments;
-      final idx = segments.indexOf('manga');
-      if (idx >= 0 && idx + 1 < segments.length) return segments[idx + 1];
-    } catch (_) {}
-    return href;
+    final cleaned = href.split('?').first.split('#').first;
+    final parts = cleaned.split('/');
+    final idx = parts.indexOf('manga');
+    final raw = (idx >= 0 && idx + 1 < parts.length) ? parts[idx + 1] : href;
+    return _fullyDecode(raw);
   }
 
-  /// Extracts "{manga-slug}/{chapter-slug}" from a chapter URL.
+  /// Extracts "{manga-slug}/{chapter-slug}" from a chapter URL, fully decoded.
   String _chapterId(String href) {
-    try {
-      final segments = Uri.parse(href).pathSegments;
-      final idx = segments.indexOf('manga');
-      if (idx >= 0 && idx + 2 < segments.length) {
-        return '${segments[idx + 1]}/${segments[idx + 2]}';
+    final cleaned = href.split('?').first.split('#').first;
+    final parts = cleaned.split('/');
+    final idx = parts.indexOf('manga');
+    if (idx >= 0 && idx + 2 < parts.length) {
+      return '${_fullyDecode(parts[idx + 1])}/${_fullyDecode(parts[idx + 2])}';
+    }
+    return _fullyDecode(href);
+  }
+
+  /// Decodes percent-encoding repeatedly until stable (handles double-encoding).
+  String _fullyDecode(String s) {
+    var prev = s;
+    for (var i = 0; i < 5; i++) {
+      try {
+        final next = Uri.decodeComponent(prev);
+        if (next == prev) return next;
+        prev = next;
+      } catch (_) {
+        return prev;
       }
-    } catch (_) {}
-    return href;
+    }
+    return prev;
   }
 
   /// Returns direct text content of an element (excluding child elements).

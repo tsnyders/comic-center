@@ -63,7 +63,11 @@ final browseMangaProvider =
 bool _isRealTitle(String? s) {
   if (s == null) return false;
   final t = s.trim();
-  return t.isNotEmpty && t.toLowerCase() != 'unknown';
+  if (t.isEmpty || t.toLowerCase() == 'unknown') return false;
+  // Reject URL-slug-shaped titles (no spaces + percent encoding leftover from
+  // a previous broken extraction, e.g. "Revenge-of-the-Iron%252DBlooded-...").
+  if (!t.contains(' ') && t.contains('%')) return false;
+  return true;
 }
 
 Future<MangaEntry> upsertMangaEntry({

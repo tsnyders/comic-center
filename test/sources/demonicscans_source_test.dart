@@ -174,6 +174,27 @@ void main() {
         final results = await _buildSource(adapter).fetchPopular();
         expect(results, isEmpty);
       });
+
+      test('fully decodes double-encoded slug in href', () async {
+        // DemonicScans serves some slugs with double-encoded hyphens, e.g.
+        // "%252D" (which is "%25" + "2D" — i.e. "%2D" encoded again).
+        // The slug must be fully decoded so subsequent fetchMangaDetail
+        // doesn't re-encode the "%" and produce a URL the server doesn't match.
+        const html = '''
+<html><body>
+<div id="advanced-content">
+  <div class="advanced-element">
+    <a href="/manga/Revenge-of-the-Iron%252DBlooded-Sword-Hound">
+      <img src="/images/x.jpg"><h1>Revenge</h1>
+    </a>
+  </div>
+</div>
+</body></html>''';
+        final adapter = _MockAdapter()..stub('/advanced.php', html);
+        final results = await _buildSource(adapter).fetchPopular();
+
+        expect(results.first.id, 'Revenge-of-the-Iron-Blooded-Sword-Hound');
+      });
     });
 
     group('fetchLatestUpdates', () {
@@ -282,6 +303,23 @@ void main() {
         final chapters = await _buildSource(adapter).fetchChapterList('x');
         expect(chapters, isEmpty);
       });
+
+      test('decodes percent-encoded chapter href so subsequent page fetches resolve', () async {
+        const html = '''
+<html><body>
+<div id="chapters-list">
+  <a class="chplinks" href="/manga/Revenge-of-the-Iron%252DBlooded-Sword-Hound/chapter-1">Chapter 1<span>2024-01-01</span></a>
+</div>
+</body></html>''';
+        final adapter = _MockAdapter()
+          ..stub('/manga/Revenge-of-the-Iron-Blooded-Sword-Hound', html);
+        final chapters = await _buildSource(adapter)
+            .fetchChapterList('Revenge-of-the-Iron-Blooded-Sword-Hound');
+
+        expect(chapters, hasLength(1));
+        expect(chapters[0].id,
+            'Revenge-of-the-Iron-Blooded-Sword-Hound/chapter-1');
+      });
     });
 
     group('fetchPageUrls', () {
@@ -314,6 +352,28 @@ void main() {
           ..stub('/manga/x/c1', '<html><body></body></html>');
         final urls = await _buildSource(adapter).fetchPageUrls('x/c1');
         expect(urls, isEmpty);
+      });
+
+      test('fetchPageUrls uses decoded slug so URL is single-encoded', () async {
+        // Verify the end-to-end flow from screenshot bug:
+        // href "/manga/Revenge-of-the-Iron%252DBlooded.../chapter-1"
+        //   → chapter id "Revenge-of-the-Iron-Blooded.../chapter-1"
+        //   → page fetch hits "/manga/Revenge-of-the-Iron-Blooded.../chapter-1"
+        //   (NOT a re-encoded "%25252D" URL).
+        const pagesHtml = '''
+<html><body><div>
+  <img class="imgholder" src="/images/p1.jpg">
+</div></body></html>''';
+        final adapter = _MockAdapter()
+          ..stub('/manga/Revenge-of-the-Iron-Blooded-Sword-Hound/chapter-1',
+              pagesHtml);
+        final source = _buildSource(adapter);
+
+        final urls = await source.fetchPageUrls(
+            'Revenge-of-the-Iron-Blooded-Sword-Hound/chapter-1');
+
+        expect(urls, hasLength(1));
+        expect(urls[0], 'https://demonicscans.org/images/p1.jpg');
       });
     });
   });
