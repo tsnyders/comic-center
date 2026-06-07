@@ -1,17 +1,20 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/providers/database_provider.dart';
+import '../../core/providers/google_drive_provider.dart';
 import '../../core/providers/library_provider.dart';
 import '../../core/providers/reader_provider.dart';
 import '../../core/providers/settings_provider.dart';
 import '../../core/services/backup_service.dart';
+import '../../core/services/google_drive_service.dart';
 import '../../core/services/update_service.dart';
-import '../../core/providers/database_provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../library/category_management_screen.dart';
 import 'backup_restore_screen.dart';
 import 'changelog_screen.dart';
+import 'drive_restore_screen.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -25,6 +28,7 @@ class SettingsScreen extends ConsumerWidget {
     final direction     = ref.watch(readingDirectionProvider);
     final scale         = ref.watch(pageScaleModeProvider);
     final background    = ref.watch(readerBackgroundProvider);
+    final driveAccount  = ref.watch(googleDriveProvider);
 
     return CupertinoPageScaffold(
       backgroundColor: CupertinoTheme.of(context).scaffoldBackgroundColor,
@@ -140,8 +144,12 @@ class SettingsScreen extends ConsumerWidget {
               _SettingRow(
                 icon: CupertinoIcons.cloud,
                 label: 'Google Drive Account',
-                trailing: _DriveStatusBadge(),
-                onTap: () => _linkGoogleDrive(context),
+                trailing: driveAccount != null
+                    ? _DriveConnectedBadge(email: driveAccount.email)
+                    : _DriveStatusBadge(),
+                onTap: () => driveAccount != null
+                    ? _signOutFromDrive(context, ref)
+                    : _linkGoogleDrive(context, ref),
               ),
           ]),
 
@@ -172,6 +180,31 @@ class SettingsScreen extends ConsumerWidget {
                 ),
               ),
             ),
+            if (driveAccount != null) ...[
+              _SettingRow(
+                icon: CupertinoIcons.cloud_upload,
+                label: 'Backup to Drive',
+                trailing: const _Chevron(),
+                onTap: () => _backupToDrive(context, ref),
+              ),
+              _SettingRow(
+                icon: CupertinoIcons.cloud_download,
+                label: 'Restore from Drive',
+                trailing: const _Chevron(),
+                onTap: () => Navigator.of(context, rootNavigator: true).push(
+                  CupertinoPageRoute<void>(
+                    builder: (_) => const DriveRestoreScreen(),
+                  ),
+                ),
+              ),
+            ],
+            if (driveAccount == null)
+              _SettingRow(
+                icon: CupertinoIcons.cloud,
+                label: 'Connect Google Drive',
+                trailing: const _Chevron(),
+                onTap: () => _linkGoogleDrive(context, ref),
+              ),
           ]),
 
           // ── About ────────────────────────────────────────────────────
@@ -313,25 +346,155 @@ class SettingsScreen extends ConsumerWidget {
     }
   }
 
-  static Future<void> _linkGoogleDrive(BuildContext context) async {
-    showCupertinoDialog<void>(
+  static Future<void> _linkGoogleDrive(
+      BuildContext context, WidgetRef ref) async {
+    final confirmed = await showCupertinoDialog<bool>(
       context: context,
       builder: (_) => CupertinoAlertDialog(
         title: const Text('Connect Google Drive'),
         content: const Text(
-          'Linking a Google account enables cloud backup and restore of your library via Google Drive.\n\nSign in to proceed.'),
+            'Linking a Google account enables cloud backup and restore of your library via Google Drive.\n\nSign in to proceed.'),
         actions: [
           CupertinoDialogAction(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(context, false),
             child: const Text('Cancel'),
           ),
           CupertinoDialogAction(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(context, true),
             child: const Text('Sign In'),
           ),
         ],
       ),
     );
+    if (confirmed != true || !context.mounted) return;
+
+    showCupertinoDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const CupertinoAlertDialog(
+        title: Text('Signing in…'),
+        content: Padding(
+          padding: EdgeInsets.only(top: 12),
+          child: CupertinoActivityIndicator(),
+        ),
+      ),
+    );
+
+    try {
+      final ok = await ref.read(googleDriveProvider.notifier).signIn();
+      if (!context.mounted) return;
+      Navigator.of(context, rootNavigator: true).pop();
+      if (!ok) return;
+      final account = ref.read(googleDriveProvider);
+      showCupertinoDialog<void>(
+        context: context,
+        builder: (_) => CupertinoAlertDialog(
+          title: const Text('Google Drive Connected'),
+          content: Text('Signed in as ${account?.email ?? ''}'),
+          actions: [
+            CupertinoDialogAction(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      Navigator.of(context, rootNavigator: true).pop();
+      showCupertinoDialog<void>(
+        context: context,
+        builder: (_) => CupertinoAlertDialog(
+          title: const Text('Sign-In Failed'),
+          content: Text(e.toString()),
+          actions: [
+            CupertinoDialogAction(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+    }
+  }
+
+  static Future<void> _signOutFromDrive(
+      BuildContext context, WidgetRef ref) async {
+    final confirmed = await showCupertinoDialog<bool>(
+      context: context,
+      builder: (_) => CupertinoAlertDialog(
+        title: const Text('Google Drive'),
+        content: Text(
+            'Signed in as ${ref.read(googleDriveProvider)?.email ?? ''}.\n\nSign out from Google Drive?'),
+        actions: [
+          CupertinoDialogAction(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          CupertinoDialogAction(
+            isDestructiveAction: true,
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Sign Out'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      await ref.read(googleDriveProvider.notifier).signOut();
+    }
+  }
+
+  static Future<void> _backupToDrive(
+      BuildContext context, WidgetRef ref) async {
+    showCupertinoDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const CupertinoAlertDialog(
+        title: Text('Uploading to Drive…'),
+        content: Padding(
+          padding: EdgeInsets.only(top: 12),
+          child: CupertinoActivityIndicator(),
+        ),
+      ),
+    );
+    try {
+      final isar = ref.read(isarProvider);
+      final categories = ref.read(libraryCategoriesProvider);
+      final backup = await BackupService.export(isar: isar, categories: categories);
+      await GoogleDriveService.uploadBackup(backup.file);
+      if (!context.mounted) return;
+      Navigator.of(context, rootNavigator: true).pop();
+      showCupertinoDialog<void>(
+        context: context,
+        builder: (_) => CupertinoAlertDialog(
+          title: const Text('Backup Uploaded'),
+          content: Text(
+              'Uploaded ${backup.mangaCount ?? 0} manga to Google Drive.'),
+          actions: [
+            CupertinoDialogAction(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      Navigator.of(context, rootNavigator: true).pop();
+      showCupertinoDialog<void>(
+        context: context,
+        builder: (_) => CupertinoAlertDialog(
+          title: const Text('Upload Failed'),
+          content: Text(e.toString()),
+          actions: [
+            CupertinoDialogAction(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+    }
   }
 
   static Future<void> _exportBackup(BuildContext context, WidgetRef ref) async {
@@ -512,7 +675,7 @@ class _Pill extends StatelessWidget {
   }
 }
 
-// ── Google Drive status badge ─────────────────────────────────────────────
+// ── Google Drive status badges ────────────────────────────────────────────
 
 class _DriveStatusBadge extends StatelessWidget {
   @override
@@ -525,12 +688,45 @@ class _DriveStatusBadge extends StatelessWidget {
         border: Border.all(color: AppColors.warning.withOpacity(0.3), width: 0.5),
       ),
       child: Text(
-        'Setup Required',
+        'Not Connected',
         style: AppTextStyles.caption.copyWith(
           color: AppColors.warning,
           fontWeight: FontWeight.w600,
         ),
       ),
+    );
+  }
+}
+
+class _DriveConnectedBadge extends StatelessWidget {
+  const _DriveConnectedBadge({required this.email});
+  final String email;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 8,
+          height: 8,
+          decoration: const BoxDecoration(
+            color: AppColors.downloaded,
+            shape: BoxShape.circle,
+          ),
+        ),
+        const SizedBox(width: 6),
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 160),
+          child: Text(
+            email,
+            style: AppTextStyles.caption.copyWith(
+              color: AppColors.textSecondary,
+            ),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
     );
   }
 }
