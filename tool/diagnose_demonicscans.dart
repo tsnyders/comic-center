@@ -104,13 +104,14 @@ Future<void> main(List<String> args) async {
     ..sort();
   stdout.writeln('  ${ids.join(', ')}\n');
 
-  // 4. Check old selectors explicitly
-  stdout.writeln('${_cyan}── OLD SELECTORS ──$_reset');
+  // 4. Check selectors (both old strict and new relaxed)
+  stdout.writeln('${_cyan}── SELECTOR PROBES ──$_reset');
   _probe(doc, 'h1.big-fat-titles');
-  _probe(doc, 'div#manga-page > img');
-  _probe(doc, 'div#manga-page img');
+  _probe(doc, 'div#manga-page > img');   // OLD (strict direct-child)
+  _probe(doc, 'div#manga-page img');     // NEW (any descendant)
   _probe(doc, 'div#manga-info-stats');
-  _probe(doc, 'div#chapters-list > a.chplinks');
+  _probe(doc, 'div#chapters-list > a.chplinks'); // OLD
+  _probe(doc, 'div#chapters-list a.chplinks');   // NEW
   _probe(doc, 'div#chapters-list a');
   _probe(doc, 'a.chplinks');
   stdout.writeln('');
