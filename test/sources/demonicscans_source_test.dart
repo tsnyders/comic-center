@@ -119,8 +119,25 @@ const _detailHtml = '''
   <div><li>Status</li><li>Ongoing</li></div>
 </div>
 <div id="chapters-list">
-  <a class="chplinks" href="/manga/Murim-Login/chapter-2">Chapter 2<span>2023-01-08</span></a>
-  <a class="chplinks" href="/manga/Murim-Login/chapter-1">Chapter 1<span>2023-01-01</span></a>
+  <li><a class="chplinks" href="/chaptered.php?manga=129&chapter=2">Chapter 2<span>2023-01-08</span></a></li>
+  <li><a class="chplinks" href="/chaptered.php?manga=129&chapter=1">Chapter 1<span>2023-01-01</span></a></li>
+</div>
+</body></html>
+''';
+
+// Detail page with the newer cover layout (img.border-box outside div#manga-page)
+const _detailHtmlNewCover = '''
+<html><body>
+<div class="center-align full-width"><img class="border-box" src="https://readermc.org/images/thumbnails/Murim Login.jpg"></div>
+<h1 class="big-fat-titles">Murim Login</h1>
+<div class="genres-list"><li>Action</li></div>
+<div id="manga-info-rightColumn"><div><div class="white-font">desc</div></div></div>
+<div id="manga-info-stats">
+  <div><li>Author</li><li>Author Name</li></div>
+  <div><li>Status</li><li>Ongoing</li></div>
+</div>
+<div id="chapters-list">
+  <li><a class="chplinks" href="/chaptered.php?manga=129&chapter=1">Chapter 1<span>2023-01-01</span></a></li>
 </div>
 </body></html>
 ''';
@@ -254,6 +271,15 @@ void main() {
         expect(detail.url, 'https://demonicscans.org/manga/Murim-Login');
       });
 
+      test('falls back to img.border-box cover when div#manga-page img absent', () async {
+        final adapter = _MockAdapter()
+          ..stub('/manga/Murim-Login', _detailHtmlNewCover);
+        final detail = await _buildSource(adapter).fetchMangaDetail('Murim-Login');
+        // Space in filename is percent-encoded to %20
+        expect(detail.coverUrl,
+            'https://readermc.org/images/thumbnails/Murim%20Login.jpg');
+      });
+
       test('maps completed status correctly', () async {
         final html = _detailHtml.replaceAll('<li>Ongoing</li>', '<li>Completed</li>');
         final adapter = _MockAdapter()..stub('/manga/x', html);
@@ -279,12 +305,15 @@ void main() {
 
         expect(chapters, hasLength(2));
         // Oldest chapter first
-        expect(chapters[0].id, 'Murim-Login/chapter-1');
+        expect(chapters[0].id, 'chaptered.php?manga=129&chapter=1');
         expect(chapters[0].title, 'Chapter 1');
         expect(chapters[0].number, 1.0);
         expect(chapters[0].uploadDate, DateTime.parse('2023-01-01'));
-        expect(chapters[1].id, 'Murim-Login/chapter-2');
+        expect(chapters[1].id, 'chaptered.php?manga=129&chapter=2');
         expect(chapters[1].number, 2.0);
+        // Chapter URL uses correct chaptered.php endpoint
+        expect(chapters[0].url,
+            'https://demonicscans.org/chaptered.php?manga=129&chapter=1');
       });
 
       test('chapter title excludes the date span text', () async {
@@ -304,31 +333,32 @@ void main() {
         expect(chapters, isEmpty);
       });
 
-      test('decodes percent-encoded chapter href so subsequent page fetches resolve', () async {
+      test('new chaptered.php href format produces correct chapter ID', () async {
         const html = '''
 <html><body>
 <div id="chapters-list">
-  <a class="chplinks" href="/manga/Revenge-of-the-Iron%252DBlooded-Sword-Hound/chapter-1">Chapter 1<span>2024-01-01</span></a>
+  <li><a class="chplinks" href="/chaptered.php?manga=999&chapter=1">Chapter 1<span>2024-01-01</span></a></li>
 </div>
 </body></html>''';
         final adapter = _MockAdapter()
-          ..stub('/manga/Revenge-of-the-Iron-Blooded-Sword-Hound', html);
+          ..stub('/manga/Some-Manga', html);
         final chapters = await _buildSource(adapter)
-            .fetchChapterList('Revenge-of-the-Iron-Blooded-Sword-Hound');
+            .fetchChapterList('Some-Manga');
 
         expect(chapters, hasLength(1));
-        expect(chapters[0].id,
-            'Revenge-of-the-Iron-Blooded-Sword-Hound/chapter-1');
+        expect(chapters[0].id, 'chaptered.php?manga=999&chapter=1');
+        expect(chapters[0].number, 1.0);
       });
     });
 
     group('fetchPageUrls', () {
-      test('extracts imgholder src URLs', () async {
+      test('extracts imgholder src URLs (new chaptered.php format)', () async {
         final adapter = _MockAdapter()
-          ..stub('/manga/Murim-Login/chapter-1', _pagesHtml);
+          ..stub('/chaptered.php', _pagesHtml);
         final source = _buildSource(adapter);
 
-        final urls = await source.fetchPageUrls('Murim-Login/chapter-1');
+        final urls =
+            await source.fetchPageUrls('chaptered.php?manga=129&chapter=1');
 
         expect(urls, hasLength(3));
         expect(urls[0],
@@ -342,35 +372,32 @@ void main() {
 <html><body>
 <div><img class="imgholder" src="/images/manga/test/001.jpg"></div>
 </body></html>''';
-        final adapter = _MockAdapter()..stub('/manga/x/chapter-1', html);
-        final urls = await _buildSource(adapter).fetchPageUrls('x/chapter-1');
+        final adapter = _MockAdapter()..stub('/chaptered.php', html);
+        final urls = await _buildSource(adapter)
+            .fetchPageUrls('chaptered.php?manga=1&chapter=1');
         expect(urls[0], 'https://demonicscans.org/images/manga/test/001.jpg');
       });
 
       test('returns empty list when no imgholder images found', () async {
         final adapter = _MockAdapter()
-          ..stub('/manga/x/c1', '<html><body></body></html>');
-        final urls = await _buildSource(adapter).fetchPageUrls('x/c1');
+          ..stub('/chaptered.php', '<html><body></body></html>');
+        final urls = await _buildSource(adapter)
+            .fetchPageUrls('chaptered.php?manga=1&chapter=1');
         expect(urls, isEmpty);
       });
 
-      test('fetchPageUrls uses decoded slug so URL is single-encoded', () async {
-        // Verify the end-to-end flow from screenshot bug:
-        // href "/manga/Revenge-of-the-Iron%252DBlooded.../chapter-1"
-        //   → chapter id "Revenge-of-the-Iron-Blooded.../chapter-1"
-        //   → page fetch hits "/manga/Revenge-of-the-Iron-Blooded.../chapter-1"
-        //   (NOT a re-encoded "%25252D" URL).
+      test('legacy slug-based chapter ID still works (backward compat)', () async {
+        // Old chapter IDs stored in DB before the URL format change should
+        // still resolve via the /manga/ fallback path.
         const pagesHtml = '''
 <html><body><div>
   <img class="imgholder" src="/images/p1.jpg">
 </div></body></html>''';
         final adapter = _MockAdapter()
-          ..stub('/manga/Revenge-of-the-Iron-Blooded-Sword-Hound/chapter-1',
-              pagesHtml);
-        final source = _buildSource(adapter);
+          ..stub('/manga/Some-Manga/chapter-1', pagesHtml);
 
-        final urls = await source.fetchPageUrls(
-            'Revenge-of-the-Iron-Blooded-Sword-Hound/chapter-1');
+        final urls =
+            await _buildSource(adapter).fetchPageUrls('Some-Manga/chapter-1');
 
         expect(urls, hasLength(1));
         expect(urls[0], 'https://demonicscans.org/images/p1.jpg');
