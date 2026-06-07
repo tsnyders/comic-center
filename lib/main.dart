@@ -17,6 +17,9 @@ void main() async {
   // by an empty Browse screen. After that, installs/uninstalls are user-driven.
   await ExtensionManager.initializeIfEmpty(isar);
 
+  // Fix any manga entries with percent-encoded slugs from a previous bug.
+  await ExtensionManager.migratePercentEncodedSlugs(isar);
+
   // Hydrate the singleton registry from DB before the first frame renders.
   final sources = await ExtensionManager.loadInstalled(isar);
   for (final source in sources) {
