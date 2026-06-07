@@ -1,5 +1,6 @@
 import 'package:isar/isar.dart';
 
+import '../database/models/manga_entry.dart';
 import '../database/models/source_entry.dart';
 import '../extensions/extension_factory.dart';
 import '../extensions/source_interface.dart';
@@ -88,6 +89,56 @@ abstract final class ExtensionManager {
   static Future<void> initializeIfEmpty(Isar isar) async {
     final count = await isar.sourceEntrys.count();
     if (count == 0) await seedDefaults(isar);
+  }
+
+  /// Fix manga entries whose sourceMangaId contains percent-encoded characters
+  /// (legacy bug where slugs were double-encoded). Safe to call on every startup.
+  static Future<void> migratePercentEncodedSlugs(Isar isar) async {
+    final all = await isar.mangaEntrys
+        .filter()
+        .sourceIdEqualTo('demonicscans_en')
+        .findAll();
+
+    final toFix = all.where((e) => e.sourceMangaId.contains('%')).toList();
+    if (toFix.isEmpty) return;
+
+    await isar.writeTxn(() async {
+      for (final entry in toFix) {
+        final cleanSlug = _fullyDecode(entry.sourceMangaId);
+        final cleanKey = 'demonicscans_en::$cleanSlug';
+
+        // Check if a clean entry already exists (avoid duplicates).
+        final existing = await isar.mangaEntrys
+            .filter()
+            .sourceKeyEqualTo(cleanKey)
+            .findFirst();
+
+        if (existing != null && existing.id != entry.id) {
+          // Clean entry already exists — delete the broken duplicate.
+          await isar.mangaEntrys.delete(entry.id);
+        } else {
+          // Update in-place.
+          entry
+            ..sourceMangaId = cleanSlug
+            ..sourceKey = cleanKey;
+          await isar.mangaEntrys.put(entry);
+        }
+      }
+    });
+  }
+
+  static String _fullyDecode(String s) {
+    var prev = s;
+    for (var i = 0; i < 5; i++) {
+      try {
+        final next = Uri.decodeComponent(prev);
+        if (next == prev) return next;
+        prev = next;
+      } catch (_) {
+        return prev;
+      }
+    }
+    return prev;
   }
 
   /// Seed all bundled sources on first run (empty DB).
