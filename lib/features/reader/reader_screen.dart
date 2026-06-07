@@ -1,13 +1,28 @@
+import 'dart:ui';
+
 import 'package:extended_image/extended_image.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/providers/library_provider.dart';
 import '../../core/providers/reader_provider.dart';
 import '../../core/theme/app_colors.dart';
 import 'widgets/page_pill.dart';
 import 'widgets/progress_line.dart';
 import 'widgets/reader_chrome.dart';
+
+class ReaderChapterSummary {
+  const ReaderChapterSummary({
+    required this.id,
+    required this.sourceChapterId,
+    required this.title,
+  });
+
+  final int id;
+  final String sourceChapterId;
+  final String title;
+}
 
 class ReaderScreen extends ConsumerStatefulWidget {
   const ReaderScreen({
@@ -17,6 +32,8 @@ class ReaderScreen extends ConsumerStatefulWidget {
     required this.sourceId,
     required this.sourceChapterId,
     required this.chapterTitle,
+    this.chapters = const [],
+    this.chapterIndex = -1,
   });
 
   final int mangaId;
@@ -25,15 +42,23 @@ class ReaderScreen extends ConsumerStatefulWidget {
   final String sourceChapterId;
   final String chapterTitle;
 
+  /// Full chapter list (descending order — index 0 = latest).
+  final List<ReaderChapterSummary> chapters;
+
+  /// Index of this chapter in [chapters]. -1 if unknown.
+  final int chapterIndex;
+
   @override
   ConsumerState<ReaderScreen> createState() => _ReaderScreenState();
 }
 
 class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   late final PageController _pageController;
-
-  // Pill fades in when a swipe begins, fades out after idle.
   bool _pillVisible = false;
+  bool _chapterMarkedRead = false;
+
+  bool get _hasNextChapter =>
+      widget.chapterIndex > 0 && widget.chapters.isNotEmpty;
 
   @override
   void initState() {
@@ -51,6 +76,41 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     super.dispose();
   }
 
+  void _onPageChanged(int i, int totalPages) {
+    ref.read(readerProvider.notifier).setPage(i);
+    setState(() => _pillVisible = true);
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted) setState(() => _pillVisible = false);
+    });
+
+    if (i == totalPages - 1 && !_chapterMarkedRead) {
+      _chapterMarkedRead = true;
+      ref.read(libraryNotifierProvider.notifier).markChapterRead(
+            mangaId: widget.mangaId,
+            chapterId: widget.chapterId,
+            lastPage: i,
+          );
+    }
+  }
+
+  void _goToNextChapter() {
+    final next = widget.chapters[widget.chapterIndex - 1];
+    Navigator.of(context).pushReplacement(
+      CupertinoPageRoute(
+        fullscreenDialog: true,
+        builder: (_) => ReaderScreen(
+          mangaId: widget.mangaId,
+          chapterId: next.id,
+          sourceId: widget.sourceId,
+          sourceChapterId: next.sourceChapterId,
+          chapterTitle: next.title,
+          chapters: widget.chapters,
+          chapterIndex: widget.chapterIndex - 1,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final pagesAsync = ref.watch(
@@ -61,6 +121,8 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     );
     final readerState = ref.watch(readerProvider);
     final chromeVisible = readerState.chromeVisible;
+    final isLastPage = readerState.totalPages > 0 &&
+        readerState.currentPage == readerState.totalPages - 1;
 
     return CupertinoPageScaffold(
       backgroundColor: AppColors.readerBackground,
@@ -84,13 +146,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                 child: PageView.builder(
                   controller: _pageController,
                   itemCount: pages.length,
-                  onPageChanged: (i) {
-                    ref.read(readerProvider.notifier).setPage(i);
-                    setState(() => _pillVisible = true);
-                    Future.delayed(const Duration(seconds: 2), () {
-                      if (mounted) setState(() => _pillVisible = false);
-                    });
-                  },
+                  onPageChanged: (i) => _onPageChanged(i, pages.length),
                   itemBuilder: (context, i) => _ReaderPage(
                     url: pages[i],
                     index: i,
@@ -136,6 +192,15 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                   visible: _pillVisible && !chromeVisible,
                 ),
               ),
+
+              // ── Next chapter banner ────────────────────────────────────
+              if (_hasNextChapter && isLastPage && !chromeVisible)
+                Positioned(
+                  bottom: MediaQuery.of(context).padding.bottom + 16,
+                  left: 24,
+                  right: 24,
+                  child: _NextChapterBanner(onTap: _goToNextChapter),
+                ),
             ],
           );
         },
@@ -166,6 +231,56 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
           isDestructiveAction: false,
           onPressed: () => Navigator.pop(context),
           child: const Text('Cancel'),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Next chapter banner ────────────────────────────────────────────────────
+
+class _NextChapterBanner extends StatelessWidget {
+  const _NextChapterBanner({required this.onTap});
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1C1C2E).withOpacity(0.85),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: AppColors.accent.withOpacity(0.35),
+                width: 0.75,
+              ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(
+                  CupertinoIcons.arrow_right_circle_fill,
+                  color: AppColors.accent,
+                  size: 20,
+                ),
+                const SizedBox(width: 10),
+                const Text(
+                  'Next Chapter',
+                  style: TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -215,7 +330,7 @@ class _ReaderPage extends StatelessWidget {
               ),
             );
           case LoadState.completed:
-            return null; // use default rendering
+            return null;
         }
       },
     );

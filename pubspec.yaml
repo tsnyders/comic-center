@@ -36,6 +36,9 @@ dependencies:
   # Backup / archive
   archive: ^3.6.1
 
+  # HTTP client (required by googleapis AuthClient)
+  http: ^1.2.0
+
   # Google Drive sync
   googleapis: ^12.0.0
   googleapis_auth: ^1.6.0

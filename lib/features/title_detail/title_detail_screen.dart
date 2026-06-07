@@ -13,7 +13,7 @@ import '../../core/providers/settings_provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../shared/widgets/cover_image.dart';
-import '../reader/reader_screen.dart';
+import '../reader/reader_screen.dart' show ReaderScreen, ReaderChapterSummary;
 import 'widgets/chapter_list_tile.dart';
 
 // ── Screen ─────────────────────────────────────────────────────────────────
@@ -335,19 +335,29 @@ class _DetailSheet extends ConsumerWidget {
                 error: (e, _) => SliverToBoxAdapter(
                   child: Text(e.toString(), style: AppTextStyles.bodySmall),
                 ),
-                data: (chs) => SliverPadding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  sliver: SliverList.builder(
-                    itemCount: chs.length,
-                    itemBuilder: (context, i) => ChapterListTile(
-                      chapter: chs[i],
-                      onTap: () => _openReader(context, chs[i]),
-                      onDownload: chs[i].isDownloaded
-                          ? null
-                          : () => _downloadChapter(context, ref, chs[i]),
+                data: (chs) {
+                  final summaries = chs
+                      .map((c) => ReaderChapterSummary(
+                            id: c.id,
+                            sourceChapterId: c.sourceChapterId,
+                            title: c.title,
+                          ))
+                      .toList();
+                  return SliverPadding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    sliver: SliverList.builder(
+                      itemCount: chs.length,
+                      itemBuilder: (context, i) => ChapterListTile(
+                        chapter: chs[i],
+                        onTap: () =>
+                            _openReader(context, chs, i, summaries),
+                        onDownload: chs[i].isDownloaded
+                            ? null
+                            : () => _downloadChapter(context, ref, chs[i]),
+                      ),
                     ),
-                  ),
-                ),
+                  );
+                },
               ),
 
               SliverToBoxAdapter(
@@ -360,7 +370,13 @@ class _DetailSheet extends ConsumerWidget {
     );
   }
 
-  void _openReader(BuildContext context, ChapterEntry chapter) {
+  void _openReader(
+    BuildContext context,
+    List<ChapterEntry> chs,
+    int index,
+    List<ReaderChapterSummary> summaries,
+  ) {
+    final chapter = chs[index];
     Navigator.of(context, rootNavigator: true).push(
       CupertinoPageRoute(
         fullscreenDialog: true,
@@ -370,6 +386,8 @@ class _DetailSheet extends ConsumerWidget {
           sourceId: manga.sourceId,
           sourceChapterId: chapter.sourceChapterId,
           chapterTitle: chapter.title,
+          chapters: summaries,
+          chapterIndex: index,
         ),
       ),
     );
@@ -462,13 +480,18 @@ class _ActionRow extends ConsumerWidget {
 
   void _continueReading(BuildContext context, List<ChapterEntry> chs) {
     if (chs.isEmpty) return;
-    // Chapters are sorted descending (latest first).
-    // Reading order is ascending, so reversed = ascending.
-    final ascending = chs.reversed.toList();
-    final target = ascending.firstWhere(
-      (c) => !c.isRead,
-      orElse: () => ascending.last,
-    );
+    // chs is sorted descending (index 0 = latest).
+    // Find the oldest unread chapter = lastIndexWhere(!isRead) in desc list.
+    final idx = chs.lastIndexWhere((c) => !c.isRead);
+    final targetIdx = idx == -1 ? 0 : idx;
+    final target = chs[targetIdx];
+    final summaries = chs
+        .map((c) => ReaderChapterSummary(
+              id: c.id,
+              sourceChapterId: c.sourceChapterId,
+              title: c.title,
+            ))
+        .toList();
     Navigator.of(context, rootNavigator: true).push(
       CupertinoPageRoute(
         fullscreenDialog: true,
@@ -478,6 +501,8 @@ class _ActionRow extends ConsumerWidget {
           sourceId: manga.sourceId,
           sourceChapterId: target.sourceChapterId,
           chapterTitle: target.title,
+          chapters: summaries,
+          chapterIndex: targetIdx,
         ),
       ),
     );
