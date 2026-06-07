@@ -129,9 +129,16 @@ class DemonicScansSource implements MangaSource {
     final title =
         doc.querySelector('h1.big-fat-titles')?.text.trim() ?? mangaId;
 
-    final rawCover =
-        doc.querySelector('div#manga-page img')?.attributes['src'] ?? '';
-    final coverUrl = _absolute(rawCover);
+    // Cover selector — site has shifted layouts; try a chain.
+    // The current live page renders the cover as `img.border-box` inside a
+    // centered wrapper, but older HTML used `div#manga-page img`.
+    final coverImg = doc.querySelector('div#manga-page img') ??
+        doc.querySelector('img.border-box') ??
+        doc.querySelector('img[src*="/thumbnails/"]');
+    final rawCover = coverImg?.attributes['src'] ?? '';
+    // Cover URLs sometimes contain literal spaces (e.g. "Murim Login.jpg") —
+    // encode them so the URL is a valid HTTP request target.
+    final coverUrl = _encodeUrl(_absolute(rawCover));
 
     final genres = doc
         .querySelectorAll('div.genres-list > li')
@@ -265,6 +272,14 @@ class DemonicScansSource implements MangaSource {
     if (url.startsWith('//')) return 'https:$url';
     if (url.startsWith('/')) return 'https://demonicscans.org$url';
     return url;
+  }
+
+  /// Percent-encodes spaces and other invalid URL chars without disturbing
+  /// already-encoded sequences. Used for cover URLs that contain literal
+  /// spaces (e.g. ".../thumbnails/Murim Login.jpg").
+  String _encodeUrl(String url) {
+    if (url.isEmpty) return url;
+    return url.replaceAll(' ', '%20');
   }
 
   /// Extracts the manga slug from a URL (e.g. "/manga/Murim-Login" → "Murim-Login").
