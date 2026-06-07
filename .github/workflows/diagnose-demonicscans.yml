@@ -1,0 +1,33 @@
+name: Diagnose DemonicScans Page
+
+on:
+  workflow_dispatch:
+    inputs:
+      slug:
+        description: 'Manga slug to inspect (e.g. Murim-Login)'
+        required: false
+        default: 'Murim-Login'
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.1'
+          channel: 'stable'
+
+      - name: Flutter pub get
+        run: flutter pub get
+
+      - name: Run diagnostic
+        run: dart run tool/diagnose_demonicscans.dart "${{ github.event.inputs.slug }}" | tee diagnostic-output.txt
+
+      - name: Upload diagnostic output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: demonicscans-diagnostic
+          path: diagnostic-output.txt
