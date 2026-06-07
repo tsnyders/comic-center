@@ -7,7 +7,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/database/models/chapter_entry.dart';
 import '../../core/database/models/manga_entry.dart';
 import '../../core/providers/browse_provider.dart';
+import '../../core/providers/database_provider.dart';
 import '../../core/providers/download_provider.dart';
+import '../../core/providers/source_registry_provider.dart';
 import '../../core/providers/library_provider.dart';
 import '../../core/providers/settings_provider.dart';
 import '../../core/theme/app_colors.dart';
@@ -233,6 +235,22 @@ class _DetailSheet extends ConsumerWidget {
                     ),
                   ),
                 ),
+              ),
+
+              // Pull-to-refresh
+              CupertinoSliverRefreshControl(
+                onRefresh: () async {
+                  final isar   = ref.read(isarProvider);
+                  final source = ref.read(sourceByIdProvider(manga.sourceId));
+                  if (source == null) return;
+                  await refreshMangaChapters(
+                    isar: isar,
+                    source: source,
+                    mangaId: manga.id,
+                    sourceMangaId: manga.sourceMangaId,
+                  );
+                  ref.invalidate(chapterSyncProvider(manga.id));
+                },
               ),
 
               // Title + author

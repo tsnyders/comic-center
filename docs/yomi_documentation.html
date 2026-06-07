@@ -1,0 +1,1099 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Yomi — Developer & User Documentation</title>
+<style>
+  /* ── Reset & base ─────────────────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
+    font-size: 11pt;
+    line-height: 1.65;
+    color: #1a1a2e;
+    background: #ffffff;
+    margin: 0;
+  }
+
+  /* ── Page layout (for print/PDF) ──────────────────────────────── */
+  @page {
+    size: A4;
+    margin: 22mm 18mm 22mm 18mm;
+  }
+
+  @media print {
+    .page-break { page-break-before: always; }
+    .cover { page-break-after: always; }
+  }
+
+  /* ── Cover page ───────────────────────────────────────────────── */
+  .cover {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+    min-height: 250mm;
+    padding: 48pt 60pt;
+    background: linear-gradient(135deg, #0a0a1f 0%, #1a1a3e 60%, #0a1628 100%);
+    color: #ffffff;
+    page-break-after: always;
+  }
+
+  .cover-eyebrow {
+    font-size: 9pt;
+    font-weight: 600;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: #0a84ff;
+    margin-bottom: 16pt;
+  }
+
+  .cover-title {
+    font-size: 64pt;
+    font-weight: 800;
+    letter-spacing: -2px;
+    line-height: 1.0;
+    margin-bottom: 8pt;
+  }
+
+  .cover-title span {
+    color: #0a84ff;
+  }
+
+  .cover-subtitle {
+    font-size: 16pt;
+    font-weight: 300;
+    color: rgba(255,255,255,0.7);
+    margin-top: 12pt;
+    margin-bottom: 40pt;
+    max-width: 380pt;
+    line-height: 1.5;
+  }
+
+  .cover-meta {
+    font-size: 9pt;
+    color: rgba(255,255,255,0.4);
+    margin-top: auto;
+    padding-top: 24pt;
+    border-top: 1px solid rgba(255,255,255,0.12);
+    width: 100%;
+  }
+
+  .cover-meta span {
+    display: inline-block;
+    margin-right: 24pt;
+  }
+
+  .cover-pill {
+    display: inline-block;
+    background: rgba(10,132,255,0.18);
+    border: 1px solid rgba(10,132,255,0.35);
+    color: #0a84ff;
+    border-radius: 20px;
+    padding: 4pt 12pt;
+    font-size: 9pt;
+    font-weight: 600;
+    margin-bottom: 32pt;
+    letter-spacing: 0.5px;
+  }
+
+  /* ── Table of contents ────────────────────────────────────────── */
+  .toc {
+    padding: 40pt 60pt;
+    page-break-after: always;
+  }
+
+  .toc h2 {
+    font-size: 22pt;
+    font-weight: 700;
+    color: #0a0a1f;
+    margin-bottom: 24pt;
+    padding-bottom: 10pt;
+    border-bottom: 2px solid #0a84ff;
+  }
+
+  .toc-entry {
+    display: flex;
+    align-items: baseline;
+    margin-bottom: 10pt;
+    font-size: 11pt;
+  }
+
+  .toc-entry.section {
+    font-weight: 700;
+    margin-top: 14pt;
+    font-size: 12pt;
+    color: #0a0a1f;
+  }
+
+  .toc-entry.subsection {
+    padding-left: 20pt;
+    font-weight: 400;
+    color: #444;
+  }
+
+  .toc-dots {
+    flex: 1;
+    border-bottom: 1px dotted #bbb;
+    margin: 0 8pt 3pt;
+  }
+
+  .toc-page {
+    color: #0a84ff;
+    font-weight: 600;
+    min-width: 20pt;
+    text-align: right;
+  }
+
+  /* ── Content pages ────────────────────────────────────────────── */
+  .content {
+    padding: 36pt 60pt;
+  }
+
+  /* ── Section heading with accent bar ─────────────────────────── */
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 12pt;
+    margin-bottom: 24pt;
+    margin-top: 12pt;
+  }
+
+  .section-number {
+    background: #0a84ff;
+    color: #fff;
+    font-size: 11pt;
+    font-weight: 800;
+    width: 32pt;
+    height: 32pt;
+    border-radius: 8pt;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  h1.section-title {
+    font-size: 24pt;
+    font-weight: 800;
+    color: #0a0a1f;
+    letter-spacing: -0.5px;
+  }
+
+  h2 {
+    font-size: 16pt;
+    font-weight: 700;
+    color: #0a0a1f;
+    margin-top: 28pt;
+    margin-bottom: 10pt;
+    padding-bottom: 6pt;
+    border-bottom: 1.5px solid #e8e8f0;
+  }
+
+  h3 {
+    font-size: 12pt;
+    font-weight: 700;
+    color: #1a1a2e;
+    margin-top: 18pt;
+    margin-bottom: 8pt;
+  }
+
+  h4 {
+    font-size: 10.5pt;
+    font-weight: 700;
+    color: #333;
+    margin-top: 14pt;
+    margin-bottom: 6pt;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  p {
+    margin-bottom: 10pt;
+    color: #2a2a3e;
+  }
+
+  /* ── Lists ─────────────────────────────────────────────────────── */
+  ul, ol {
+    margin: 8pt 0 12pt 20pt;
+    color: #2a2a3e;
+  }
+
+  li {
+    margin-bottom: 5pt;
+    line-height: 1.55;
+  }
+
+  li strong {
+    color: #0a0a1f;
+  }
+
+  /* ── Feature cards grid ────────────────────────────────────────── */
+  .card-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14pt;
+    margin: 16pt 0 24pt;
+  }
+
+  .card {
+    border: 1px solid #e0e0ef;
+    border-radius: 10pt;
+    padding: 16pt;
+    background: #f8f8fc;
+  }
+
+  .card-icon {
+    font-size: 20pt;
+    margin-bottom: 8pt;
+  }
+
+  .card h3 {
+    font-size: 11pt;
+    font-weight: 700;
+    color: #0a0a1f;
+    margin-top: 0;
+    margin-bottom: 6pt;
+  }
+
+  .card p {
+    font-size: 9.5pt;
+    color: #555;
+    margin: 0;
+    line-height: 1.5;
+  }
+
+  /* ── Code blocks ───────────────────────────────────────────────── */
+  pre {
+    background: #0f0f1a;
+    color: #e0e0ff;
+    border-radius: 8pt;
+    padding: 14pt 16pt;
+    font-family: "SF Mono", "Fira Code", "Courier New", monospace;
+    font-size: 8.5pt;
+    line-height: 1.6;
+    overflow-x: auto;
+    margin: 12pt 0 16pt;
+    border-left: 3px solid #0a84ff;
+  }
+
+  code {
+    font-family: "SF Mono", "Fira Code", "Courier New", monospace;
+    font-size: 8.5pt;
+    background: #ebebf8;
+    color: #0a0a2e;
+    padding: 2pt 5pt;
+    border-radius: 3pt;
+  }
+
+  pre code {
+    background: none;
+    color: inherit;
+    padding: 0;
+    font-size: inherit;
+  }
+
+  /* ── Syntax colours ──────────────────────────────────────────── */
+  .kw  { color: #ff79c6; }
+  .ty  { color: #8be9fd; }
+  .st  { color: #f1fa8c; }
+  .cm  { color: #6272a4; }
+  .fn  { color: #50fa7b; }
+  .nu  { color: #bd93f9; }
+
+  /* ── Tables ─────────────────────────────────────────────────────── */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12pt 0 20pt;
+    font-size: 10pt;
+  }
+
+  thead tr {
+    background: #0a84ff;
+    color: #fff;
+  }
+
+  thead th {
+    padding: 8pt 12pt;
+    text-align: left;
+    font-weight: 600;
+    font-size: 9.5pt;
+    letter-spacing: 0.3px;
+  }
+
+  tbody tr:nth-child(even) {
+    background: #f5f5fc;
+  }
+
+  tbody td {
+    padding: 7pt 12pt;
+    border-bottom: 1px solid #e8e8f0;
+    vertical-align: top;
+    color: #2a2a3e;
+  }
+
+  tbody td code {
+    font-size: 8pt;
+  }
+
+  /* ── Info / tip callouts ─────────────────────────────────────── */
+  .callout {
+    border-radius: 8pt;
+    padding: 12pt 16pt;
+    margin: 14pt 0;
+    font-size: 10pt;
+    display: flex;
+    gap: 10pt;
+    align-items: flex-start;
+  }
+
+  .callout-info {
+    background: rgba(10,132,255,0.07);
+    border-left: 3px solid #0a84ff;
+  }
+
+  .callout-warn {
+    background: rgba(255,214,10,0.09);
+    border-left: 3px solid #ffd60a;
+  }
+
+  .callout-icon {
+    font-size: 13pt;
+    flex-shrink: 0;
+    margin-top: 1pt;
+  }
+
+  /* ── Horizontal rule ─────────────────────────────────────────── */
+  hr {
+    border: none;
+    border-top: 1.5px solid #e8e8f0;
+    margin: 24pt 0;
+  }
+
+  /* ── Badge pill ──────────────────────────────────────────────── */
+  .badge {
+    display: inline-block;
+    background: rgba(10,132,255,0.1);
+    color: #0a84ff;
+    border: 1px solid rgba(10,132,255,0.25);
+    border-radius: 20px;
+    padding: 2pt 9pt;
+    font-size: 8.5pt;
+    font-weight: 600;
+    margin-right: 4pt;
+    margin-bottom: 4pt;
+  }
+
+  .badge-green {
+    background: rgba(48,209,88,0.1);
+    color: #1a8a3c;
+    border-color: rgba(48,209,88,0.3);
+  }
+
+  .badge-warn {
+    background: rgba(255,149,0,0.1);
+    color: #b35c00;
+    border-color: rgba(255,149,0,0.3);
+  }
+
+  /* ── Architecture diagram ────────────────────────────────────── */
+  .arch-diagram {
+    background: #0f0f1a;
+    border-radius: 10pt;
+    padding: 20pt;
+    margin: 16pt 0;
+    font-family: "SF Mono", "Fira Code", monospace;
+    font-size: 8.5pt;
+    line-height: 1.8;
+    color: #c8c8e8;
+  }
+
+  .arch-dir  { color: #8be9fd; font-weight: bold; }
+  .arch-file { color: #f8f8f2; }
+  .arch-cmt  { color: #6272a4; }
+
+  /* ── Status indicator ────────────────────────────────────────── */
+  .status-row {
+    display: flex;
+    align-items: center;
+    gap: 10pt;
+    padding: 6pt 0;
+    border-bottom: 1px solid #f0f0f8;
+    font-size: 10pt;
+  }
+
+  .status-icon {
+    font-size: 13pt;
+    width: 20pt;
+    text-align: center;
+  }
+
+  .status-label { font-weight: 600; color: #0a0a1f; width: 100pt; }
+  .status-desc  { color: #555; }
+
+  /* ── Footer ──────────────────────────────────────────────────── */
+  .doc-footer {
+    margin-top: 40pt;
+    padding-top: 14pt;
+    border-top: 1.5px solid #e0e0f0;
+    font-size: 8.5pt;
+    color: #999;
+    display: flex;
+    justify-content: space-between;
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!--  COVER                                                          -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div class="cover">
+  <div class="cover-eyebrow">Technical Documentation</div>
+  <div class="cover-title">Yomi<span>.</span></div>
+  <div class="cover-subtitle">Manga &amp; manhwa reader for Android — developer and user reference</div>
+  <div class="cover-pill">Version 1.0.0 &nbsp;·&nbsp; Flutter 3.x &nbsp;·&nbsp; Dart 3.3</div>
+  <div class="cover-meta">
+    <span><strong>Platform</strong> Android (API 21+)</span>
+    <span><strong>UI</strong> Cupertino / iOS-native</span>
+    <span><strong>State</strong> Riverpod v2</span>
+    <span><strong>DB</strong> Isar v3</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!--  TABLE OF CONTENTS                                              -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div class="toc">
+  <h2>Contents</h2>
+
+  <div class="toc-entry section">
+    <span>1&nbsp;&nbsp;Overview</span><span class="toc-dots"></span><span class="toc-page">3</span>
+  </div>
+  <div class="toc-entry subsection">
+    <span>1.1 &nbsp;What is Yomi?</span><span class="toc-dots"></span><span class="toc-page">3</span>
+  </div>
+  <div class="toc-entry subsection">
+    <span>1.2 &nbsp;Core design principles</span><span class="toc-dots"></span><span class="toc-page">3</span>
+  </div>
+
+  <div class="toc-entry section">
+    <span>2&nbsp;&nbsp;Features</span><span class="toc-dots"></span><span class="toc-page">4</span>
+  </div>
+  <div class="toc-entry subsection">
+    <span>2.1 &nbsp;Library</span><span class="toc-dots"></span><span class="toc-page">4</span>
+  </div>
+  <div class="toc-entry subsection">
+    <span>2.2 &nbsp;Reader</span><span class="toc-dots"></span><span class="toc-page">4</span>
+  </div>
+  <div class="toc-entry subsection">
+    <span>2.3 &nbsp;Downloads</span><span class="toc-dots"></span><span class="toc-page">5</span>
+  </div>
+  <div class="toc-entry subsection">
+    <span>2.4 &nbsp;Browse &amp; Sources</span><span class="toc-dots"></span><span class="toc-page">5</span>
+  </div>
+  <div class="toc-entry subsection">
+    <span>2.5 &nbsp;Backup &amp; Restore</span><span class="toc-dots"></span><span class="toc-page">5</span>
+  </div>
+  <div class="toc-entry subsection">
+    <span>2.6 &nbsp;Settings</span><span class="toc-dots"></span><span class="toc-page">6</span>
+  </div>
+
+  <div class="toc-entry section">
+    <span>3&nbsp;&nbsp;Architecture</span><span class="toc-dots"></span><span class="toc-page">7</span>
+  </div>
+  <div class="toc-entry subsection">
+    <span>3.1 &nbsp;Tech stack</span><span class="toc-dots"></span><span class="toc-page">7</span>
+  </div>
+  <div class="toc-entry subsection">
+    <span>3.2 &nbsp;Project structure</span><span class="toc-dots"></span><span class="toc-page">7</span>
+  </div>
+  <div class="toc-entry subsection">
+    <span>3.3 &nbsp;State management</span><span class="toc-dots"></span><span class="toc-page">8</span>
+  </div>
+  <div class="toc-entry subsection">
+    <span>3.4 &nbsp;Database schemas</span><span class="toc-dots"></span><span class="toc-page">8</span>
+  </div>
+  <div class="toc-entry subsection">
+    <span>3.5 &nbsp;Theming</span><span class="toc-dots"></span><span class="toc-page">9</span>
+  </div>
+
+  <div class="toc-entry section">
+    <span>4&nbsp;&nbsp;Source Plugin System</span><span class="toc-dots"></span><span class="toc-page">10</span>
+  </div>
+  <div class="toc-entry subsection">
+    <span>4.1 &nbsp;MangaSource interface</span><span class="toc-dots"></span><span class="toc-page">10</span>
+  </div>
+  <div class="toc-entry subsection">
+    <span>4.2 &nbsp;Built-in sources</span><span class="toc-dots"></span><span class="toc-page">11</span>
+  </div>
+  <div class="toc-entry subsection">
+    <span>4.3 &nbsp;Adding a new source</span><span class="toc-dots"></span><span class="toc-page">11</span>
+  </div>
+
+  <div class="toc-entry section">
+    <span>5&nbsp;&nbsp;Getting Started</span><span class="toc-dots"></span><span class="toc-page">12</span>
+  </div>
+  <div class="toc-entry subsection">
+    <span>5.1 &nbsp;Prerequisites</span><span class="toc-dots"></span><span class="toc-page">12</span>
+  </div>
+  <div class="toc-entry subsection">
+    <span>5.2 &nbsp;Build &amp; run</span><span class="toc-dots"></span><span class="toc-page">12</span>
+  </div>
+
+  <div class="toc-entry section">
+    <span>6&nbsp;&nbsp;Settings Reference</span><span class="toc-dots"></span><span class="toc-page">13</span>
+  </div>
+
+  <div class="toc-entry section">
+    <span>7&nbsp;&nbsp;Backup &amp; Data</span><span class="toc-dots"></span><span class="toc-page">14</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!--  SECTION 1 — OVERVIEW                                          -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div class="content page-break">
+  <div class="section-header">
+    <div class="section-number">1</div>
+    <h1 class="section-title">Overview</h1>
+  </div>
+
+  <h2>1.1 What is Yomi?</h2>
+  <p>
+    <strong>Yomi</strong> (読み — Japanese for "reading") is a feature-complete manga and manhwa
+    reader for Android. It provides a polished, distraction-free reading experience built entirely
+    with Flutter's Cupertino widget set, giving it the feel of a native iOS application while
+    running on Android hardware.
+  </p>
+  <p>
+    The application manages a personal library of saved titles, downloads chapters for offline
+    reading, connects to pluggable content sources, and backs up your entire reading history to
+    a local JSON file or Google Drive.
+  </p>
+
+  <h2>1.2 Core Design Principles</h2>
+
+  <div class="card-grid">
+    <div class="card">
+      <div class="card-icon">🎨</div>
+      <h3>Immersive, minimal UI</h3>
+      <p>Dark-first design with a deep navy background. Frosted glass overlays, ambient radial glows, and tap-to-reveal chrome keep reading the focus.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">⚡</div>
+      <h3>Reactive, no loading flickers</h3>
+      <p>Isar's reactive streams drive every list. Shimmer placeholders replace blank screens during cold loads. State updates propagate instantly via Riverpod.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">🔌</div>
+      <h3>Pluggable sources</h3>
+      <p>Content sources are plain Dart classes implementing a <code>MangaSource</code> interface. Zero build-time coupling — register and use.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">🌗</div>
+      <h3>Adaptive light &amp; dark</h3>
+      <p>The <code>AppColorsX</code> context extension resolves every colour at runtime. Switching themes is instant — no restart required.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!--  SECTION 2 — FEATURES                                          -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div class="content page-break">
+  <div class="section-header">
+    <div class="section-number">2</div>
+    <h1 class="section-title">Features</h1>
+  </div>
+
+  <h2>2.1 Library</h2>
+  <p>The Library tab is the home screen. It shows every manga you have saved in a two-column grid.</p>
+  <ul>
+    <li><strong>Real-time search</strong> — a frosted search bar at the top filters titles as you type. Closes with a Cancel button.</li>
+    <li><strong>Filter sheet</strong> — a bottom sheet lets you narrow by read status (All / Unread / Read / Downloaded) and filter on genres.</li>
+    <li><strong>Categories</strong> — user-defined shelves (created in Settings). Each manga can belong to multiple categories. A horizontal chip row above the grid switches between them.</li>
+    <li><strong>Unread badge</strong> — displayed on the card corner when there are unread chapters.</li>
+    <li><strong>Shimmer skeleton</strong> — animated placeholder grid shown while the database loads.</li>
+    <li><strong>Ambient radial glow</strong> — subtle blue glow in the top-left of the library background.</li>
+  </ul>
+
+  <h2>2.2 Reader</h2>
+  <p>The reader opens as a full-screen page view with configurable direction and appearance.</p>
+
+  <h4>Reading modes</h4>
+  <table>
+    <thead><tr><th>Mode</th><th>Scroll direction</th><th>Use case</th></tr></thead>
+    <tbody>
+      <tr><td>Left → Right</td><td>Horizontal, forward</td><td>Western comics, most manhwa</td></tr>
+      <tr><td>Right → Left</td><td>Horizontal, reversed</td><td>Japanese manga (traditional)</td></tr>
+      <tr><td>Vertical</td><td>Vertical</td><td>Webtoons, long-strip manhwa</td></tr>
+    </tbody>
+  </table>
+
+  <h4>Page scale</h4>
+  <table>
+    <thead><tr><th>Scale</th><th>Behaviour</th></tr></thead>
+    <tbody>
+      <tr><td>Fit Width</td><td>Page fills the screen width; height may exceed viewport</td></tr>
+      <tr><td>Fit Height</td><td>Page fills the screen height; width may exceed viewport</td></tr>
+      <tr><td>Original (1:1)</td><td>Image rendered at native pixel size</td></tr>
+    </tbody>
+  </table>
+
+  <h4>Chrome &amp; navigation</h4>
+  <ul>
+    <li>Tap anywhere on the page to toggle the navigation chrome (toolbar + bottom scrubber).</li>
+    <li>Drag or tap the scrubber track to jump instantly to any page.</li>
+    <li>A 2 pt accent-colour progress line is always visible at the top of the screen.</li>
+    <li>A page-count pill fades in after each page turn and disappears after 2 seconds.</li>
+    <li>A settings gear icon in the chrome opens a bottom sheet to change direction, scale, and background colour inline.</li>
+  </ul>
+
+  <h4>Backgrounds</h4>
+  <span class="badge">Black</span>
+  <span class="badge">White</span>
+  <span class="badge">Sepia</span>
+</div>
+
+<div class="content page-break">
+  <h2>2.3 Downloads</h2>
+  <p>
+    Chapters can be downloaded for offline reading. The Downloads tab shows the active queue and
+    completed history.
+  </p>
+  <ul>
+    <li><strong>Queue</strong> — chapters process one at a time. While downloading, a progress bar shows the current page count.</li>
+    <li><strong>Pause &amp; Resume</strong> — any queued or downloading chapter can be paused. Resuming picks up from the page it left off.</li>
+    <li><strong>Cancel</strong> — removes the entry from the queue. Partially downloaded files are discarded.</li>
+    <li><strong>Retry</strong> — failed chapters show a retry button.</li>
+  </ul>
+
+  <h4>Per-chapter status indicators</h4>
+  <p>The chapter list inside a manga's detail sheet displays a live status icon next to each chapter:</p>
+  <div class="status-row"><div class="status-icon">🕐</div><div class="status-label">Queued</div><div class="status-desc">Chapter is waiting in the download queue.</div></div>
+  <div class="status-row"><div class="status-icon">⏳</div><div class="status-label">Downloading</div><div class="status-desc">Chapter is actively being downloaded (spinner shown).</div></div>
+  <div class="status-row"><div class="status-icon">⏸</div><div class="status-label">Paused</div><div class="status-desc">Download was manually paused.</div></div>
+  <div class="status-row"><div class="status-icon">✕</div><div class="status-label">Failed</div><div class="status-desc">Download failed. Tap to retry.</div></div>
+  <div class="status-row"><div class="status-icon">✓</div><div class="status-label">Downloaded</div><div class="status-desc">Chapter is available offline (green tick).</div></div>
+
+  <h2>2.4 Browse &amp; Sources</h2>
+  <p>The Browse tab lists all registered content sources. Tapping a source opens its manga catalogue.</p>
+  <ul>
+    <li><strong>Popular</strong> and <strong>Latest Updated</strong> listings with infinite scroll.</li>
+    <li><strong>Search</strong> within any source.</li>
+    <li><strong>Sort</strong> control (Popular / Latest) in the source listing.</li>
+    <li>Tapping a manga opens the title detail sheet, where you can add it to your library.</li>
+  </ul>
+
+  <h4>Built-in sources</h4>
+  <table>
+    <thead><tr><th>Source</th><th>Language</th><th>API</th></tr></thead>
+    <tbody>
+      <tr><td>AsuraScans</td><td>English</td><td>JSON REST — <code>api.asurascans.com</code></td></tr>
+      <tr><td>AllManga</td><td>English</td><td>GraphQL — <code>api.allanime.day</code></td></tr>
+    </tbody>
+  </table>
+
+  <h2>2.5 Backup &amp; Restore</h2>
+  <p>
+    Yomi can export your entire library to a human-readable JSON file and restore from any
+    previously saved backup.
+  </p>
+  <ul>
+    <li><strong>Export</strong> — creates <code>{appDocuments}/backups/yomi_backup_YYYYMMDD_HHmmss.json</code> with all manga metadata, chapters, read status, categories, and download status.</li>
+    <li><strong>Restore</strong> — imports a backup file and <em>merges</em> it into the current library. Existing entries are updated; new entries are inserted. Read and download status is preserved.</li>
+    <li>The Restore Backup screen lists all available backups with a one-tap restore flow and a confirmation dialog.</li>
+  </ul>
+
+  <div class="callout callout-info">
+    <div class="callout-icon">ℹ️</div>
+    <div>Backup files are plain JSON and can be viewed or edited with any text editor. The schema is forwards-compatible — fields not recognised by an older version of Yomi are silently ignored on restore.</div>
+  </div>
+
+  <h2>2.6 Settings</h2>
+  <p>Settings are persisted across app restarts using <code>SharedPreferences</code> via Riverpod <code>StateProvider</code>s.</p>
+
+  <table>
+    <thead><tr><th>Section</th><th>Option</th><th>Values</th></tr></thead>
+    <tbody>
+      <tr><td rowspan="1">Appearance</td><td>Theme</td><td>Dark / Light</td></tr>
+      <tr><td rowspan="2">Library</td><td>Categories</td><td>Navigates to category management</td></tr>
+      <tr><td>Auto-Update</td><td>Toggle (UI placeholder)</td></tr>
+      <tr><td rowspan="3">Reader</td><td>Reading Direction</td><td>L→R / R→L / Vertical</td></tr>
+      <tr><td>Page Scale</td><td>Fit Width / Fit Height / Original</td></tr>
+      <tr><td>Background</td><td>Black / White / Sepia</td></tr>
+      <tr><td rowspan="2">Downloads</td><td>Storage Location</td><td>Local / Google Drive</td></tr>
+      <tr><td>Google Drive Account</td><td>Shows sign-in dialog (when Drive selected)</td></tr>
+      <tr><td rowspan="1">Extensions</td><td>Check for Updates</td><td>Fetches latest GitHub release</td></tr>
+      <tr><td rowspan="2">Backup &amp; Sync</td><td>Export Backup</td><td>Saves JSON to app documents</td></tr>
+      <tr><td>Restore Backup</td><td>Opens backup list screen</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!--  SECTION 3 — ARCHITECTURE                                      -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div class="content page-break">
+  <div class="section-header">
+    <div class="section-number">3</div>
+    <h1 class="section-title">Architecture</h1>
+  </div>
+
+  <h2>3.1 Tech Stack</h2>
+  <table>
+    <thead><tr><th>Layer</th><th>Technology</th><th>Version</th></tr></thead>
+    <tbody>
+      <tr><td>UI framework</td><td>Flutter — Cupertino widgets</td><td>≥ 3.3</td></tr>
+      <tr><td>State management</td><td>Riverpod</td><td>^2.5</td></tr>
+      <tr><td>Local database</td><td>Isar</td><td>^3.1</td></tr>
+      <tr><td>Networking</td><td>Dio</td><td>^5.4</td></tr>
+      <tr><td>Image loading</td><td>extended_image</td><td>^8.3</td></tr>
+      <tr><td>HTML parsing</td><td>html</td><td>^0.15</td></tr>
+      <tr><td>Backup / archive</td><td>archive</td><td>^3.6</td></tr>
+      <tr><td>Google Drive</td><td>googleapis + google_sign_in</td><td>^12 / ^6.2</td></tr>
+      <tr><td>Platform bridge</td><td>MethodChannel <code>yomi/platform</code></td><td>—</td></tr>
+    </tbody>
+  </table>
+
+  <h2>3.2 Project Structure</h2>
+  <div class="arch-diagram">
+<span class="arch-dir">lib/</span><br>
+├── <span class="arch-dir">core/</span><br>
+│   ├── <span class="arch-dir">database/</span>          <span class="arch-cmt"># Isar schemas: MangaEntry, ChapterEntry, DownloadEntry, CategoryEntry</span><br>
+│   ├── <span class="arch-dir">extensions/</span><br>
+│   │   └── <span class="arch-dir">sources/</span>       <span class="arch-cmt"># MangaSource implementations (AsuraScans, AllManga, …)</span><br>
+│   ├── <span class="arch-dir">providers/</span>         <span class="arch-cmt"># Riverpod providers</span><br>
+│   │   ├── <span class="arch-file">browse_provider.dart</span>    <span class="arch-cmt"># manga detail, chapter sync, refresh</span><br>
+│   │   ├── <span class="arch-file">download_provider.dart</span>  <span class="arch-cmt"># queue management, per-chapter status</span><br>
+│   │   ├── <span class="arch-file">library_provider.dart</span>   <span class="arch-cmt"># filtered library, categories, CRUD</span><br>
+│   │   ├── <span class="arch-file">reader_provider.dart</span>    <span class="arch-cmt"># page state, direction, scale, background</span><br>
+│   │   └── <span class="arch-file">settings_provider.dart</span>  <span class="arch-cmt"># download location, brightness, etc.</span><br>
+│   ├── <span class="arch-dir">services/</span><br>
+│   │   ├── <span class="arch-file">backup_service.dart</span>     <span class="arch-cmt"># export / restore JSON backups</span><br>
+│   │   └── <span class="arch-file">update_service.dart</span>     <span class="arch-cmt"># GitHub release checker</span><br>
+│   └── <span class="arch-dir">theme/</span><br>
+│       ├── <span class="arch-file">app_colors.dart</span>         <span class="arch-cmt"># AppColors constants + AppColorsX extension</span><br>
+│       └── <span class="arch-file">app_text_styles.dart</span>    <span class="arch-cmt"># shared TextStyle definitions</span><br>
+└── <span class="arch-dir">features/</span><br>
+    ├── <span class="arch-dir">library/</span>               <span class="arch-cmt"># LibraryScreen, filters, category chips</span><br>
+    ├── <span class="arch-dir">browse/</span>                <span class="arch-cmt"># BrowseScreen, SourceMangaScreen</span><br>
+    ├── <span class="arch-dir">title_detail/</span>          <span class="arch-cmt"># TitleDetailScreen, ChapterListTile</span><br>
+    ├── <span class="arch-dir">reader/</span>                <span class="arch-cmt"># ReaderScreen, chrome, scrubber</span><br>
+    ├── <span class="arch-dir">downloads/</span>             <span class="arch-cmt"># DownloadsScreen</span><br>
+    └── <span class="arch-dir">settings/</span>              <span class="arch-cmt"># SettingsScreen, BackupRestoreScreen</span>
+  </div>
+
+  <h2>3.3 State Management</h2>
+  <p>
+    All state is managed by <strong>Riverpod v2</strong>. The app uses several provider types:
+  </p>
+  <table>
+    <thead><tr><th>Provider type</th><th>Used for</th></tr></thead>
+    <tbody>
+      <tr><td><code>StateProvider</code></td><td>Simple values: brightness, reading direction, page scale, background, search query</td></tr>
+      <tr><td><code>StreamProvider.family</code></td><td>Isar reactive streams — library list, chapter status, live manga object</td></tr>
+      <tr><td><code>FutureProvider.family</code></td><td>Async loads — manga detail, chapter list, page URLs</td></tr>
+      <tr><td><code>NotifierProvider</code></td><td>Complex mutation logic — library CRUD, category management</td></tr>
+      <tr><td><code>AsyncNotifierProvider</code></td><td>Download manager — queue, pause/resume/cancel, progress tracking</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout callout-info">
+    <div class="callout-icon">ℹ️</div>
+    <div>
+      <code>ReaderState</code> overrides <code>==</code> and <code>hashCode</code> so that Riverpod's equality check prevents redundant rebuilds when only unrelated fields change (e.g., a chrome toggle does not invalidate the page-counter widget).
+    </div>
+  </div>
+
+  <h2>3.4 Database Schemas (Isar v3)</h2>
+  <table>
+    <thead><tr><th>Schema</th><th>Key fields</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><code>MangaEntry</code></td>
+        <td><code>id</code>, <code>sourceId</code>, <code>sourceMangaId</code>, <code>title</code>, <code>coverUrl</code>, <code>author</code>, <code>description</code>, <code>genres</code>, <code>status</code>, <code>inLibrary</code>, <code>chapterCount</code>, <code>unreadCount</code>, <code>categories</code>, <code>lastUpdated</code></td>
+      </tr>
+      <tr>
+        <td><code>ChapterEntry</code></td>
+        <td><code>id</code>, <code>mangaId</code>, <code>sourceChapterId</code>, <code>title</code>, <code>number</code>, <code>volume</code>, <code>language</code>, <code>uploadDate</code>, <code>isRead</code>, <code>isDownloaded</code></td>
+      </tr>
+      <tr>
+        <td><code>DownloadEntry</code></td>
+        <td><code>id</code>, <code>mangaId</code>, <code>chapterId</code>, <code>mangaTitle</code>, <code>chapterNumber</code>, <code>status</code>, <code>progress</code>, <code>downloadedPages</code>, <code>totalPages</code></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>3.5 Theming</h2>
+  <p>
+    Yomi uses a custom dark-first palette defined in <code>AppColors</code> with a parallel light set,
+    resolved at runtime through the <code>AppColorsX</code> extension on <code>BuildContext</code>:
+  </p>
+<pre><code><span class="cm">// Use in any StatelessWidget or ConsumerWidget build method:</span>
+<span class="kw">final</span> bg      = context.backgroundColor;       <span class="cm">// dark: #0A0A0F  light: #F2F2F7</span>
+<span class="kw">final</span> surface  = context.surfaceColor;          <span class="cm">// dark: #141418  light: #FFFFFF</span>
+<span class="kw">final</span> elevated = context.surfaceElevatedColor;  <span class="cm">// dark: #1C1C24  light: #ECECF0</span>
+<span class="kw">final</span> border   = context.borderColor;           <span class="cm">// dark: 8% white light: 8% black</span>
+<span class="kw">final</span> textSec  = context.textSecondaryColor;    <span class="cm">// 60% on/off</span></code></pre>
+  <p>Primary text styles (nav title, body, section title) inherit colour from <code>CupertinoTheme</code>'s <code>DefaultTextStyle</code> so they adapt automatically. Secondary and tertiary text uses explicit <code>context.*Color</code> calls.</p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!--  SECTION 4 — SOURCE PLUGIN SYSTEM                              -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div class="content page-break">
+  <div class="section-header">
+    <div class="section-number">4</div>
+    <h1 class="section-title">Source Plugin System</h1>
+  </div>
+
+  <h2>4.1 MangaSource Interface</h2>
+  <p>
+    Every content source must implement the <code>MangaSource</code> abstract class located at
+    <code>lib/core/extensions/source_interface.dart</code>.
+  </p>
+
+<pre><code><span class="kw">abstract class</span> <span class="ty">MangaSource</span> {
+  <span class="cm">// ── Identity ───────────────────────────────────────────────</span>
+  <span class="ty">String</span> <span class="kw">get</span> id;          <span class="cm">// unique slug, e.g. 'asurascans_en'</span>
+  <span class="ty">String</span> <span class="kw">get</span> name;        <span class="cm">// display name</span>
+  <span class="ty">String</span> <span class="kw">get</span> baseUrl;     <span class="cm">// root URL for web links</span>
+  <span class="ty">String</span> <span class="kw">get</span> language;    <span class="cm">// ISO 639-1 code</span>
+  <span class="ty">String</span> <span class="kw">get</span> version;     <span class="cm">// semver string</span>
+  <span class="ty">Uint8List</span> <span class="kw">get</span> iconBytes; <span class="cm">// source icon PNG bytes</span>
+
+  <span class="cm">// ── Image headers (sent with every page request) ──────────</span>
+  <span class="ty">Map</span>&lt;<span class="ty">String</span>, <span class="ty">String</span>&gt; <span class="kw">get</span> imageHeaders;
+
+  <span class="cm">// ── Filters (optional) ────────────────────────────────────</span>
+  <span class="ty">List</span>&lt;<span class="ty">SourceFilter</span>&gt; getFilters();
+
+  <span class="cm">// ── Listings ──────────────────────────────────────────────</span>
+  <span class="ty">Future</span>&lt;<span class="ty">List</span>&lt;<span class="ty">MangaSummary</span>&gt;&gt; fetchPopular({<span class="ty">int</span> page = <span class="nu">1</span>});
+  <span class="ty">Future</span>&lt;<span class="ty">List</span>&lt;<span class="ty">MangaSummary</span>&gt;&gt; fetchLatestUpdates({<span class="ty">int</span> page = <span class="nu">1</span>});
+  <span class="ty">Future</span>&lt;<span class="ty">List</span>&lt;<span class="ty">MangaSummary</span>&gt;&gt; search(
+    <span class="ty">String</span> query, {<span class="ty">int</span> page = <span class="nu">1</span>, <span class="ty">List</span>&lt;<span class="ty">SourceFilter</span>&gt; filters});
+
+  <span class="cm">// ── Detail ────────────────────────────────────────────────</span>
+  <span class="ty">Future</span>&lt;<span class="ty">MangaDetail</span>&gt; fetchMangaDetail(<span class="ty">String</span> mangaId);
+  <span class="ty">Future</span>&lt;<span class="ty">List</span>&lt;<span class="ty">ChapterInfo</span>&gt;&gt; fetchChapterList(<span class="ty">String</span> mangaId);
+
+  <span class="cm">// ── Pages ─────────────────────────────────────────────────</span>
+  <span class="ty">Future</span>&lt;<span class="ty">List</span>&lt;<span class="ty">String</span>&gt;&gt; fetchPageUrls(<span class="ty">String</span> chapterId);
+}</code></pre>
+
+  <h2>4.2 Built-in Sources</h2>
+
+  <h3>AsuraScans (<code>asurascans_en</code>)</h3>
+  <ul>
+    <li>API base: <code>https://api.asurascans.com/api</code></li>
+    <li>Chapter ID format: <code>seriesSlug::chapterUUID::chapterNumber</code></li>
+    <li><code>fetchPageUrls</code> uses a 3-strategy fallback:
+      <ol>
+        <li>GET <code>/series/{slug}/chapters/{uuid}</code></li>
+        <li>GET <code>/series/{slug}/chapters?number={num}</code></li>
+        <li>GET <code>/chapters/{uuid}</code></li>
+      </ol>
+    </li>
+    <li>Sends <code>Origin: https://asuracomic.net</code> and <code>Referer</code> headers with every request.</li>
+  </ul>
+
+  <h3>AllManga (<code>all_manga_en</code>)</h3>
+  <ul>
+    <li>API base: <code>https://api.allanime.day/api</code> (GraphQL)</li>
+    <li>Chapter ID format: <code>mangaId::chapterNumber</code></li>
+    <li><code>_query</code> tries POST (standard GraphQL) first, falls back to GET on <code>DioException</code>.</li>
+    <li>Image URLs that are relative paths are prefixed with <code>https://ytimgf.fast4speed.rsvp</code>.</li>
+  </ul>
+
+  <h2>4.3 Adding a New Source</h2>
+  <ol>
+    <li>Create a new file in <code>lib/core/extensions/sources/my_source.dart</code>.</li>
+    <li>Implement the <code>MangaSource</code> interface.</li>
+    <li>Open <code>lib/core/providers/source_registry_provider.dart</code> and add your source instance to the registry list.</li>
+  </ol>
+
+  <div class="callout callout-warn">
+    <div class="callout-icon">⚠️</div>
+    <div>Image headers must include <code>Referer</code> and <code>Origin</code> for any source that hot-links images — many CDNs reject requests without these headers.</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!--  SECTION 5 — GETTING STARTED                                   -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div class="content page-break">
+  <div class="section-header">
+    <div class="section-number">5</div>
+    <h1 class="section-title">Getting Started</h1>
+  </div>
+
+  <h2>5.1 Prerequisites</h2>
+  <table>
+    <thead><tr><th>Requirement</th><th>Version</th></tr></thead>
+    <tbody>
+      <tr><td>Flutter SDK</td><td>≥ 3.3.0</td></tr>
+      <tr><td>Dart SDK</td><td>≥ 3.3.0</td></tr>
+      <tr><td>Android SDK</td><td>API 21+ (Android 5.0 Lollipop)</td></tr>
+      <tr><td>Java / JDK</td><td>17 (required by Gradle 8)</td></tr>
+    </tbody>
+  </table>
+
+  <h2>5.2 Build &amp; Run</h2>
+
+  <h3>1. Clone and fetch dependencies</h3>
+<pre><code>git clone https://github.com/tsnyders/comic-center.git
+cd comic-center
+flutter pub get</code></pre>
+
+  <h3>2. Generate code</h3>
+  <p>Isar schemas and Riverpod annotations require code generation:</p>
+<pre><code>dart run build_runner build --delete-conflicting-outputs</code></pre>
+
+  <div class="callout callout-warn">
+    <div class="callout-icon">⚠️</div>
+    <div>Never manually edit <code>*.g.dart</code> or <code>*.freezed.dart</code> files — they are regenerated on every <code>build_runner</code> run and your changes will be lost.</div>
+  </div>
+
+  <h3>3. Run</h3>
+<pre><code><span class="cm"># Debug on a connected device or emulator</span>
+flutter run
+
+<span class="cm"># Release build (optimised APK)</span>
+flutter build apk --release</code></pre>
+
+  <h3>4. Analyse</h3>
+<pre><code>flutter analyze
+<span class="cm"># Expected: all issues at info level only (deprecation warnings)</span></code></pre>
+
+  <h3>Android package ID</h3>
+  <div class="callout callout-warn">
+    <div class="callout-icon">⚠️</div>
+    <div>The <code>applicationId</code> is <code>com.comiccenter.comic_center</code>. <strong>Do not change this.</strong> Android ties installed apps to their package ID; changing it would require users to uninstall and reinstall, losing all local data.</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!--  SECTION 6 — SETTINGS REFERENCE                                -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div class="content page-break">
+  <div class="section-header">
+    <div class="section-number">6</div>
+    <h1 class="section-title">Settings Reference</h1>
+  </div>
+
+  <p>All settings are persisted via Riverpod <code>StateProvider</code>s backed by <code>SharedPreferences</code>. Changes take effect immediately with no restart required.</p>
+
+  <h2>Appearance</h2>
+  <table>
+    <thead><tr><th>Setting</th><th>Provider</th><th>Default</th></tr></thead>
+    <tbody>
+      <tr><td>Theme (Dark / Light)</td><td><code>brightnessProvider</code></td><td>Dark</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Reader</h2>
+  <table>
+    <thead><tr><th>Setting</th><th>Provider</th><th>Options</th><th>Default</th></tr></thead>
+    <tbody>
+      <tr><td>Reading Direction</td><td><code>readingDirectionProvider</code></td><td>ltr / rtl / vertical</td><td>ltr</td></tr>
+      <tr><td>Page Scale</td><td><code>pageScaleModeProvider</code></td><td>fitWidth / fitHeight / original</td><td>fitWidth</td></tr>
+      <tr><td>Background</td><td><code>readerBackgroundProvider</code></td><td>black / white / sepia</td><td>black</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Downloads</h2>
+  <table>
+    <thead><tr><th>Setting</th><th>Provider</th><th>Options</th><th>Default</th></tr></thead>
+    <tbody>
+      <tr><td>Storage Location</td><td><code>downloadLocationProvider</code></td><td>local / googleDrive</td><td>local</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Update Check</h2>
+  <p>
+    <strong>Check for Updates</strong> calls the GitHub REST API:
+    <code>https://api.github.com/repos/tsnyders/comic-center/releases/latest</code>
+  </p>
+  <ul>
+    <li><strong>HTTP 200</strong> — a release exists. Displays version tag and changelog body. If an APK asset is attached, a <em>Download</em> button opens the URL via the native Android intent.</li>
+    <li><strong>HTTP 404</strong> — no releases published yet. Displays <em>"No Updates Available"</em>.</li>
+    <li><strong>Network error / timeout</strong> — throws <code>UpdateCheckException</code>. Displays <em>"Error"</em> with the specific message.</li>
+  </ul>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!--  SECTION 7 — BACKUP & DATA                                     -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div class="content page-break">
+  <div class="section-header">
+    <div class="section-number">7</div>
+    <h1 class="section-title">Backup &amp; Data</h1>
+  </div>
+
+  <h2>Backup File Format</h2>
+  <p>Backups are stored as UTF-8 JSON at:</p>
+<pre><code>{appDocumentsDirectory}/backups/yomi_backup_YYYYMMDD_HHmmss.json</code></pre>
+
+  <p>Top-level structure:</p>
+<pre><code>{
+  <span class="st">"version"</span>: <span class="nu">1</span>,
+  <span class="st">"exportedAt"</span>: <span class="st">"2026-06-07T10:30:00Z"</span>,
+  <span class="st">"categories"</span>: [<span class="st">"Favourites"</span>, <span class="st">"Reading"</span>],
+  <span class="st">"manga"</span>: [
+    {
+      <span class="st">"id"</span>: <span class="nu">42</span>,
+      <span class="st">"title"</span>: <span class="st">"Solo Leveling"</span>,
+      <span class="st">"sourceId"</span>: <span class="st">"asurascans_en"</span>,
+      <span class="st">"sourceMangaId"</span>: <span class="st">"solo-leveling-abc123"</span>,
+      <span class="st">"coverUrl"</span>: <span class="st">"https://…"</span>,
+      <span class="st">"categories"</span>: [<span class="st">"Favourites"</span>],
+      <span class="st">"chapters"</span>: [
+        { <span class="st">"sourceChapterId"</span>: <span class="st">"…"</span>, <span class="st">"number"</span>: <span class="nu">1</span>, <span class="st">"isRead"</span>: <span class="kw">true</span>, <span class="st">"isDownloaded"</span>: <span class="kw">false</span> }
+      ]
+    }
+  ]
+}</code></pre>
+
+  <h2>Restore Behaviour</h2>
+  <p>
+    The restore operation performs an <strong>upsert merge</strong>:
+  </p>
+  <ol>
+    <li>For each manga in the backup, find the existing record in Isar by <code>sourceId + sourceMangaId</code>.</li>
+    <li>If found, update metadata fields but <strong>preserve</strong> <code>isRead</code> and <code>isDownloaded</code> on chapters.</li>
+    <li>If not found, insert as a new entry.</li>
+    <li>Categories in the backup are merged with existing categories (no duplicates).</li>
+  </ol>
+
+  <div class="callout callout-info">
+    <div class="callout-icon">ℹ️</div>
+    <div>A restore never deletes existing data — it only adds or updates. To start fresh, you must clear app data from Android Settings before restoring.</div>
+  </div>
+
+  <h2>Pull-to-Refresh (Chapter Refresh)</h2>
+  <p>
+    Pulling down on the chapter list in a manga's detail sheet triggers <code>refreshMangaChapters</code>,
+    which re-fetches the chapter list from the source and upserts changes into Isar:
+  </p>
+  <ul>
+    <li>New chapters are inserted.</li>
+    <li>Existing chapters have their <code>title</code>, <code>number</code>, and <code>uploadDate</code> updated.</li>
+    <li><code>isRead</code> and <code>isDownloaded</code> are never touched.</li>
+    <li><code>chapterCount</code> and <code>unreadCount</code> on the parent <code>MangaEntry</code> are recalculated.</li>
+  </ul>
+
+  <hr>
+  <div class="doc-footer">
+    <span>Yomi v1.0.0 &nbsp;·&nbsp; Technical Documentation</span>
+    <span>github.com/tsnyders/comic-center</span>
+  </div>
+</div>
+
+</body>
+</html>

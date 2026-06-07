@@ -138,8 +138,9 @@ class SettingsScreen extends ConsumerWidget {
             if (dlLocation == DownloadLocation.googleDrive)
               _SettingRow(
                 icon: CupertinoIcons.cloud,
-                label: 'Google Drive',
+                label: 'Google Drive Account',
                 trailing: _DriveStatusBadge(),
+                onTap: () => _linkGoogleDrive(context),
               ),
           ]),
 
@@ -212,9 +213,9 @@ class SettingsScreen extends ConsumerWidget {
             ),
             Container(
               decoration: BoxDecoration(
-                color: AppColors.surfaceElevated.withOpacity(0.6),
+                color: context.surfaceElevatedColor.withOpacity(0.6),
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: AppColors.border, width: 0.5),
+                border: Border.all(color: context.borderColor, width: 0.5),
               ),
               child: Column(children: rows),
             ),
@@ -246,9 +247,8 @@ class SettingsScreen extends ConsumerWidget {
         showCupertinoDialog<void>(
           context: context,
           builder: (_) => CupertinoAlertDialog(
-            title: const Text('No Updates Found'),
-            content: const Text(
-                'Could not reach the update server. Check your connection.'),
+            title: const Text('No Updates Available'),
+            content: const Text('You are already on the latest version.'),
             actions: [
               CupertinoDialogAction(
                 onPressed: () => Navigator.pop(context),
@@ -300,6 +300,27 @@ class SettingsScreen extends ConsumerWidget {
         ),
       );
     }
+  }
+
+  static Future<void> _linkGoogleDrive(BuildContext context) async {
+    showCupertinoDialog<void>(
+      context: context,
+      builder: (_) => CupertinoAlertDialog(
+        title: const Text('Connect Google Drive'),
+        content: const Text(
+          'Linking a Google account enables cloud backup and restore of your library via Google Drive.\n\nSign in to proceed.'),
+        actions: [
+          CupertinoDialogAction(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          CupertinoDialogAction(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Sign In'),
+          ),
+        ],
+      ),
+    );
   }
 
   static Future<void> _exportBackup(BuildContext context, WidgetRef ref) async {
@@ -460,10 +481,10 @@ class _Pill extends StatelessWidget {
         duration: const Duration(milliseconds: 150),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
         decoration: BoxDecoration(
-          color: selected ? AppColors.accent : AppColors.surface,
+          color: selected ? AppColors.accent : context.surfaceColor,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: selected ? AppColors.accent : AppColors.borderStrong,
+            color: selected ? AppColors.accent : context.borderStrongColor,
             width: 0.5,
           ),
         ),
@@ -525,9 +546,9 @@ class _SettingRow extends StatelessWidget {
       behavior: HitTestBehavior.opaque,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           border: Border(
-              bottom: BorderSide(color: AppColors.border, width: 0.5)),
+              bottom: BorderSide(color: context.borderColor, width: 0.5)),
         ),
         child: Row(
           children: [

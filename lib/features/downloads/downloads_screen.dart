@@ -103,9 +103,9 @@ class _DownloadTile extends ConsumerWidget {
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppColors.surfaceElevated.withOpacity(0.6),
+        color: context.surfaceElevatedColor.withOpacity(0.6),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.border, width: 0.5),
+        border: Border.all(color: context.borderColor, width: 0.5),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -129,7 +129,7 @@ class _DownloadTile extends ConsumerWidget {
             const SizedBox(height: 8),
             LinearProgressIndicator(
               value: entry.progress,
-              backgroundColor: AppColors.surface,
+              backgroundColor: context.surfaceColor,
               valueColor: const AlwaysStoppedAnimation(AppColors.accent),
               minHeight: 4,
             ),

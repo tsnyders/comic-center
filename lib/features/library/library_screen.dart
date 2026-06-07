@@ -218,7 +218,7 @@ class _FrostedTopBar extends StatelessWidget {
               sigmaY: blurAlpha * 24,
             ),
             child: Container(
-              color: AppColors.background.withOpacity(0.7 * blurAlpha),
+              color: context.backgroundColor.withOpacity(0.7 * blurAlpha),
               padding: EdgeInsets.only(
                 top: topPadding + 8,
                 left: 20,
@@ -242,10 +242,10 @@ class _FrostedTopBar extends StatelessWidget {
                             child: Container(
                               height: 38,
                               decoration: BoxDecoration(
-                                color: AppColors.surfaceElevated.withOpacity(0.8),
+                                color: context.surfaceElevatedColor.withOpacity(0.8),
                                 borderRadius: BorderRadius.circular(19),
                                 border: Border.all(
-                                  color: AppColors.borderStrong,
+                                  color: context.borderStrongColor,
                                   width: 0.5,
                                 ),
                               ),
@@ -291,10 +291,10 @@ class _FrostedTopBar extends StatelessWidget {
                         width: 38,
                         height: 38,
                         decoration: BoxDecoration(
-                          color: AppColors.surfaceElevated.withOpacity(0.8),
+                          color: context.surfaceElevatedColor.withOpacity(0.8),
                           borderRadius: BorderRadius.circular(19),
                           border: Border.all(
-                            color: AppColors.borderStrong,
+                            color: context.borderStrongColor,
                             width: 0.5,
                           ),
                         ),
@@ -422,10 +422,10 @@ class _ShimmerCardState extends State<_ShimmerCard>
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              AppColors.surface,
+              context.surfaceColor,
               Color.lerp(
-                AppColors.surface,
-                AppColors.surfaceElevated,
+                context.surfaceColor,
+                context.surfaceElevatedColor,
                 _ctrl.value,
               )!,
             ],

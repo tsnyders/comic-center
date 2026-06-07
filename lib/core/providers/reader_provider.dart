@@ -69,14 +69,26 @@ class ReaderState {
         totalPages    : totalPages    ?? this.totalPages,
         chromeVisible : chromeVisible ?? this.chromeVisible,
       );
+
+  @override
+  bool operator ==(Object other) =>
+      other is ReaderState &&
+      other.currentPage == currentPage &&
+      other.totalPages == totalPages &&
+      other.chromeVisible == chromeVisible;
+
+  @override
+  int get hashCode => Object.hash(currentPage, totalPages, chromeVisible);
 }
 
 class ReaderNotifier extends Notifier<ReaderState> {
   @override
   ReaderState build() => const ReaderState();
 
-  void setTotalPages(int total) =>
-      state = state.copyWith(totalPages: total, currentPage: 0);
+  void setTotalPages(int total) {
+    if (state.totalPages == total) return;
+    state = state.copyWith(totalPages: total, currentPage: 0);
+  }
 
   void setPage(int page) => state = state.copyWith(currentPage: page);
 

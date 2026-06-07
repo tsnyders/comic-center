@@ -37,6 +37,18 @@ final downloadHistoryProvider = StreamProvider<List<DownloadEntry>>((ref) {
       .watch(fireImmediately: true);
 });
 
+/// Returns the current download status for a specific chapter ID.
+/// null means the chapter is not in the download queue at all.
+final chapterDownloadStatusProvider =
+    StreamProvider.family.autoDispose<String?, int>((ref, chapterId) {
+  final isar = ref.watch(isarProvider);
+  return isar.downloadEntrys
+      .filter()
+      .chapterIdEqualTo(chapterId)
+      .watch(fireImmediately: true)
+      .map((list) => list.isEmpty ? null : list.first.status);
+});
+
 // ── Manager ───────────────────────────────────────────────────────────────────
 
 class DownloadManager extends AsyncNotifier<void> {
@@ -107,7 +119,6 @@ class DownloadManager extends AsyncNotifier<void> {
           entry.status == DownloadStatus.failed) {
         entry
           ..status        = DownloadStatus.pending
-          ..downloadedPages = 0
           ..errorMessage  = null;
         await isar.downloadEntrys.put(entry);
       }
@@ -146,6 +157,11 @@ class DownloadManager extends AsyncNotifier<void> {
     Isar isar,
     DownloadLocation location,
   ) async {
+    // Re-read from DB to guard against the race condition where the user
+    // paused this item between when _processQueue picked it up and now.
+    final fresh = await isar.downloadEntrys.get(entry.id);
+    if (fresh == null || fresh.status != DownloadStatus.pending) return;
+
     await isar.writeTxn(() async {
       entry.status    = DownloadStatus.downloading;
       entry.startedAt = DateTime.now();
