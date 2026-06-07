@@ -15,10 +15,7 @@ void main() async {
 
   // On first run (empty DB) seed all bundled sources so users are not greeted
   // by an empty Browse screen. After that, installs/uninstalls are user-driven.
-  final count = await isar.sourceEntrys.count();
-  if (count == 0) {
-    await ExtensionManager.seedDefaults(isar);
-  }
+  await ExtensionManager.initializeIfEmpty(isar);
 
   // Hydrate the singleton registry from DB before the first frame renders.
   final sources = await ExtensionManager.loadInstalled(isar);
