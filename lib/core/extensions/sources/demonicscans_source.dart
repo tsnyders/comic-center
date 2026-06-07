@@ -198,18 +198,24 @@ class DemonicScansSource implements MangaSource {
       final uploadDate =
           dateStr != null ? DateTime.tryParse(dateStr) : null;
 
-      final numMatch =
+      // Prefer number from URL query (?chapter=250) — more reliable than regex
+      // on the display name. Fall back to title regex for legacy/edge cases.
+      final urlNumMatch = RegExp(r'chapter=(\d+)').firstMatch(href);
+      final titleNumMatch =
           RegExp(r'(?:Chapter\s+)?([\d.]+)', caseSensitive: false)
               .firstMatch(name);
-      final number =
-          numMatch != null ? double.tryParse(numMatch.group(1)!) : null;
+      final number = urlNumMatch != null
+          ? double.tryParse(urlNumMatch.group(1)!)
+          : (titleNumMatch != null
+              ? double.tryParse(titleNumMatch.group(1)!)
+              : null);
 
       return ChapterInfo(
         id: chapterId,
         title: name.isNotEmpty ? name : 'Chapter',
         number: number,
         uploadDate: uploadDate,
-        url: '$baseUrl/manga/$chapterId',
+        url: _absolute('/$chapterId'),
       );
     }).toList();
   }
@@ -218,8 +224,25 @@ class DemonicScansSource implements MangaSource {
 
   @override
   Future<List<String>> fetchPageUrls(String chapterId) async {
-    // chapterId format: "{manga-slug}/{chapter-slug}"
-    final html = await _fetchHtml('/manga/$chapterId');
+    // New format: "chaptered.php?manga=129&chapter=250"
+    // Legacy format: "{manga-slug}/{chapter-slug}" (entries from old DB)
+    final String html;
+    if (chapterId.startsWith('chaptered.php')) {
+      final qIdx = chapterId.indexOf('?');
+      final path = '/${chapterId.substring(0, qIdx)}';
+      final queryStr = chapterId.substring(qIdx + 1);
+      final queryParams = Map.fromEntries(
+        queryStr.split('&').map((kv) {
+          final eq = kv.indexOf('=');
+          return eq < 0
+              ? MapEntry(kv, '')
+              : MapEntry(kv.substring(0, eq), kv.substring(eq + 1));
+        }),
+      );
+      html = await _fetchHtml(path, queryParameters: queryParams);
+    } else {
+      html = await _fetchHtml('/manga/$chapterId');
+    }
     final doc = html_parser.parse(html);
 
     return doc
@@ -296,10 +319,20 @@ class DemonicScansSource implements MangaSource {
     return _fullyDecode(raw);
   }
 
-  /// Extracts "{manga-slug}/{chapter-slug}" from a chapter URL, fully decoded.
+  /// Extracts a stable chapter ID from a chapter href.
+  ///
+  /// New format: /chaptered.php?manga=129&chapter=250
+  ///   → "chaptered.php?manga=129&chapter=250"
+  /// Legacy format: /manga/{slug}/{chapter-slug}
+  ///   → "{slug}/{chapter-slug}" (fully decoded, for backward compat)
   String _chapterId(String href) {
-    final cleaned = href.split('?').first.split('#').first;
-    final parts = cleaned.split('/');
+    final cleaned = href.split('#').first;
+    if (cleaned.contains('chaptered.php')) {
+      return cleaned.startsWith('/') ? cleaned.substring(1) : cleaned;
+    }
+    // Legacy slug-based path
+    final pathOnly = cleaned.split('?').first;
+    final parts = pathOnly.split('/');
     final idx = parts.indexOf('manga');
     if (idx >= 0 && idx + 2 < parts.length) {
       return '${_fullyDecode(parts[idx + 1])}/${_fullyDecode(parts[idx + 2])}';
