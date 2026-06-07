@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui';
 
 import 'package:extended_image/extended_image.dart';
 import 'package:flutter/cupertino.dart';
@@ -12,6 +13,18 @@ import 'widgets/page_pill.dart';
 import 'widgets/progress_line.dart';
 import 'widgets/reader_chrome.dart';
 
+/// Lightweight description of a chapter passed to the reader for navigation.
+class ReaderChapterSummary {
+  const ReaderChapterSummary({
+    required this.id,
+    required this.sourceChapterId,
+    required this.title,
+  });
+  final int id;
+  final String sourceChapterId;
+  final String title;
+}
+
 class ReaderScreen extends ConsumerStatefulWidget {
   const ReaderScreen({
     super.key,
@@ -21,6 +34,8 @@ class ReaderScreen extends ConsumerStatefulWidget {
     required this.sourceChapterId,
     required this.chapterTitle,
     this.isWebtoon = false,
+    this.chapters = const [],
+    this.chapterIndex = -1,
   });
 
   final int mangaId;
@@ -32,6 +47,14 @@ class ReaderScreen extends ConsumerStatefulWidget {
   /// When true the reader uses a continuous vertical ListView (webtoon/manhwa
   /// style) instead of the page-by-page PageView used for manga.
   final bool isWebtoon;
+
+  /// Full chapter list (sorted descending by number) used for "Next Chapter"
+  /// navigation. Empty list disables the feature.
+  final List<ReaderChapterSummary> chapters;
+
+  /// Index of the current chapter within [chapters]. Lower index = higher
+  /// chapter number (since the list is sorted descending).
+  final int chapterIndex;
 
   @override
   ConsumerState<ReaderScreen> createState() => _ReaderScreenState();
@@ -65,6 +88,34 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.manual,
         overlays: SystemUiOverlay.values);
     super.dispose();
+  }
+
+  // ── Next chapter navigation ──────────────────────────────────────────────
+
+  bool get _hasNextChapter =>
+      widget.chapterIndex > 0 && widget.chapters.isNotEmpty;
+
+  ReaderChapterSummary get _nextSummary =>
+      widget.chapters[widget.chapterIndex - 1];
+
+  void _goToNextChapter(BuildContext context) {
+    final nextIdx = widget.chapterIndex - 1;
+    final next = widget.chapters[nextIdx];
+    Navigator.of(context).pushReplacement(
+      CupertinoPageRoute<void>(
+        fullscreenDialog: true,
+        builder: (_) => ReaderScreen(
+          mangaId: widget.mangaId,
+          chapterId: next.id,
+          sourceId: widget.sourceId,
+          sourceChapterId: next.sourceChapterId,
+          chapterTitle: next.title,
+          isWebtoon: widget.isWebtoon,
+          chapters: widget.chapters,
+          chapterIndex: nextIdx,
+        ),
+      ),
+    );
   }
 
   // ── Webtoon scroll tracking ───────────────────────────────────────────────
@@ -204,6 +255,22 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                   visible: _pillVisible && !chromeVisible,
                 ),
               ),
+
+              // ── Next chapter banner (paged only, last page) ───────────────
+              if (!widget.isWebtoon &&
+                  _hasNextChapter &&
+                  readerState.totalPages > 0 &&
+                  readerState.currentPage == readerState.totalPages - 1 &&
+                  !chromeVisible)
+                Positioned(
+                  bottom: MediaQuery.of(context).padding.bottom + 16,
+                  left: 20,
+                  right: 20,
+                  child: _NextChapterBanner(
+                    title: _nextSummary.title,
+                    onTap: () => _goToNextChapter(context),
+                  ),
+                ),
             ],
           );
         },
@@ -253,17 +320,23 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     List<String> pages,
     bool chromeVisible,
   ) {
+    final hasFooter = _hasNextChapter;
     return GestureDetector(
       onTap: () => ref.read(readerProvider.notifier).toggleChrome(),
       child: ListView.builder(
         controller: _scrollController,
         physics: const ClampingScrollPhysics(),
         padding: EdgeInsets.zero,
-        itemCount: pages.length,
-        itemBuilder: (context, i) => _WebtoonPage(
-          url: pages[i],
-          index: i,
-        ),
+        itemCount: pages.length + (hasFooter ? 1 : 0),
+        itemBuilder: (context, i) {
+          if (i == pages.length) {
+            return _NextChapterFooter(
+              title: _nextSummary.title,
+              onTap: () => _goToNextChapter(context),
+            );
+          }
+          return _WebtoonPage(url: pages[i], index: i);
+        },
       ),
     );
   }
@@ -541,6 +614,132 @@ class _WebtoonPage extends StatelessWidget {
             return null; // natural dimensions
         }
       },
+    );
+  }
+}
+
+// ── Next chapter – paged banner (frosted glass, bottom overlay) ───────────────
+
+class _NextChapterBanner extends StatelessWidget {
+  const _NextChapterBanner({required this.title, required this.onTap});
+  final String title;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+            decoration: BoxDecoration(
+              color: const Color(0xD4000000),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                  color: AppColors.accent.withOpacity(0.4), width: 0.5),
+            ),
+            child: Row(
+              children: [
+                const Icon(CupertinoIcons.arrow_right_circle_fill,
+                    color: AppColors.accent, size: 22),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text(
+                        'Next Chapter',
+                        style: TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          color: CupertinoColors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                const Icon(CupertinoIcons.chevron_right,
+                    color: AppColors.textTertiary, size: 14),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Next chapter – webtoon footer (list item at bottom of scroll) ─────────────
+
+class _NextChapterFooter extends StatelessWidget {
+  const _NextChapterFooter({required this.title, required this.onTap});
+  final String title;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomPadding = MediaQuery.of(context).padding.bottom;
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: EdgeInsets.fromLTRB(20, 24, 20, bottomPadding + 32),
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceElevated,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+              color: AppColors.accent.withOpacity(0.35), width: 0.5),
+        ),
+        child: Row(
+          children: [
+            const Icon(CupertinoIcons.arrow_right_circle_fill,
+                color: AppColors.accent, size: 28),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Next Chapter',
+                    style: AppTextStyles.caption.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    title,
+                    style: AppTextStyles.bodyMedium.copyWith(
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            const Icon(CupertinoIcons.chevron_right,
+                color: AppColors.textTertiary, size: 16),
+          ],
+        ),
+      ),
     );
   }
 }

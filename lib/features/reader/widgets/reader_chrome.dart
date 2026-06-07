@@ -175,7 +175,7 @@ class _BottomBar extends StatelessWidget {
   }
 }
 
-class _Scrubber extends StatelessWidget {
+class _Scrubber extends StatefulWidget {
   const _Scrubber({
     required this.current,
     required this.total,
@@ -187,18 +187,43 @@ class _Scrubber extends StatelessWidget {
   final ValueChanged<int> onSeek;
 
   @override
+  State<_Scrubber> createState() => _ScrubberState();
+}
+
+class _ScrubberState extends State<_Scrubber> {
+  double? _dragPct;
+
+  double get _progress {
+    if (_dragPct != null) return _dragPct!;
+    if (widget.total <= 1) return 0.0;
+    return widget.current / (widget.total - 1);
+  }
+
+  void _seek(double x, double width) {
+    if (widget.total <= 1) return;
+    final pct = (x / width).clamp(0.0, 1.0);
+    setState(() => _dragPct = pct);
+    final page = (pct * (widget.total - 1)).round();
+    widget.onSeek(page);
+  }
+
+  void _endDrag() => setState(() => _dragPct = null);
+
+  @override
   Widget build(BuildContext context) {
-    final progress = total == 0 ? 0.0 : (current + 1) / total;
+    final progress = _progress;
 
     return LayoutBuilder(
       builder: (context, constraints) {
         final w = constraints.maxWidth;
-        final thumbLeft = (w * progress - 10).clamp(-10.0, w - 10);
+        final thumbLeft = (w * progress - 10).clamp(-10.0, w - 10.0);
 
         return GestureDetector(
           behavior: HitTestBehavior.opaque,
           onTapDown: (d) => _seek(d.localPosition.dx, w),
           onHorizontalDragUpdate: (d) => _seek(d.localPosition.dx, w),
+          onHorizontalDragEnd: (_) => _endDrag(),
+          onHorizontalDragCancel: _endDrag,
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 8),
             child: Stack(
@@ -213,9 +238,8 @@ class _Scrubber extends StatelessWidget {
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
-                // Fill
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 80),
+                // Fill — no animation during drag to stay locked to finger
+                Container(
                   height: 4,
                   width: w * progress,
                   decoration: BoxDecoration(
@@ -244,12 +268,5 @@ class _Scrubber extends StatelessWidget {
         );
       },
     );
-  }
-
-  void _seek(double x, double width) {
-    if (total <= 1) return;
-    final pct  = (x / width).clamp(0.0, 1.0);
-    final page = (pct * (total - 1)).round();
-    onSeek(page);
   }
 }
