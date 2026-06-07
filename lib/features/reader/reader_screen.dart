@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:extended_image/extended_image.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
@@ -18,6 +20,7 @@ class ReaderScreen extends ConsumerStatefulWidget {
     required this.sourceId,
     required this.sourceChapterId,
     required this.chapterTitle,
+    this.isWebtoon = false,
   });
 
   final int mangaId;
@@ -26,36 +29,91 @@ class ReaderScreen extends ConsumerStatefulWidget {
   final String sourceChapterId;
   final String chapterTitle;
 
+  /// When true the reader uses a continuous vertical ListView (webtoon/manhwa
+  /// style) instead of the page-by-page PageView used for manga.
+  final bool isWebtoon;
+
   @override
   ConsumerState<ReaderScreen> createState() => _ReaderScreenState();
 }
 
 class _ReaderScreenState extends ConsumerState<ReaderScreen> {
-  late PageController _pageController;
-  bool _pillVisible = false;
+  late final PageController   _pageController;
+  late final ScrollController _scrollController;
+
+  bool   _pillVisible      = false;
+  double _webtoonProgress  = 0.0;
+  Timer? _pillHideTimer;
 
   @override
   void initState() {
     super.initState();
-    _pageController = PageController();
+    _pageController   = PageController();
+    _scrollController = ScrollController();
     SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle.light);
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    if (widget.isWebtoon) {
+      _scrollController.addListener(_onWebtoonScroll);
+    }
   }
 
   @override
   void dispose() {
+    _pillHideTimer?.cancel();
     _pageController.dispose();
+    _scrollController.dispose();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.manual,
         overlays: SystemUiOverlay.values);
     super.dispose();
   }
 
+  // ── Webtoon scroll tracking ───────────────────────────────────────────────
+
+  void _onWebtoonScroll() {
+    if (!_scrollController.hasClients) return;
+    final pos = _scrollController.position;
+    if (pos.maxScrollExtent <= 0) return;
+
+    final rawProgress = (pos.pixels / pos.maxScrollExtent).clamp(0.0, 1.0);
+    final total = ref.read(readerProvider).totalPages;
+    final page  = total > 0
+        ? (rawProgress * total).floor().clamp(0, total - 1)
+        : 0;
+
+    if (ref.read(readerProvider).currentPage != page) {
+      ref.read(readerProvider.notifier).setPage(page);
+    }
+
+    setState(() {
+      _webtoonProgress = rawProgress;
+      _pillVisible     = true;
+    });
+
+    _pillHideTimer?.cancel();
+    _pillHideTimer = Timer(const Duration(seconds: 2), () {
+      if (mounted) setState(() => _pillVisible = false);
+    });
+  }
+
+  // ── Seek (chrome scrubber) ───────────────────────────────────────────────
+
   void _onSeek(int page) {
-    _pageController.animateToPage(
-      page,
-      duration: const Duration(milliseconds: 200),
-      curve: Curves.easeInOut,
-    );
+    if (widget.isWebtoon) {
+      if (!_scrollController.hasClients) return;
+      final total = ref.read(readerProvider).totalPages;
+      if (total == 0) return;
+      _scrollController.animateTo(
+        (page / total) * _scrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    } else {
+      _pageController.animateToPage(
+        page,
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeInOut,
+      );
+    }
   }
 
   @override
@@ -86,9 +144,6 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
               style: const TextStyle(color: AppColors.textSecondary)),
         ),
         data: (pages) {
-          // Only call setTotalPages when the count actually changes to avoid
-          // an infinite rebuild loop (setTotalPages triggers a state update
-          // which triggers build which would call setTotalPages again).
           final currentTotal = ref.read(readerProvider).totalPages;
           if (currentTotal != pages.length) {
             WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -98,46 +153,28 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
             });
           }
 
-          final isVertical = direction == ReadingDirection.vertical;
-          final isRtl      = direction == ReadingDirection.rtl;
-
           return Stack(
             children: [
-              // ── Page view ──────────────────────────────────────────────
-              GestureDetector(
-                onTap: () =>
-                    ref.read(readerProvider.notifier).toggleChrome(),
-                child: PageView.builder(
-                  controller: _pageController,
-                  scrollDirection:
-                      isVertical ? Axis.vertical : Axis.horizontal,
-                  reverse: isRtl,
-                  itemCount: pages.length,
-                  onPageChanged: (i) {
-                    ref.read(readerProvider.notifier).setPage(i);
-                    setState(() => _pillVisible = true);
-                    Future.delayed(const Duration(seconds: 2), () {
-                      if (mounted) setState(() => _pillVisible = false);
-                    });
-                  },
-                  itemBuilder: (context, i) => _ReaderPage(
-                    url: pages[i],
-                    index: i,
-                    background: background,
-                  ),
-                ),
-              ),
+              // ── Content ──────────────────────────────────────────────────
+              if (widget.isWebtoon)
+                _buildWebtoonView(context, pages, chromeVisible)
+              else
+                _buildPagedView(context, pages, direction, background, chromeVisible),
 
-              // ── Always-visible 2pt progress line ─────────────────────
+              // ── Always-visible 2pt progress line ─────────────────────────
               Positioned(
                 top: MediaQuery.of(context).padding.top,
                 left: 0,
                 right: 0,
                 height: 2,
-                child: ProgressLine(progress: readerState.progress),
+                child: ProgressLine(
+                  progress: widget.isWebtoon
+                      ? _webtoonProgress
+                      : readerState.progress,
+                ),
               ),
 
-              // ── Tap-to-reveal chrome ──────────────────────────────────
+              // ── Tap-to-reveal chrome ──────────────────────────────────────
               Positioned.fill(
                 child: AnimatedOpacity(
                   opacity: chromeVisible ? 1.0 : 0.0,
@@ -156,7 +193,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                 ),
               ),
 
-              // ── Page count pill (bottom-centre) ───────────────────────
+              // ── Page/image count pill ─────────────────────────────────────
               Positioned(
                 bottom: MediaQuery.of(context).padding.bottom + 90,
                 left: 0,
@@ -174,10 +211,67 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     );
   }
 
+  // ── Paged view (manga) ───────────────────────────────────────────────────
+
+  Widget _buildPagedView(
+    BuildContext context,
+    List<String> pages,
+    ReadingDirection direction,
+    ReaderBackground background,
+    bool chromeVisible,
+  ) {
+    final isVertical = direction == ReadingDirection.vertical;
+    final isRtl      = direction == ReadingDirection.rtl;
+
+    return GestureDetector(
+      onTap: () => ref.read(readerProvider.notifier).toggleChrome(),
+      child: PageView.builder(
+        controller: _pageController,
+        scrollDirection: isVertical ? Axis.vertical : Axis.horizontal,
+        reverse: isRtl,
+        itemCount: pages.length,
+        onPageChanged: (i) {
+          ref.read(readerProvider.notifier).setPage(i);
+          setState(() => _pillVisible = true);
+          Future.delayed(const Duration(seconds: 2), () {
+            if (mounted) setState(() => _pillVisible = false);
+          });
+        },
+        itemBuilder: (context, i) => _ReaderPage(
+          url: pages[i],
+          index: i,
+          background: background,
+        ),
+      ),
+    );
+  }
+
+  // ── Webtoon view (manhwa / continuous vertical scroll) ───────────────────
+
+  Widget _buildWebtoonView(
+    BuildContext context,
+    List<String> pages,
+    bool chromeVisible,
+  ) {
+    return GestureDetector(
+      onTap: () => ref.read(readerProvider.notifier).toggleChrome(),
+      child: ListView.builder(
+        controller: _scrollController,
+        physics: const ClampingScrollPhysics(),
+        padding: EdgeInsets.zero,
+        itemCount: pages.length,
+        itemBuilder: (context, i) => _WebtoonPage(
+          url: pages[i],
+          index: i,
+        ),
+      ),
+    );
+  }
+
   void _showSettings(BuildContext context) {
     showCupertinoModalPopup<void>(
       context: context,
-      builder: (_) => const _ReaderSettingsSheet(),
+      builder: (_) => _ReaderSettingsSheet(isWebtoon: widget.isWebtoon),
     );
   }
 }
@@ -185,7 +279,8 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
 // ── Reader settings bottom sheet ───────────────────────────────────────────
 
 class _ReaderSettingsSheet extends ConsumerWidget {
-  const _ReaderSettingsSheet();
+  const _ReaderSettingsSheet({required this.isWebtoon});
+  final bool isWebtoon;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -225,38 +320,43 @@ class _ReaderSettingsSheet extends ConsumerWidget {
                   .copyWith(color: AppColors.textPrimary)),
           const SizedBox(height: 20),
 
-          Text('DIRECTION',
-              style: AppTextStyles.labelSmall
-                  .copyWith(color: AppColors.textTertiary)),
-          const SizedBox(height: 8),
-          _OptionRow<ReadingDirection>(
-            value: direction,
-            options: const [
-              (ReadingDirection.ltr, 'Left → Right'),
-              (ReadingDirection.rtl, 'Right → Left'),
-              (ReadingDirection.vertical, 'Vertical'),
-            ],
-            onChanged: (v) =>
-                ref.read(readingDirectionProvider.notifier).state = v,
-          ),
+          // Direction setting only shown for paged manga mode.
+          if (!isWebtoon) ...[
+            Text('DIRECTION',
+                style: AppTextStyles.labelSmall
+                    .copyWith(color: AppColors.textTertiary)),
+            const SizedBox(height: 8),
+            _OptionRow<ReadingDirection>(
+              value: direction,
+              options: const [
+                (ReadingDirection.ltr, 'Left → Right'),
+                (ReadingDirection.rtl, 'Right → Left'),
+                (ReadingDirection.vertical, 'Vertical'),
+              ],
+              onChanged: (v) =>
+                  ref.read(readingDirectionProvider.notifier).state = v,
+            ),
+            const SizedBox(height: 16),
+          ],
 
-          const SizedBox(height: 16),
-          Text('PAGE SCALE',
-              style: AppTextStyles.labelSmall
-                  .copyWith(color: AppColors.textTertiary)),
-          const SizedBox(height: 8),
-          _OptionRow<PageScaleMode>(
-            value: scale,
-            options: const [
-              (PageScaleMode.fitWidth, 'Fit Width'),
-              (PageScaleMode.fitHeight, 'Fit Height'),
-              (PageScaleMode.original, 'Original'),
-            ],
-            onChanged: (v) =>
-                ref.read(pageScaleModeProvider.notifier).state = v,
-          ),
+          if (!isWebtoon) ...[
+            Text('PAGE SCALE',
+                style: AppTextStyles.labelSmall
+                    .copyWith(color: AppColors.textTertiary)),
+            const SizedBox(height: 8),
+            _OptionRow<PageScaleMode>(
+              value: scale,
+              options: const [
+                (PageScaleMode.fitWidth, 'Fit Width'),
+                (PageScaleMode.fitHeight, 'Fit Height'),
+                (PageScaleMode.original, 'Original'),
+              ],
+              onChanged: (v) =>
+                  ref.read(pageScaleModeProvider.notifier).state = v,
+            ),
+            const SizedBox(height: 16),
+          ],
 
-          const SizedBox(height: 16),
           Text('BACKGROUND',
               style: AppTextStyles.labelSmall
                   .copyWith(color: AppColors.textTertiary)),
@@ -328,7 +428,7 @@ class _OptionRow<T> extends StatelessWidget {
   }
 }
 
-// ── Single page widget ─────────────────────────────────────────────────────
+// ── Paged manga image ──────────────────────────────────────────────────────
 
 class _ReaderPage extends ConsumerWidget {
   const _ReaderPage({
@@ -386,6 +486,59 @@ class _ReaderPage extends ConsumerWidget {
             );
           case LoadState.completed:
             return null;
+        }
+      },
+    );
+  }
+}
+
+// ── Webtoon strip image (full-width, natural height) ──────────────────────
+
+class _WebtoonPage extends StatelessWidget {
+  const _WebtoonPage({required this.url, required this.index});
+
+  final String url;
+  final int index;
+
+  @override
+  Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+
+    return ExtendedImage.network(
+      url,
+      fit: BoxFit.fitWidth,
+      width: screenWidth,
+      // height is unconstrained — image renders at full width, natural height.
+      mode: ExtendedImageMode.none,
+      loadStateChanged: (state) {
+        switch (state.extendedImageLoadState) {
+          case LoadState.loading:
+            // Placeholder tall enough to be visible while loading.
+            return SizedBox(
+              width: screenWidth,
+              height: screenWidth * 1.5,
+              child: const Center(child: CupertinoActivityIndicator()),
+            );
+          case LoadState.failed:
+            return SizedBox(
+              width: screenWidth,
+              height: 200,
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(CupertinoIcons.exclamationmark_circle,
+                        color: AppColors.textTertiary, size: 32),
+                    const SizedBox(height: 8),
+                    Text('Failed to load image ${index + 1}',
+                        style: const TextStyle(
+                            color: AppColors.textTertiary)),
+                  ],
+                ),
+              ),
+            );
+          case LoadState.completed:
+            return null; // natural dimensions
         }
       },
     );

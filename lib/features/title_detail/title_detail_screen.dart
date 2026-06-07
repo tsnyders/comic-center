@@ -18,6 +18,21 @@ import '../../shared/widgets/cover_image.dart';
 import '../reader/reader_screen.dart';
 import 'widgets/chapter_list_tile.dart';
 
+// ── Webtoon detection ──────────────────────────────────────────────────────
+
+/// Returns true when the manga should use the continuous vertical scroll
+/// reader (webtoon mode) rather than the page-by-page manga reader.
+///
+/// Triggers on DemonicScans (all manhwa) and on any title whose genre list
+/// contains "manhwa", "webtoon", or "manhua".
+bool _isWebtoon(MangaEntry manga) {
+  if (manga.sourceId == 'demonicscans_en') return true;
+  return manga.genres.any((g) {
+    final lower = g.toLowerCase();
+    return lower == 'manhwa' || lower == 'webtoon' || lower == 'manhua';
+  });
+}
+
 // ── Screen ─────────────────────────────────────────────────────────────────
 
 class TitleDetailScreen extends ConsumerWidget {
@@ -411,6 +426,7 @@ class _DetailSheet extends ConsumerWidget {
   }
 
   void _openReader(BuildContext context, ChapterEntry chapter) {
+    final isWebtoon = _isWebtoon(manga);
     Navigator.of(context, rootNavigator: true).push(
       CupertinoPageRoute(
         fullscreenDialog: true,
@@ -420,6 +436,7 @@ class _DetailSheet extends ConsumerWidget {
           sourceId: manga.sourceId,
           sourceChapterId: chapter.sourceChapterId,
           chapterTitle: chapter.title,
+          isWebtoon: isWebtoon,
         ),
       ),
     );
@@ -530,6 +547,7 @@ class _ActionRow extends ConsumerWidget {
           sourceId: manga.sourceId,
           sourceChapterId: target.sourceChapterId,
           chapterTitle: target.title,
+          isWebtoon: _isWebtoon(manga),
         ),
       ),
     );
