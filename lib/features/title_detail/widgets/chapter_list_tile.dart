@@ -1,10 +1,13 @@
 import 'package:flutter/cupertino.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/database/models/chapter_entry.dart';
+import '../../../core/database/models/download_entry.dart';
+import '../../../core/providers/download_provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 
-class ChapterListTile extends StatelessWidget {
+class ChapterListTile extends ConsumerWidget {
   const ChapterListTile({
     super.key,
     required this.chapter,
@@ -20,7 +23,11 @@ class ChapterListTile extends StatelessWidget {
       !chapter.isRead && chapter.lastPageRead > 0 && chapter.pageCount > 0;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final queueStatus = ref
+        .watch(chapterDownloadStatusProvider(chapter.id))
+        .valueOrNull;
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -45,9 +52,7 @@ class ChapterListTile extends StatelessWidget {
                 chapter.number?.toStringAsFixed(0) ?? '?',
                 style: AppTextStyles.bodyMedium.copyWith(
                   fontWeight: FontWeight.w700,
-                  color: chapter.isRead
-                      ? AppColors.textTertiary
-                      : AppColors.textPrimary,
+                  color: chapter.isRead ? AppColors.textTertiary : null,
                 ),
               ),
             ),
@@ -62,7 +67,7 @@ class ChapterListTile extends StatelessWidget {
                     style: AppTextStyles.bodySmall.copyWith(
                       color: chapter.isRead
                           ? AppColors.textTertiary
-                          : AppColors.textPrimary,
+                          : context.textSecondaryColor,
                       fontWeight: FontWeight.w500,
                     ),
                     maxLines: 1,
@@ -75,12 +80,16 @@ class ChapterListTile extends StatelessWidget {
                         if (chapter.uploadDate != null)
                           Text(
                             _formatDate(chapter.uploadDate!),
-                            style: AppTextStyles.caption,
+                            style: AppTextStyles.caption.copyWith(
+                              color: context.textTertiaryColor,
+                            ),
                           ),
                         if (chapter.uploadDate != null && _isInProgress)
                           Text(
                             '  ·  ',
-                            style: AppTextStyles.caption,
+                            style: AppTextStyles.caption.copyWith(
+                              color: context.textTertiaryColor,
+                            ),
                           ),
                         if (_isInProgress)
                           Text(
@@ -98,7 +107,11 @@ class ChapterListTile extends StatelessWidget {
             ),
 
             // Download status
-            _DownloadButton(chapter: chapter, onDownload: onDownload),
+            _DownloadIndicator(
+              chapter: chapter,
+              queueStatus: queueStatus,
+              onDownload: onDownload,
+            ),
           ],
         ),
       ),
@@ -129,18 +142,16 @@ class _ReadIndicator extends StatelessWidget {
       return const Icon(
         CupertinoIcons.checkmark_circle_fill,
         size: 14,
-        color: AppColors.downloaded, // iOS green
+        color: AppColors.downloaded,
       );
     }
-    if (!chapter.isRead && chapter.lastPageRead > 0) {
-      // In progress — orange half-filled circle approximation
+    if (chapter.lastPageRead > 0) {
       return const Icon(
         CupertinoIcons.circle_lefthalf_fill,
         size: 14,
         color: AppColors.warning,
       );
     }
-    // Unread — solid accent dot
     return Container(
       width: 7,
       height: 7,
@@ -153,35 +164,61 @@ class _ReadIndicator extends StatelessWidget {
   }
 }
 
-// ── Download button ────────────────────────────────────────────────────────
+// ── Download indicator ─────────────────────────────────────────────────────
 
-class _DownloadButton extends StatelessWidget {
-  const _DownloadButton({required this.chapter, this.onDownload});
+class _DownloadIndicator extends StatelessWidget {
+  const _DownloadIndicator({
+    required this.chapter,
+    required this.queueStatus,
+    required this.onDownload,
+  });
+
   final ChapterEntry chapter;
+  final String? queueStatus;
   final VoidCallback? onDownload;
 
   @override
   Widget build(BuildContext context) {
-    if (chapter.isDownloaded) {
-      return const Padding(
-        padding: EdgeInsets.only(left: 8),
-        child: Icon(
-          CupertinoIcons.checkmark_circle_fill,
-          size: 16,
-          color: AppColors.downloaded,
-        ),
+    if (chapter.isDownloaded || queueStatus == DownloadStatus.completed) {
+      return const Icon(
+        CupertinoIcons.checkmark_circle_fill,
+        size: 16,
+        color: AppColors.downloaded,
       );
     }
-    return GestureDetector(
-      onTap: onDownload,
-      child: const Padding(
-        padding: EdgeInsets.only(left: 8),
-        child: Icon(
-          CupertinoIcons.arrow_down_circle,
+
+    return switch (queueStatus) {
+      DownloadStatus.pending => const Icon(
+          CupertinoIcons.clock,
           size: 16,
-          color: AppColors.textTertiary,
+          color: AppColors.warning,
         ),
-      ),
-    );
+      DownloadStatus.downloading => const SizedBox(
+          width: 16,
+          height: 16,
+          child: CupertinoActivityIndicator(radius: 7),
+        ),
+      DownloadStatus.paused => const Icon(
+          CupertinoIcons.pause_circle,
+          size: 16,
+          color: AppColors.warning,
+        ),
+      DownloadStatus.failed => GestureDetector(
+          onTap: onDownload,
+          child: const Icon(
+            CupertinoIcons.xmark_circle,
+            size: 16,
+            color: AppColors.unread,
+          ),
+        ),
+      _ => GestureDetector(
+          onTap: onDownload,
+          child: const Icon(
+            CupertinoIcons.arrow_down_circle,
+            size: 16,
+            color: AppColors.textTertiary,
+          ),
+        ),
+    };
   }
 }

@@ -3,13 +3,44 @@ import 'dart:ui';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/extensions/source_interface.dart';
 import '../../core/providers/source_registry_provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
-import '../../shared/widgets/glass_container.dart';
-import 'repository_screen.dart';
+import 'extensions_screen.dart';
 import 'source_manga_screen.dart';
+import 'widgets/featured_source_card.dart';
 import 'widgets/source_row.dart';
+
+// Accent gradients per source ID.
+final _sourceGradients = <String, LinearGradient>{
+  'mangadex_en_v5': const LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xFF667EEA), Color(0xFF764BA2)],
+  ),
+  'all_manga_en': const LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xFF11998E), Color(0xFF38EF7D)],
+  ),
+  'demonicscans_en': const LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xFFFF416C), Color(0xFFFF4B2B)],
+  ),
+};
+
+LinearGradient _gradientFor(MangaSource source) =>
+    _sourceGradients[source.id] ??
+    LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [
+        AppColors.accent,
+        AppColors.accent.withOpacity(0.5),
+      ],
+    );
 
 class BrowseScreen extends ConsumerWidget {
   const BrowseScreen({super.key});
@@ -22,10 +53,10 @@ class BrowseScreen extends ConsumerWidget {
     );
   }
 
-  void _openRepository(BuildContext context) {
+  void _openExtensions(BuildContext context) {
     Navigator.of(context).push(
       CupertinoPageRoute<void>(
-        builder: (_) => const RepositoryScreen(),
+        builder: (_) => const ExtensionsScreen(),
       ),
     );
   }
@@ -43,7 +74,7 @@ class BrowseScreen extends ConsumerWidget {
         slivers: [
           SliverToBoxAdapter(child: SizedBox(height: topPadding + 8)),
 
-          // Title + search
+          // Title
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
@@ -65,131 +96,87 @@ class BrowseScreen extends ConsumerWidget {
             ),
           ),
 
-          // Featured sources carousel
-          SliverToBoxAdapter(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 4, 20, 14),
-                  child: Text('Featured', style: AppTextStyles.sectionTitle),
+          if (sources.isEmpty)
+            // ── Empty state ─────────────────────────────────────────────
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 40, 20, 32),
+                child: Column(
+                  children: [
+                    const Icon(
+                      CupertinoIcons.square_grid_2x2,
+                      size: 52,
+                      color: AppColors.textQuaternary,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'No extensions installed',
+                      style: AppTextStyles.bodyMedium.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Install an extension to start browsing manga.',
+                      style: AppTextStyles.bodySmall,
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 20),
+                    GestureDetector(
+                      onTap: () => _openExtensions(context),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 20, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: AppColors.accent,
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: const Text(
+                          'Browse Extensions',
+                          style: TextStyle(
+                            color: CupertinoColors.white,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                SizedBox(
-                  height: 160,
-                  child: ListView(
-                    scrollDirection: Axis.horizontal,
-                    physics: const BouncingScrollPhysics(),
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    children: [
-                      AnimatedGlassCard(
-                        gradient: const LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [Color(0xFF667EEA), Color(0xFF764BA2)],
-                        ),
-                        width: 240,
-                        height: 160,
-                        onTap: () => _openSource(context, 'mangadex_en_v5'),
-                        child: Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            children: [
-                              const Text('MangaDex',
-                                  style: TextStyle(
-                                    color: CupertinoColors.white,
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w700,
-                                  )),
-                              const SizedBox(height: 4),
-                              Text(
-                                '50,000+ titles · Multi-language',
-                                style: AppTextStyles.caption.copyWith(
-                                  color: CupertinoColors.white.withOpacity(0.75),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      AnimatedGlassCard(
-                        gradient: const LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [Color(0xFF11998E), Color(0xFF38EF7D)],
-                        ),
-                        width: 240,
-                        height: 160,
-                        onTap: () => _openSource(context, 'all_manga_en'),
-                        child: Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            children: [
-                              const Text('AllManga',
-                                  style: TextStyle(
-                                    color: CupertinoColors.white,
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w700,
-                                  )),
-                              const SizedBox(height: 4),
-                              Text(
-                                'Manga & manhwa · English',
-                                style: AppTextStyles.caption.copyWith(
-                                  color: CupertinoColors.white.withOpacity(0.75),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      AnimatedGlassCard(
-                        gradient: const LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [Color(0xFFFF416C), Color(0xFFFF4B2B)],
-                        ),
-                        width: 240,
-                        height: 160,
-                        onTap: () => _openSource(context, 'asurascans_en'),
-                        child: Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            children: [
-                              const Text('AsuraScans',
-                                  style: TextStyle(
-                                    color: CupertinoColors.white,
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w700,
-                                  )),
-                              const SizedBox(height: 4),
-                              Text(
-                                'Action manhwa · Weekly updates',
-                                style: AppTextStyles.caption.copyWith(
-                                  color: CupertinoColors.white.withOpacity(0.75),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
+              ),
+            )
+          else ...[
+            // ── Featured carousel ────────────────────────────────────────
+            SliverToBoxAdapter(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 4, 20, 14),
+                    child: Text('Featured', style: AppTextStyles.sectionTitle),
                   ),
-                ),
-              ],
+                  SizedBox(
+                    height: 160,
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      physics: const BouncingScrollPhysics(),
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      itemCount: sources.length,
+                      separatorBuilder: (_, __) => const SizedBox(width: 12),
+                      itemBuilder: (_, i) => FeaturedSourceCard(
+                        source: sources[i],
+                        gradient: _gradientFor(sources[i]),
+                        onTap: () => _openSource(context, sources[i].id),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
 
-          const SliverToBoxAdapter(child: SizedBox(height: 24)),
+            const SliverToBoxAdapter(child: SizedBox(height: 24)),
 
-          // Installed sources
-          if (sources.isNotEmpty) ...[
+            // ── Installed sources list ───────────────────────────────────
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
@@ -203,30 +190,28 @@ class BrowseScreen extends ConsumerWidget {
                 itemBuilder: (context, i) => SourceRow(
                   source: sources[i],
                   action: SourceRowAction.open,
+                  gradient: _gradientFor(sources[i]),
                   onTap: () => _openSource(context, sources[i].id),
                 ),
               ),
             ),
           ],
 
-          // Repository section
+          // ── Extensions card ──────────────────────────────────────────────
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
-              child: Text('Repositories', style: AppTextStyles.sectionTitle),
+              child: Text('Extensions', style: AppTextStyles.sectionTitle),
             ),
           ),
-
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: _RepositoryCard(onTap: () => _openRepository(context)),
+              child: _ExtensionsCard(onTap: () => _openExtensions(context)),
             ),
           ),
 
-          SliverToBoxAdapter(
-            child: SizedBox(height: bottomPadding + 90),
-          ),
+          SliverToBoxAdapter(child: SizedBox(height: bottomPadding + 90)),
         ],
       ),
     );
@@ -245,10 +230,10 @@ class _GlassSearchBar extends StatelessWidget {
         child: Container(
           height: 46,
           decoration: BoxDecoration(
-            color: const Color(0xFF1E1E2A).withOpacity(0.75),
+            color: context.surfaceElevatedColor.withOpacity(0.7),
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
-              color: const Color(0xFFFFFFFF).withOpacity(0.10),
+              color: context.borderColor,
               width: 0.5,
             ),
           ),
@@ -278,17 +263,17 @@ class _GlassSearchBar extends StatelessWidget {
   }
 }
 
-// ── Repository card ──────────────────────────────────────────────────────────
+// ── Extensions card ──────────────────────────────────────────────────────────
 
-class _RepositoryCard extends StatefulWidget {
-  const _RepositoryCard({required this.onTap});
+class _ExtensionsCard extends StatefulWidget {
+  const _ExtensionsCard({required this.onTap});
   final VoidCallback onTap;
 
   @override
-  State<_RepositoryCard> createState() => _RepositoryCardState();
+  State<_ExtensionsCard> createState() => _ExtensionsCardState();
 }
 
-class _RepositoryCardState extends State<_RepositoryCard> {
+class _ExtensionsCardState extends State<_ExtensionsCard> {
   bool _pressed = false;
 
   @override
@@ -337,14 +322,14 @@ class _RepositoryCardState extends State<_RepositoryCard> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Keiyoushi Extensions',
+                          'Extension Catalogue',
                           style: AppTextStyles.bodyMedium.copyWith(
                             fontWeight: FontWeight.w700,
                           ),
                         ),
                         const SizedBox(height: 3),
                         Text(
-                          'Browse 900+ community extensions',
+                          'Install, uninstall and update extensions',
                           style: AppTextStyles.bodySmall.copyWith(
                             color: AppColors.textTertiary,
                           ),

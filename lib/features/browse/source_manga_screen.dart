@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/extensions/models/manga_summary.dart';
 import '../../core/providers/browse_provider.dart';
 import '../../core/providers/database_provider.dart';
 import '../../core/providers/source_registry_provider.dart';
@@ -39,7 +40,7 @@ class _SourceMangaScreenState extends ConsumerState<SourceMangaScreen> {
     return BrowseArgs(sourceId: widget.sourceId, mode: mode);
   }
 
-  Future<void> _openManga(String mangaId) async {
+  Future<void> _openManga(MangaSummary summary) async {
     final source = ref.read(sourceByIdProvider(widget.sourceId));
     if (source == null) return;
     final isar = ref.read(isarProvider);
@@ -60,7 +61,8 @@ class _SourceMangaScreenState extends ConsumerState<SourceMangaScreen> {
       final entry = await upsertMangaEntry(
         isar: isar,
         source: source,
-        mangaId: mangaId,
+        mangaId: summary.id,
+        summary: summary,
       );
       if (!mounted) return;
       Navigator.of(context).pop(); // dismiss loader
@@ -104,6 +106,40 @@ class _SourceMangaScreenState extends ConsumerState<SourceMangaScreen> {
     ref.read(browseModeProvider(widget.sourceId).notifier).state =
         BrowseMode.search;
     setState(() {});
+  }
+
+  void _showSortSheet(BuildContext context) {
+    final current = ref.read(browseModeProvider(widget.sourceId));
+    showCupertinoModalPopup<void>(
+      context: context,
+      builder: (_) => CupertinoActionSheet(
+        title: const Text('Sort By'),
+        actions: [
+          CupertinoActionSheetAction(
+            isDefaultAction: current == BrowseMode.popular,
+            onPressed: () {
+              ref.read(browseModeProvider(widget.sourceId).notifier).state =
+                  BrowseMode.popular;
+              Navigator.pop(context);
+            },
+            child: const Text('Popular'),
+          ),
+          CupertinoActionSheetAction(
+            isDefaultAction: current == BrowseMode.latest,
+            onPressed: () {
+              ref.read(browseModeProvider(widget.sourceId).notifier).state =
+                  BrowseMode.latest;
+              Navigator.pop(context);
+            },
+            child: const Text('Latest'),
+          ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+      ),
+    );
   }
 
   @override
@@ -159,7 +195,7 @@ class _SourceMangaScreenState extends ConsumerState<SourceMangaScreen> {
                   ),
                   CupertinoButton(
                     padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                     onPressed: _searchActive ? _dismissSearch : _activateSearch,
                     child: Icon(
                       _searchActive
@@ -169,6 +205,17 @@ class _SourceMangaScreenState extends ConsumerState<SourceMangaScreen> {
                       size: 20,
                     ),
                   ),
+                  if (!_searchActive)
+                    CupertinoButton(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 8),
+                      onPressed: () => _showSortSheet(context),
+                      child: const Icon(
+                        CupertinoIcons.slider_horizontal_3,
+                        color: AppColors.accent,
+                        size: 20,
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -267,7 +314,7 @@ class _SourceMangaScreenState extends ConsumerState<SourceMangaScreen> {
                       itemBuilder: (context, i) => _MangaCard(
                         title: mangas[i].title,
                         coverUrl: mangas[i].coverUrl,
-                        onTap: () => _openManga(mangas[i].id),
+                        onTap: () => _openManga(mangas[i]),
                       ),
                     ),
                   ),

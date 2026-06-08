@@ -8,6 +8,7 @@ import '../../core/providers/library_provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../title_detail/title_detail_screen.dart';
+import 'library_filter_sheet.dart';
 import 'widgets/category_chips.dart';
 import 'widgets/manga_card.dart';
 
@@ -20,7 +21,9 @@ class LibraryScreen extends ConsumerStatefulWidget {
 
 class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   final _scrollController = ScrollController();
+  final _searchController = TextEditingController();
   late final _scrollOffset = ValueNotifier<double>(0);
+  bool _searchActive = false;
 
   @override
   void initState() {
@@ -33,6 +36,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   @override
   void dispose() {
     _scrollController.dispose();
+    _searchController.dispose();
     _scrollOffset.dispose();
     super.dispose();
   }
@@ -109,7 +113,23 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
             top: 0,
             left: 0,
             right: 0,
-            child: _FrostedTopBar(scrollOffset: _scrollOffset),
+            child: _FrostedTopBar(
+              scrollOffset: _scrollOffset,
+              searchActive: _searchActive,
+              searchController: _searchController,
+              onSearchTap: () => setState(() => _searchActive = true),
+              onSearchChanged: (q) =>
+                  ref.read(librarySearchProvider.notifier).state = q,
+              onSearchClose: () {
+                setState(() => _searchActive = false);
+                _searchController.clear();
+                ref.read(librarySearchProvider.notifier).state = '';
+              },
+              onFilterTap: () => showCupertinoModalPopup<void>(
+                context: context,
+                builder: (_) => const LibraryFilterSheet(),
+              ),
+            ),
           ),
         ],
       ),
@@ -164,8 +184,23 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
 // ── Frosted top bar ────────────────────────────────────────────────────────
 
 class _FrostedTopBar extends StatelessWidget {
-  const _FrostedTopBar({required this.scrollOffset});
+  const _FrostedTopBar({
+    required this.scrollOffset,
+    required this.searchActive,
+    required this.searchController,
+    required this.onSearchTap,
+    required this.onSearchChanged,
+    required this.onSearchClose,
+    required this.onFilterTap,
+  });
+
   final ValueNotifier<double> scrollOffset;
+  final bool searchActive;
+  final TextEditingController searchController;
+  final VoidCallback onSearchTap;
+  final ValueChanged<String> onSearchChanged;
+  final VoidCallback onSearchClose;
+  final VoidCallback onFilterTap;
 
   @override
   Widget build(BuildContext context) {
@@ -183,7 +218,7 @@ class _FrostedTopBar extends StatelessWidget {
               sigmaY: blurAlpha * 24,
             ),
             child: Container(
-              color: AppColors.background.withOpacity(0.7 * blurAlpha),
+              color: context.backgroundColor.withOpacity(0.7 * blurAlpha),
               padding: EdgeInsets.only(
                 top: topPadding + 8,
                 left: 20,
@@ -192,61 +227,85 @@ class _FrostedTopBar extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  // Search pill
                   Expanded(
-                    child: Container(
-                      height: 38,
-                      decoration: BoxDecoration(
-                        color: AppColors.surfaceElevated.withOpacity(0.8),
-                        borderRadius: BorderRadius.circular(19),
-                        border: Border.all(
-                          color: AppColors.borderStrong,
-                          width: 0.5,
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          const SizedBox(width: 12),
-                          const Icon(
-                            CupertinoIcons.search,
-                            size: 16,
-                            color: AppColors.textTertiary,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Search library',
+                    child: searchActive
+                        ? CupertinoSearchTextField(
+                            controller: searchController,
+                            autofocus: true,
+                            onChanged: onSearchChanged,
                             style: AppTextStyles.bodySmall.copyWith(
-                              color: AppColors.textTertiary,
+                              color: AppColors.textPrimary,
+                            ),
+                          )
+                        : GestureDetector(
+                            onTap: onSearchTap,
+                            child: Container(
+                              height: 38,
+                              decoration: BoxDecoration(
+                                color: context.surfaceElevatedColor.withOpacity(0.8),
+                                borderRadius: BorderRadius.circular(19),
+                                border: Border.all(
+                                  color: context.borderStrongColor,
+                                  width: 0.5,
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  const SizedBox(width: 12),
+                                  const Icon(
+                                    CupertinoIcons.search,
+                                    size: 16,
+                                    color: AppColors.textTertiary,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Search library',
+                                    style: AppTextStyles.bodySmall.copyWith(
+                                      color: AppColors.textTertiary,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
-                        ],
-                      ),
-                    ),
                   ),
-                  const SizedBox(width: 12),
-                  // Avatar / profile button
-                  Container(
-                    width: 38,
-                    height: 38,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(19),
-                      gradient: const LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [Color(0xFF667EEA), Color(0xFF764BA2)],
-                      ),
-                    ),
-                    child: const Center(
-                      child: Text(
-                        'M',
+                  const SizedBox(width: 10),
+                  if (searchActive)
+                    CupertinoButton(
+                      padding: EdgeInsets.zero,
+                      minSize: 38,
+                      onPressed: onSearchClose,
+                      child: const Text(
+                        'Cancel',
                         style: TextStyle(
-                          color: CupertinoColors.white,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
+                          color: AppColors.accent,
+                          fontSize: 14,
+                        ),
+                      ),
+                    )
+                  else ...[
+                    // Filter button
+                    GestureDetector(
+                      onTap: onFilterTap,
+                      child: Container(
+                        width: 38,
+                        height: 38,
+                        decoration: BoxDecoration(
+                          color: context.surfaceElevatedColor.withOpacity(0.8),
+                          borderRadius: BorderRadius.circular(19),
+                          border: Border.all(
+                            color: context.borderStrongColor,
+                            width: 0.5,
+                          ),
+                        ),
+                        child: const Icon(
+                          CupertinoIcons.slider_horizontal_3,
+                          size: 16,
+                          color: AppColors.textSecondary,
                         ),
                       ),
                     ),
-                  ),
+                  ],
                 ],
               ),
             ),
@@ -363,10 +422,10 @@ class _ShimmerCardState extends State<_ShimmerCard>
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              AppColors.surface,
+              context.surfaceColor,
               Color.lerp(
-                AppColors.surface,
-                AppColors.surfaceElevated,
+                context.surfaceColor,
+                context.surfaceElevatedColor,
                 _ctrl.value,
               )!,
             ],

@@ -27,7 +27,7 @@ class MainActivity : FlutterActivity() {
                                 result.error("OPEN_URL_FAILED", e.message, null)
                             }
                         } else {
-                            result.error("INVALID_URL", "URL is null", null)
+                            result.error("INVALID_URL", "URL argument is null", null)
                         }
                     }
                     "installApk" -> {
@@ -49,7 +49,7 @@ class MainActivity : FlutterActivity() {
                                 result.error("INSTALL_FAILED", e.message, null)
                             }
                         } else {
-                            result.error("INVALID_PATH", "Path is null", null)
+                            result.error("INVALID_PATH", "Path argument is null", null)
                         }
                     }
                     else -> result.notImplemented()

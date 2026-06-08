@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui';
 
 import 'package:extended_image/extended_image.dart';
@@ -8,17 +9,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/providers/library_provider.dart';
 import '../../core/providers/reader_provider.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_text_styles.dart';
 import 'widgets/page_pill.dart';
 import 'widgets/progress_line.dart';
 import 'widgets/reader_chrome.dart';
 
+/// Lightweight description of a chapter passed to the reader for navigation.
 class ReaderChapterSummary {
   const ReaderChapterSummary({
     required this.id,
     required this.sourceChapterId,
     required this.title,
   });
-
   final int id;
   final String sourceChapterId;
   final String title;
@@ -32,6 +34,7 @@ class ReaderScreen extends ConsumerStatefulWidget {
     required this.sourceId,
     required this.sourceChapterId,
     required this.chapterTitle,
+    this.isWebtoon = false,
     this.chapters = const [],
     this.chapterIndex = -1,
   });
@@ -41,11 +44,8 @@ class ReaderScreen extends ConsumerStatefulWidget {
   final String sourceId;
   final String sourceChapterId;
   final String chapterTitle;
-
-  /// Full chapter list (descending order — index 0 = latest).
+  final bool isWebtoon;
   final List<ReaderChapterSummary> chapters;
-
-  /// Index of this chapter in [chapters]. -1 if unknown.
   final int chapterIndex;
 
   @override
@@ -53,50 +53,49 @@ class ReaderScreen extends ConsumerStatefulWidget {
 }
 
 class _ReaderScreenState extends ConsumerState<ReaderScreen> {
-  late final PageController _pageController;
-  bool _pillVisible = false;
-  bool _chapterMarkedRead = false;
+  late final PageController   _pageController;
+  late final ScrollController _scrollController;
 
-  bool get _hasNextChapter =>
-      widget.chapterIndex > 0 && widget.chapters.isNotEmpty;
+  bool   _pillVisible         = false;
+  double _webtoonProgress     = 0.0;
+  Timer? _pillHideTimer;
+  bool   _chapterMarkedRead   = false;
 
   @override
   void initState() {
     super.initState();
-    _pageController = PageController();
+    _pageController   = PageController();
+    _scrollController = ScrollController();
     SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle.light);
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    if (widget.isWebtoon) {
+      _scrollController.addListener(_onWebtoonScroll);
+    }
   }
 
   @override
   void dispose() {
+    _pillHideTimer?.cancel();
     _pageController.dispose();
+    _scrollController.dispose();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.manual,
         overlays: SystemUiOverlay.values);
     super.dispose();
   }
 
-  void _onPageChanged(int i, int totalPages) {
-    ref.read(readerProvider.notifier).setPage(i);
-    setState(() => _pillVisible = true);
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) setState(() => _pillVisible = false);
-    });
+  // ── Next chapter navigation ──────────────────────────────────────────────
 
-    if (i == totalPages - 1 && !_chapterMarkedRead) {
-      _chapterMarkedRead = true;
-      ref.read(libraryNotifierProvider.notifier).markChapterRead(
-            mangaId: widget.mangaId,
-            chapterId: widget.chapterId,
-            lastPage: i,
-          );
-    }
-  }
+  bool get _hasNextChapter =>
+      widget.chapterIndex > 0 && widget.chapters.isNotEmpty;
 
-  void _goToNextChapter() {
-    final next = widget.chapters[widget.chapterIndex - 1];
+  ReaderChapterSummary get _nextSummary =>
+      widget.chapters[widget.chapterIndex - 1];
+
+  void _goToNextChapter(BuildContext context) {
+    final nextIdx = widget.chapterIndex - 1;
+    final next = widget.chapters[nextIdx];
     Navigator.of(context).pushReplacement(
-      CupertinoPageRoute(
+      CupertinoPageRoute<void>(
         fullscreenDialog: true,
         builder: (_) => ReaderScreen(
           mangaId: widget.mangaId,
@@ -104,11 +103,78 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
           sourceId: widget.sourceId,
           sourceChapterId: next.sourceChapterId,
           chapterTitle: next.title,
+          isWebtoon: widget.isWebtoon,
           chapters: widget.chapters,
-          chapterIndex: widget.chapterIndex - 1,
+          chapterIndex: nextIdx,
         ),
       ),
     );
+  }
+
+  // ── Auto-mark as read ────────────────────────────────────────────────────
+
+  void _tryMarkAsRead(int lastPage) {
+    if (_chapterMarkedRead) return;
+    _chapterMarkedRead = true;
+    ref.read(libraryNotifierProvider.notifier).markChapterRead(
+          mangaId: widget.mangaId,
+          chapterId: widget.chapterId,
+          lastPage: lastPage,
+        );
+  }
+
+  // ── Webtoon scroll tracking ───────────────────────────────────────────────
+
+  void _onWebtoonScroll() {
+    if (!_scrollController.hasClients) return;
+    final pos = _scrollController.position;
+    if (pos.maxScrollExtent <= 0) return;
+
+    final rawProgress = (pos.pixels / pos.maxScrollExtent).clamp(0.0, 1.0);
+    final total = ref.read(readerProvider).totalPages;
+    final page  = total > 0
+        ? (rawProgress * total).floor().clamp(0, total - 1)
+        : 0;
+
+    if (ref.read(readerProvider).currentPage != page) {
+      ref.read(readerProvider.notifier).setPage(page);
+    }
+
+    setState(() {
+      _webtoonProgress = rawProgress;
+      _pillVisible     = true;
+    });
+
+    _pillHideTimer?.cancel();
+    _pillHideTimer = Timer(const Duration(seconds: 2), () {
+      if (mounted) setState(() => _pillVisible = false);
+    });
+
+    // Mark as read when 95% through the webtoon
+    if (rawProgress >= 0.95 && total > 0) {
+      _tryMarkAsRead(total - 1);
+    }
+  }
+
+  // ── Seek (chrome scrubber) ───────────────────────────────────────────────
+
+  void _onSeek(int page) {
+    if (widget.isWebtoon) {
+      if (!_scrollController.hasClients) return;
+      final total = ref.read(readerProvider).totalPages;
+      if (total == 0) return;
+      _scrollController.animateTo(
+        (page / total) * _scrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    } else {
+      _pageController.animateToPage(
+        page,
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeInOut,
+      );
+    }
   }
 
   @override
@@ -119,13 +185,19 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
         chapterId: widget.sourceChapterId,
       )),
     );
-    final readerState = ref.watch(readerProvider);
+    final readerState   = ref.watch(readerProvider);
+    final direction     = ref.watch(readingDirectionProvider);
+    final background    = ref.watch(readerBackgroundProvider);
     final chromeVisible = readerState.chromeVisible;
-    final isLastPage = readerState.totalPages > 0 &&
-        readerState.currentPage == readerState.totalPages - 1;
+
+    final bgColor = switch (background) {
+      ReaderBackground.black => AppColors.readerBackground,
+      ReaderBackground.white => const Color(0xFFFFFFFF),
+      ReaderBackground.sepia => const Color(0xFFF5E6C8),
+    };
 
     return CupertinoPageScaffold(
-      backgroundColor: AppColors.readerBackground,
+      backgroundColor: bgColor,
       child: pagesAsync.when(
         loading: () => const Center(child: CupertinoActivityIndicator()),
         error: (e, _) => Center(
@@ -133,37 +205,37 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
               style: const TextStyle(color: AppColors.textSecondary)),
         ),
         data: (pages) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            ref.read(readerProvider.notifier).setTotalPages(pages.length);
-          });
+          final currentTotal = ref.read(readerProvider).totalPages;
+          if (currentTotal != pages.length) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) {
+                ref.read(readerProvider.notifier).setTotalPages(pages.length);
+              }
+            });
+          }
 
           return Stack(
             children: [
-              // ── Page view ──────────────────────────────────────────────
-              GestureDetector(
-                onTap: () =>
-                    ref.read(readerProvider.notifier).toggleChrome(),
-                child: PageView.builder(
-                  controller: _pageController,
-                  itemCount: pages.length,
-                  onPageChanged: (i) => _onPageChanged(i, pages.length),
-                  itemBuilder: (context, i) => _ReaderPage(
-                    url: pages[i],
-                    index: i,
-                  ),
-                ),
-              ),
+              // ── Content ──────────────────────────────────────────────────
+              if (widget.isWebtoon)
+                _buildWebtoonView(context, pages, chromeVisible)
+              else
+                _buildPagedView(context, pages, direction, background, chromeVisible),
 
-              // ── Always-visible 2pt progress line ─────────────────────
+              // ── Always-visible 2pt progress line ─────────────────────────
               Positioned(
                 top: MediaQuery.of(context).padding.top,
                 left: 0,
                 right: 0,
                 height: 2,
-                child: ProgressLine(progress: readerState.progress),
+                child: ProgressLine(
+                  progress: widget.isWebtoon
+                      ? _webtoonProgress
+                      : readerState.progress,
+                ),
               ),
 
-              // ── Tap-to-reveal chrome ──────────────────────────────────
+              // ── Tap-to-reveal chrome ──────────────────────────────────────
               Positioned.fill(
                 child: AnimatedOpacity(
                   opacity: chromeVisible ? 1.0 : 0.0,
@@ -176,12 +248,13 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                       totalPages: readerState.totalPages,
                       onClose: () => Navigator.of(context).pop(),
                       onSettings: () => _showSettings(context),
+                      onSeek: _onSeek,
                     ),
                   ),
                 ),
               ),
 
-              // ── Page count pill (bottom-centre) ───────────────────────
+              // ── Page/image count pill ─────────────────────────────────────
               Positioned(
                 bottom: MediaQuery.of(context).padding.bottom + 90,
                 left: 0,
@@ -193,13 +266,20 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                 ),
               ),
 
-              // ── Next chapter banner ────────────────────────────────────
-              if (_hasNextChapter && isLastPage && !chromeVisible)
+              // ── Next chapter banner (paged only, last page) ───────────────
+              if (!widget.isWebtoon &&
+                  _hasNextChapter &&
+                  readerState.totalPages > 0 &&
+                  readerState.currentPage == readerState.totalPages - 1 &&
+                  !chromeVisible)
                 Positioned(
                   bottom: MediaQuery.of(context).padding.bottom + 16,
-                  left: 24,
-                  right: 24,
-                  child: _NextChapterBanner(onTap: _goToNextChapter),
+                  left: 20,
+                  right: 20,
+                  child: _NextChapterBanner(
+                    title: _nextSummary.title,
+                    onTap: () => _goToNextChapter(context),
+                  ),
                 ),
             ],
           );
@@ -208,98 +288,250 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     );
   }
 
+  // ── Paged view (manga) ───────────────────────────────────────────────────
+
+  Widget _buildPagedView(
+    BuildContext context,
+    List<String> pages,
+    ReadingDirection direction,
+    ReaderBackground background,
+    bool chromeVisible,
+  ) {
+    final isVertical = direction == ReadingDirection.vertical;
+    final isRtl      = direction == ReadingDirection.rtl;
+
+    return GestureDetector(
+      onTap: () => ref.read(readerProvider.notifier).toggleChrome(),
+      child: PageView.builder(
+        controller: _pageController,
+        scrollDirection: isVertical ? Axis.vertical : Axis.horizontal,
+        reverse: isRtl,
+        itemCount: pages.length,
+        onPageChanged: (i) {
+          ref.read(readerProvider.notifier).setPage(i);
+          setState(() => _pillVisible = true);
+          Future.delayed(const Duration(seconds: 2), () {
+            if (mounted) setState(() => _pillVisible = false);
+          });
+          if (i == pages.length - 1) _tryMarkAsRead(i);
+        },
+        itemBuilder: (context, i) => _ReaderPage(
+          url: pages[i],
+          index: i,
+          background: background,
+        ),
+      ),
+    );
+  }
+
+  // ── Webtoon view (manhwa / continuous vertical scroll) ───────────────────
+
+  Widget _buildWebtoonView(
+    BuildContext context,
+    List<String> pages,
+    bool chromeVisible,
+  ) {
+    final hasFooter = _hasNextChapter;
+    return GestureDetector(
+      onTap: () => ref.read(readerProvider.notifier).toggleChrome(),
+      child: ListView.builder(
+        controller: _scrollController,
+        physics: const ClampingScrollPhysics(),
+        padding: EdgeInsets.zero,
+        itemCount: pages.length + (hasFooter ? 1 : 0),
+        itemBuilder: (context, i) {
+          if (i == pages.length) {
+            return _NextChapterFooter(
+              title: _nextSummary.title,
+              onTap: () => _goToNextChapter(context),
+            );
+          }
+          return _WebtoonPage(url: pages[i], index: i);
+        },
+      ),
+    );
+  }
+
   void _showSettings(BuildContext context) {
     showCupertinoModalPopup<void>(
       context: context,
-      builder: (_) => CupertinoActionSheet(
-        title: const Text('Reader Settings'),
-        actions: [
-          CupertinoActionSheetAction(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Left-to-Right'),
+      builder: (_) => _ReaderSettingsSheet(isWebtoon: widget.isWebtoon),
+    );
+  }
+}
+
+// ── Reader settings bottom sheet ───────────────────────────────────────────
+
+class _ReaderSettingsSheet extends ConsumerWidget {
+  const _ReaderSettingsSheet({required this.isWebtoon});
+  final bool isWebtoon;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final direction  = ref.watch(readingDirectionProvider);
+    final scale      = ref.watch(pageScaleModeProvider);
+    final background = ref.watch(readerBackgroundProvider);
+
+    return Container(
+      decoration: const BoxDecoration(
+        color: Color(0xFF1C1C24),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      padding: EdgeInsets.only(
+        top: 12,
+        left: 20,
+        right: 20,
+        bottom: MediaQuery.of(context).padding.bottom + 24,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Container(
+              width: 36,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: 16),
+              decoration: BoxDecoration(
+                color: AppColors.borderStrong,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
           ),
-          CupertinoActionSheetAction(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Right-to-Left'),
-          ),
-          CupertinoActionSheetAction(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Vertical Scroll'),
+
+          Text('Reader Settings',
+              style: AppTextStyles.sectionTitle
+                  .copyWith(color: AppColors.textPrimary)),
+          const SizedBox(height: 20),
+
+          if (!isWebtoon) ...[
+            Text('DIRECTION',
+                style: AppTextStyles.labelSmall
+                    .copyWith(color: AppColors.textTertiary)),
+            const SizedBox(height: 8),
+            _OptionRow<ReadingDirection>(
+              value: direction,
+              options: const [
+                (ReadingDirection.ltr, 'Left → Right'),
+                (ReadingDirection.rtl, 'Right → Left'),
+                (ReadingDirection.vertical, 'Vertical'),
+              ],
+              onChanged: (v) =>
+                  ref.read(readingDirectionProvider.notifier).state = v,
+            ),
+            const SizedBox(height: 16),
+          ],
+
+          if (!isWebtoon) ...[
+            Text('PAGE SCALE',
+                style: AppTextStyles.labelSmall
+                    .copyWith(color: AppColors.textTertiary)),
+            const SizedBox(height: 8),
+            _OptionRow<PageScaleMode>(
+              value: scale,
+              options: const [
+                (PageScaleMode.fitWidth, 'Fit Width'),
+                (PageScaleMode.fitHeight, 'Fit Height'),
+                (PageScaleMode.original, 'Original'),
+              ],
+              onChanged: (v) =>
+                  ref.read(pageScaleModeProvider.notifier).state = v,
+            ),
+            const SizedBox(height: 16),
+          ],
+
+          Text('BACKGROUND',
+              style: AppTextStyles.labelSmall
+                  .copyWith(color: AppColors.textTertiary)),
+          const SizedBox(height: 8),
+          _OptionRow<ReaderBackground>(
+            value: background,
+            options: const [
+              (ReaderBackground.black, 'Black'),
+              (ReaderBackground.white, 'White'),
+              (ReaderBackground.sepia, 'Sepia'),
+            ],
+            onChanged: (v) =>
+                ref.read(readerBackgroundProvider.notifier).state = v,
           ),
         ],
-        cancelButton: CupertinoActionSheetAction(
-          isDestructiveAction: false,
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
-        ),
       ),
     );
   }
 }
 
-// ── Next chapter banner ────────────────────────────────────────────────────
+class _OptionRow<T> extends StatelessWidget {
+  const _OptionRow({
+    required this.value,
+    required this.options,
+    required this.onChanged,
+  });
 
-class _NextChapterBanner extends StatelessWidget {
-  const _NextChapterBanner({required this.onTap});
-  final VoidCallback onTap;
+  final T value;
+  final List<(T, String)> options;
+  final ValueChanged<T> onChanged;
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-          child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: options.map((opt) {
+        final selected = value == opt.$1;
+        return GestureDetector(
+          onTap: () => onChanged(opt.$1),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 140),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
             decoration: BoxDecoration(
-              color: const Color(0xFF1C1C2E).withOpacity(0.85),
+              color: selected ? AppColors.accent : AppColors.surface,
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: AppColors.accent.withOpacity(0.35),
-                width: 0.75,
+                color: selected ? AppColors.accent : AppColors.borderStrong,
+                width: 0.5,
               ),
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(
-                  CupertinoIcons.arrow_right_circle_fill,
-                  color: AppColors.accent,
-                  size: 20,
-                ),
-                const SizedBox(width: 10),
-                const Text(
-                  'Next Chapter',
-                  style: TextStyle(
-                    color: AppColors.textPrimary,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
+            child: Text(
+              opt.$2,
+              style: TextStyle(
+                fontSize: 13,
+                color: selected ? CupertinoColors.white : AppColors.textSecondary,
+                fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+              ),
             ),
           ),
-        ),
-      ),
+        );
+      }).toList(),
     );
   }
 }
 
-// ── Single page widget ─────────────────────────────────────────────────────
+// ── Paged manga image ──────────────────────────────────────────────────────
 
-class _ReaderPage extends StatelessWidget {
-  const _ReaderPage({required this.url, required this.index});
+class _ReaderPage extends ConsumerWidget {
+  const _ReaderPage({
+    required this.url,
+    required this.index,
+    required this.background,
+  });
 
   final String url;
   final int index;
+  final ReaderBackground background;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final scale = ref.watch(pageScaleModeProvider);
+
+    final fit = switch (scale) {
+      PageScaleMode.fitWidth  => BoxFit.fitWidth,
+      PageScaleMode.fitHeight => BoxFit.fitHeight,
+      PageScaleMode.original  => BoxFit.none,
+    };
+
     return ExtendedImage.network(
       url,
-      fit: BoxFit.contain,
+      fit: fit,
       mode: ExtendedImageMode.gesture,
       initGestureConfigHandler: (_) => GestureConfig(
         minScale: 0.9,
@@ -333,6 +565,182 @@ class _ReaderPage extends StatelessWidget {
             return null;
         }
       },
+    );
+  }
+}
+
+// ── Webtoon strip image (full-width, natural height) ──────────────────────
+
+class _WebtoonPage extends StatelessWidget {
+  const _WebtoonPage({required this.url, required this.index});
+
+  final String url;
+  final int index;
+
+  @override
+  Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+
+    return ExtendedImage.network(
+      url,
+      fit: BoxFit.fitWidth,
+      width: screenWidth,
+      mode: ExtendedImageMode.none,
+      loadStateChanged: (state) {
+        switch (state.extendedImageLoadState) {
+          case LoadState.loading:
+            return SizedBox(
+              width: screenWidth,
+              height: screenWidth * 1.5,
+              child: const Center(child: CupertinoActivityIndicator()),
+            );
+          case LoadState.failed:
+            return SizedBox(
+              width: screenWidth,
+              height: 200,
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(CupertinoIcons.exclamationmark_circle,
+                        color: AppColors.textTertiary, size: 32),
+                    const SizedBox(height: 8),
+                    Text('Failed to load image ${index + 1}',
+                        style: const TextStyle(color: AppColors.textTertiary)),
+                  ],
+                ),
+              ),
+            );
+          case LoadState.completed:
+            return null;
+        }
+      },
+    );
+  }
+}
+
+// ── Next chapter – paged banner ───────────────────────────────────────────────
+
+class _NextChapterBanner extends StatelessWidget {
+  const _NextChapterBanner({required this.title, required this.onTap});
+  final String title;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+            decoration: BoxDecoration(
+              color: const Color(0xD4000000),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                  color: AppColors.accent.withOpacity(0.4), width: 0.5),
+            ),
+            child: Row(
+              children: [
+                const Icon(CupertinoIcons.arrow_right_circle_fill,
+                    color: AppColors.accent, size: 22),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text(
+                        'Next Chapter',
+                        style: TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          color: CupertinoColors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                const Icon(CupertinoIcons.chevron_right,
+                    color: AppColors.textTertiary, size: 14),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Next chapter – webtoon footer ─────────────────────────────────────────────
+
+class _NextChapterFooter extends StatelessWidget {
+  const _NextChapterFooter({required this.title, required this.onTap});
+  final String title;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomPadding = MediaQuery.of(context).padding.bottom;
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: EdgeInsets.fromLTRB(20, 24, 20, bottomPadding + 32),
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceElevated,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+              color: AppColors.accent.withOpacity(0.35), width: 0.5),
+        ),
+        child: Row(
+          children: [
+            const Icon(CupertinoIcons.arrow_right_circle_fill,
+                color: AppColors.accent, size: 28),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Next Chapter',
+                    style: AppTextStyles.caption.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    title,
+                    style: AppTextStyles.bodyMedium.copyWith(
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            const Icon(CupertinoIcons.chevron_right,
+                color: AppColors.textTertiary, size: 16),
+          ],
+        ),
+      ),
     );
   }
 }

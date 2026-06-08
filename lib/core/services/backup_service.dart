@@ -1,155 +1,211 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:archive/archive_io.dart';
 import 'package:isar/isar.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../database/models/chapter_entry.dart';
 import '../database/models/manga_entry.dart';
 
+// ── Backup / Restore service ──────────────────────────────────────────────────
+
 class BackupService {
-  static Future<File> export(Isar isar) async {
-    final mangas = await isar.mangaEntrys
-        .filter()
-        .inLibraryEqualTo(true)
-        .findAll();
+  static const _version = 1;
 
-    final mangaIds = mangas.map((m) => m.id).toList();
-    List<ChapterEntry> chapters = [];
-    for (final id in mangaIds) {
-      final chs = await isar.chapterEntrys
+  // ── Export ──────────────────────────────────────────────────────────────────
+
+  static Future<BackupFile> export({
+    required Isar isar,
+    required List<String> categories,
+  }) async {
+    final now  = DateTime.now();
+    final dir  = await _backupDir();
+    final name = 'yomi_backup_${_stamp(now)}.json';
+    final file = File('${dir.path}/$name');
+
+    final mangas = await isar.mangaEntrys.filter().inLibraryEqualTo(true).findAll();
+
+    final mangaData = await Future.wait(mangas.map((m) async {
+      final chapters = await isar.chapterEntrys
           .filter()
-          .mangaIdEqualTo(id)
+          .mangaIdEqualTo(m.id)
+          .isReadEqualTo(true)
           .findAll();
-      chapters.addAll(chs);
-    }
+      return {
+        'sourceKey'           : m.sourceKey,
+        'sourceId'            : m.sourceId,
+        'sourceMangaId'       : m.sourceMangaId,
+        'title'               : m.title,
+        'coverUrl'            : m.coverUrl,
+        'author'              : m.author,
+        'artist'              : m.artist,
+        'description'         : m.description,
+        'genres'              : m.genres,
+        'status'              : m.status,
+        'categories'          : m.categories,
+        'lastReadChapterId'   : m.lastReadChapterId,
+        'lastReadChapterNumber': m.lastReadChapterNumber,
+        'lastReadPage'        : m.lastReadPage,
+        'lastReadAt'          : m.lastReadAt?.toIso8601String(),
+        'addedToLibrary'      : m.addedToLibrary?.toIso8601String(),
+        'readChapters'        : chapters.map((c) => {
+          'sourceChapterId': c.sourceChapterId,
+          'title'          : c.title,
+          'number'         : c.number,
+          'isRead'         : c.isRead,
+          'lastPageRead'   : c.lastPageRead,
+          'readAt'         : c.readAt?.toIso8601String(),
+        }).toList(),
+      };
+    }));
 
-    final data = {
-      'version': 1,
-      'exportedAt': DateTime.now().toIso8601String(),
-      'mangas': mangas.map(_mangaToMap).toList(),
-      'chapters': chapters.map(_chapterToMap).toList(),
+    final payload = {
+      'version'   : _version,
+      'app'       : 'Yomi',
+      'createdAt' : now.toIso8601String(),
+      'categories': categories,
+      'manga'     : mangaData,
     };
 
-    final json = jsonEncode(data);
-    final compressed = GZipEncoder().encode(utf8.encode(json))!;
-
-    final dir = await getTemporaryDirectory();
-    final ts = DateTime.now().millisecondsSinceEpoch;
-    final file = File('${dir.path}/yomi_backup_$ts.json.gz');
-    await file.writeAsBytes(compressed);
-    return file;
+    await file.writeAsString(const JsonEncoder.withIndent('  ').convert(payload));
+    return BackupFile(file: file, createdAt: now, mangaCount: mangas.length);
   }
 
-  static Future<void> restore(Isar isar, File file) async {
-    final compressed = await file.readAsBytes();
-    final json = utf8.decode(GZipDecoder().decodeBytes(compressed));
-    final data = jsonDecode(json) as Map<String, dynamic>;
+  // ── List local backups ──────────────────────────────────────────────────────
 
-    final mangas = (data['mangas'] as List)
-        .map((m) => _mangaFromMap(m as Map<String, dynamic>))
+  static Future<List<BackupFile>> listBackups() async {
+    final dir = await _backupDir(create: false);
+    if (!await dir.exists()) return [];
+    final files = await dir
+        .list()
+        .where((e) => e is File && e.path.endsWith('.json'))
+        .cast<File>()
         .toList();
-    final chapters = (data['chapters'] as List)
-        .map((c) => _chapterFromMap(c as Map<String, dynamic>))
-        .toList();
+    files.sort((a, b) => b.path.compareTo(a.path));
+    return files.map((f) => BackupFile(file: f)).toList();
+  }
+
+  // ── Restore ─────────────────────────────────────────────────────────────────
+
+  static Future<RestoreResult> restore({
+    required Isar isar,
+    required File file,
+  }) async {
+    final raw     = await file.readAsString();
+    final json    = jsonDecode(raw) as Map<String, dynamic>;
+    final mangaList = (json['manga'] as List?) ?? [];
+
+    int mangaCount = 0, chapterCount = 0;
 
     await isar.writeTxn(() async {
-      await isar.mangaEntrys.putAll(mangas);
-      await isar.chapterEntrys.putAll(chapters);
+      for (final item in mangaList) {
+        final m = item as Map<String, dynamic>;
+        final sourceKey = m['sourceKey'] as String;
+
+        var entry = await isar.mangaEntrys
+            .filter()
+            .sourceKeyEqualTo(sourceKey)
+            .findFirst();
+
+        entry ??= MangaEntry()
+          ..sourceKey     = sourceKey
+          ..sourceId      = (m['sourceId'] as String?) ?? ''
+          ..sourceMangaId = (m['sourceMangaId'] as String?) ?? ''
+          ..sourceUrl     = '';
+
+        entry
+          ..title               = (m['title'] as String?) ?? 'Unknown'
+          ..coverUrl            = m['coverUrl'] as String?
+          ..author              = m['author'] as String?
+          ..artist              = m['artist'] as String?
+          ..description         = m['description'] as String?
+          ..genres              = (m['genres'] as List?)?.cast<String>() ?? []
+          ..status              = (m['status'] as String?) ?? 'unknown'
+          ..inLibrary           = true
+          ..categories          = (m['categories'] as List?)?.cast<String>() ?? []
+          ..lastReadChapterId   = m['lastReadChapterId'] as String?
+          ..lastReadChapterNumber = (m['lastReadChapterNumber'] as num?)?.toDouble()
+          ..lastReadPage        = (m['lastReadPage'] as int?) ?? 0
+          ..lastReadAt          = _parseDate(m['lastReadAt'])
+          ..addedToLibrary      = _parseDate(m['addedToLibrary']) ?? DateTime.now()
+          ..lastUpdated         = DateTime.now();
+
+        await isar.mangaEntrys.put(entry);
+        mangaCount++;
+
+        for (final ch in (m['readChapters'] as List?) ?? []) {
+          final c = ch as Map<String, dynamic>;
+          final sid = (c['sourceChapterId'] as String?) ?? '';
+
+          var cEntry = await isar.chapterEntrys
+              .filter()
+              .mangaIdEqualTo(entry.id)
+              .and()
+              .sourceChapterIdEqualTo(sid)
+              .findFirst();
+
+          cEntry ??= ChapterEntry()
+            ..mangaId         = entry.id
+            ..sourceChapterId = sid
+            ..title           = (c['title'] as String?) ?? ''
+            ..number          = (c['number'] as num?)?.toDouble();
+
+          cEntry
+            ..isRead      = (c['isRead'] as bool?) ?? true
+            ..lastPageRead = (c['lastPageRead'] as int?) ?? 0
+            ..readAt       = _parseDate(c['readAt']);
+
+          await isar.chapterEntrys.put(cEntry);
+          chapterCount++;
+        }
+
+        // Sync unread count
+        final total = await isar.chapterEntrys.filter().mangaIdEqualTo(entry.id).count();
+        final read  = await isar.chapterEntrys.filter().mangaIdEqualTo(entry.id).isReadEqualTo(true).count();
+        entry
+          ..chapterCount = total
+          ..unreadCount  = (total - read).clamp(0, 9999);
+        await isar.mangaEntrys.put(entry);
+      }
     });
+
+    return RestoreResult(mangaCount: mangaCount, chapterCount: chapterCount);
   }
 
-  static Map<String, dynamic> _mangaToMap(MangaEntry m) => {
-        'id': m.id,
-        'sourceKey': m.sourceKey,
-        'sourceId': m.sourceId,
-        'sourceMangaId': m.sourceMangaId,
-        'sourceUrl': m.sourceUrl,
-        'title': m.title,
-        'coverUrl': m.coverUrl,
-        'author': m.author,
-        'artist': m.artist,
-        'description': m.description,
-        'genres': m.genres,
-        'status': m.status,
-        'inLibrary': m.inLibrary,
-        'chapterCount': m.chapterCount,
-        'unreadCount': m.unreadCount,
-        'categories': m.categories,
-        'addedToLibrary': m.addedToLibrary?.toIso8601String(),
-        'lastUpdated': m.lastUpdated?.toIso8601String(),
-        'lastReadAt': m.lastReadAt?.toIso8601String(),
-        'lastReadChapterId': m.lastReadChapterId,
-        'lastReadChapterNumber': m.lastReadChapterNumber,
-        'lastReadPage': m.lastReadPage,
-      };
+  // ── Helpers ─────────────────────────────────────────────────────────────────
 
-  static Map<String, dynamic> _chapterToMap(ChapterEntry c) => {
-        'id': c.id,
-        'mangaId': c.mangaId,
-        'sourceChapterId': c.sourceChapterId,
-        'title': c.title,
-        'number': c.number,
-        'volume': c.volume,
-        'scanlator': c.scanlator,
-        'language': c.language,
-        'isRead': c.isRead,
-        'lastPageRead': c.lastPageRead,
-        'pageCount': c.pageCount,
-        'uploadDate': c.uploadDate?.toIso8601String(),
-        'readAt': c.readAt?.toIso8601String(),
-      };
+  static Future<Directory> _backupDir({bool create = true}) async {
+    final base = await getApplicationDocumentsDirectory();
+    final dir  = Directory('${base.path}/backups');
+    if (create && !await dir.exists()) await dir.create(recursive: true);
+    return dir;
+  }
 
-  static MangaEntry _mangaFromMap(Map<String, dynamic> m) => MangaEntry()
-    ..id = m['id'] as int
-    ..sourceKey = m['sourceKey'] as String
-    ..sourceId = m['sourceId'] as String
-    ..sourceMangaId = m['sourceMangaId'] as String
-    ..sourceUrl = m['sourceUrl'] as String? ?? ''
-    ..title = m['title'] as String
-    ..coverUrl = m['coverUrl'] as String?
-    ..author = m['author'] as String?
-    ..artist = m['artist'] as String?
-    ..description = m['description'] as String?
-    ..genres = (m['genres'] as List?)?.cast<String>() ?? []
-    ..status = m['status'] as String? ?? 'unknown'
-    ..inLibrary = m['inLibrary'] as bool? ?? true
-    ..chapterCount = m['chapterCount'] as int? ?? 0
-    ..unreadCount = m['unreadCount'] as int? ?? 0
-    ..categories = (m['categories'] as List?)?.cast<String>() ?? []
-    ..addedToLibrary = m['addedToLibrary'] != null
-        ? DateTime.parse(m['addedToLibrary'] as String)
-        : null
-    ..lastUpdated = m['lastUpdated'] != null
-        ? DateTime.parse(m['lastUpdated'] as String)
-        : null
-    ..lastReadAt = m['lastReadAt'] != null
-        ? DateTime.parse(m['lastReadAt'] as String)
-        : null
-    ..lastReadChapterId = m['lastReadChapterId'] as String?
-    ..lastReadChapterNumber =
-        (m['lastReadChapterNumber'] as num?)?.toDouble()
-    ..lastReadPage = m['lastReadPage'] as int? ?? 0;
+  static String _stamp(DateTime dt) =>
+      '${dt.year}${_p(dt.month)}${_p(dt.day)}_${_p(dt.hour)}${_p(dt.minute)}';
 
-  static ChapterEntry _chapterFromMap(Map<String, dynamic> c) =>
-      ChapterEntry()
-        ..id = c['id'] as int
-        ..mangaId = c['mangaId'] as int
-        ..sourceChapterId = c['sourceChapterId'] as String
-        ..title = c['title'] as String
-        ..number = (c['number'] as num?)?.toDouble()
-        ..volume = (c['volume'] as num?)?.toDouble()
-        ..scanlator = c['scanlator'] as String?
-        ..language = c['language'] as String?
-        ..isRead = c['isRead'] as bool? ?? false
-        ..isDownloaded = false
-        ..lastPageRead = c['lastPageRead'] as int? ?? 0
-        ..pageCount = c['pageCount'] as int? ?? 0
-        ..uploadDate = c['uploadDate'] != null
-            ? DateTime.parse(c['uploadDate'] as String)
-            : null
-        ..readAt = c['readAt'] != null
-            ? DateTime.parse(c['readAt'] as String)
-            : null;
+  static String _p(int n) => n.toString().padLeft(2, '0');
+
+  static DateTime? _parseDate(dynamic v) =>
+      v is String ? DateTime.tryParse(v) : null;
+}
+
+// ── Data classes ──────────────────────────────────────────────────────────────
+
+class BackupFile {
+  BackupFile({required this.file, this.createdAt, this.mangaCount});
+  final File     file;
+  final DateTime? createdAt;
+  final int?     mangaCount;
+
+  String get displayName {
+    final n = file.path.split('/').last.replaceFirst('yomi_backup_', '').replaceAll('.json', '');
+    return n.replaceAll('_', '  ').trim();
+  }
+}
+
+class RestoreResult {
+  const RestoreResult({required this.mangaCount, required this.chapterCount});
+  final int mangaCount;
+  final int chapterCount;
 }

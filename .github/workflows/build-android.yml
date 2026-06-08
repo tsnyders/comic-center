@@ -1,7 +1,12 @@
-name: Build Android APK
+name: Build Yomi Android APK
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - '.gitignore'
 
 permissions:
   contents: write
@@ -12,7 +17,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: claude/manga-app-architecture-design-Rg8CN
+          fetch-depth: 0  # needed for auto release notes
 
       - uses: actions/setup-java@v4
         with:
@@ -41,37 +46,35 @@ jobs:
             find build -name "*.apk" -ls
             exit 1
           fi
-          cp "$APK" comic-center-debug.apk
-          echo "APK size: $(du -h comic-center-debug.apk)"
+          cp "$APK" yomi-debug.apk
+          echo "APK size: $(du -h yomi-debug.apk)"
 
       - name: Generate release tag
         id: tag
         run: echo "tag=v1.0.0-beta.$(date +'%Y%m%d-%H%M')" >> $GITHUB_OUTPUT
 
+      - name: Build install instructions
+        id: install
+        run: |
+          cat >> $GITHUB_OUTPUT << 'INSTALL'
+          body<<EOF
+          ## Install
+          1. Download **yomi-debug.apk** below
+          2. On your Android device: Settings → Apps → Special permissions → Install unknown apps
+          3. Open the downloaded APK and tap **Install**
+
+          > Debug build for testing — release signing coming soon.
+          EOF
+          INSTALL
+
       - name: Create GitHub Release with APK
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.tag.outputs.tag }}
-          name: Comic Center ${{ steps.tag.outputs.tag }}
-          body: |
-            ## Comic Center — Beta Build
-
-            Android APK for testing.
-
-            ### Install
-            1. Download **comic-center-debug.apk** below
-            2. On your Android device, allow installs from unknown sources
-               (Settings → Apps → Special permissions → Install unknown apps)
-            3. Open the downloaded APK and tap Install
-
-            ### What's included
-            - MangaDex, AllManga, AsuraScans sources
-            - Glassmorphism UI with floating glass nav bar
-            - Dark and Light mode (Settings → Appearance)
-            - Library, Downloads, Reader with chapter sync
-
-            > Debug build for testing.
-          files: comic-center-debug.apk
+          name: "Yomi ${{ steps.tag.outputs.tag }}"
+          body: ${{ steps.install.outputs.body }}
+          generate_release_notes: true
+          files: yomi-debug.apk
           prerelease: true
           fail_on_unmatched_files: true
         env:

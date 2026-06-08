@@ -1,6 +1,6 @@
 {
-    "name": "comic_center",
-    "short_name": "comic_center",
+    "name": "Yomi",
+    "short_name": "Yomi",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

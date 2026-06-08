@@ -7,14 +7,31 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/database/models/chapter_entry.dart';
 import '../../core/database/models/manga_entry.dart';
 import '../../core/providers/browse_provider.dart';
+import '../../core/providers/database_provider.dart';
 import '../../core/providers/download_provider.dart';
+import '../../core/providers/source_registry_provider.dart';
 import '../../core/providers/library_provider.dart';
 import '../../core/providers/settings_provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../shared/widgets/cover_image.dart';
-import '../reader/reader_screen.dart' show ReaderScreen, ReaderChapterSummary;
+import '../reader/reader_screen.dart';
 import 'widgets/chapter_list_tile.dart';
+
+// ── Webtoon detection ──────────────────────────────────────────────────────
+
+/// Returns true when the manga should use the continuous vertical scroll
+/// reader (webtoon mode) rather than the page-by-page manga reader.
+///
+/// Triggers on DemonicScans (all manhwa) and on any title whose genre list
+/// contains "manhwa", "webtoon", or "manhua".
+bool _isWebtoon(MangaEntry manga) {
+  if (manga.sourceId == 'demonicscans_en') return true;
+  return manga.genres.any((g) {
+    final lower = g.toLowerCase();
+    return lower == 'manhwa' || lower == 'webtoon' || lower == 'manhua';
+  });
+}
 
 // ── Screen ─────────────────────────────────────────────────────────────────
 
@@ -235,6 +252,22 @@ class _DetailSheet extends ConsumerWidget {
                 ),
               ),
 
+              // Pull-to-refresh
+              CupertinoSliverRefreshControl(
+                onRefresh: () async {
+                  final isar   = ref.read(isarProvider);
+                  final source = ref.read(sourceByIdProvider(manga.sourceId));
+                  if (source == null) return;
+                  await refreshMangaChapters(
+                    isar: isar,
+                    source: source,
+                    mangaId: manga.id,
+                    sourceMangaId: manga.sourceMangaId,
+                  );
+                  ref.invalidate(chapterSyncProvider(manga.id));
+                },
+              ),
+
               // Title + author
               SliverToBoxAdapter(
                 child: Padding(
@@ -292,6 +325,8 @@ class _DetailSheet extends ConsumerWidget {
                             );
                       },
                     ),
+                    onManageCategories: () =>
+                        _showCategorySheet(context, ref, manga),
                   ),
                 ),
               ),
@@ -335,29 +370,19 @@ class _DetailSheet extends ConsumerWidget {
                 error: (e, _) => SliverToBoxAdapter(
                   child: Text(e.toString(), style: AppTextStyles.bodySmall),
                 ),
-                data: (chs) {
-                  final summaries = chs
-                      .map((c) => ReaderChapterSummary(
-                            id: c.id,
-                            sourceChapterId: c.sourceChapterId,
-                            title: c.title,
-                          ))
-                      .toList();
-                  return SliverPadding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    sliver: SliverList.builder(
-                      itemCount: chs.length,
-                      itemBuilder: (context, i) => ChapterListTile(
-                        chapter: chs[i],
-                        onTap: () =>
-                            _openReader(context, chs, i, summaries),
-                        onDownload: chs[i].isDownloaded
-                            ? null
-                            : () => _downloadChapter(context, ref, chs[i]),
-                      ),
+                data: (chs) => SliverPadding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  sliver: SliverList.builder(
+                    itemCount: chs.length,
+                    itemBuilder: (context, i) => ChapterListTile(
+                      chapter: chs[i],
+                      onTap: () => _openReader(context, chs, i),
+                      onDownload: chs[i].isDownloaded
+                          ? null
+                          : () => _downloadChapter(context, ref, chs[i]),
                     ),
-                  );
-                },
+                  ),
+                ),
               ),
 
               SliverToBoxAdapter(
@@ -370,15 +395,49 @@ class _DetailSheet extends ConsumerWidget {
     );
   }
 
-  void _openReader(
+  static void _showCategorySheet(
     BuildContext context,
-    List<ChapterEntry> chs,
-    int index,
-    List<ReaderChapterSummary> summaries,
+    WidgetRef ref,
+    MangaEntry manga,
   ) {
+    final allCats = ref.read(libraryCategoriesProvider).where((c) => c != 'All').toList();
+    if (allCats.isEmpty) {
+      showCupertinoDialog<void>(
+        context: context,
+        builder: (_) => CupertinoAlertDialog(
+          title: const Text('No Categories'),
+          content: const Text(
+              'Create categories in Settings → Categories first.'),
+          actions: [
+            CupertinoDialogAction(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
+    showCupertinoModalPopup<void>(
+      context: context,
+      builder: (_) => _CategorySheet(manga: manga, allCategories: allCats),
+    );
+  }
+
+  void _openReader(
+      BuildContext context, List<ChapterEntry> chs, int index) {
     final chapter = chs[index];
+    final isWebtoon = _isWebtoon(manga);
+    final summaries = chs
+        .map((c) => ReaderChapterSummary(
+              id: c.id,
+              sourceChapterId: c.sourceChapterId,
+              title: c.title,
+            ))
+        .toList();
     Navigator.of(context, rootNavigator: true).push(
-      CupertinoPageRoute(
+      CupertinoPageRoute<void>(
         fullscreenDialog: true,
         builder: (_) => ReaderScreen(
           mangaId: manga.id,
@@ -386,6 +445,7 @@ class _DetailSheet extends ConsumerWidget {
           sourceId: manga.sourceId,
           sourceChapterId: chapter.sourceChapterId,
           chapterTitle: chapter.title,
+          isWebtoon: isWebtoon,
           chapters: summaries,
           chapterIndex: index,
         ),
@@ -472,19 +532,22 @@ class _ActionRow extends ConsumerWidget {
     required this.manga,
     required this.chapters,
     required this.onShowDownloadSheet,
+    required this.onManageCategories,
   });
 
   final MangaEntry manga;
   final AsyncValue<List<ChapterEntry>> chapters;
   final VoidCallback onShowDownloadSheet;
+  final VoidCallback onManageCategories;
 
   void _continueReading(BuildContext context, List<ChapterEntry> chs) {
     if (chs.isEmpty) return;
-    // chs is sorted descending (index 0 = latest).
-    // Find the oldest unread chapter = lastIndexWhere(!isRead) in desc list.
-    final idx = chs.lastIndexWhere((c) => !c.isRead);
-    final targetIdx = idx == -1 ? 0 : idx;
-    final target = chs[targetIdx];
+    // chs is sorted descending (latest first). Reading order is ascending.
+    // Find the first unread chapter in ascending order (i.e., last unread from
+    // the end of chs).
+    final targetIdx = chs.lastIndexWhere((c) => !c.isRead);
+    final index = targetIdx >= 0 ? targetIdx : 0;
+    final target = chs[index];
     final summaries = chs
         .map((c) => ReaderChapterSummary(
               id: c.id,
@@ -493,7 +556,7 @@ class _ActionRow extends ConsumerWidget {
             ))
         .toList();
     Navigator.of(context, rootNavigator: true).push(
-      CupertinoPageRoute(
+      CupertinoPageRoute<void>(
         fullscreenDialog: true,
         builder: (_) => ReaderScreen(
           mangaId: manga.id,
@@ -501,8 +564,9 @@ class _ActionRow extends ConsumerWidget {
           sourceId: manga.sourceId,
           sourceChapterId: target.sourceChapterId,
           chapterTitle: target.title,
+          isWebtoon: _isWebtoon(manga),
           chapters: summaries,
-          chapterIndex: targetIdx,
+          chapterIndex: index,
         ),
       ),
     );
@@ -555,7 +619,147 @@ class _ActionRow extends ConsumerWidget {
             ),
           ),
         ),
+        const SizedBox(width: 10),
+        GestureDetector(
+          onTap: onManageCategories,
+          child: Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: AppColors.surfaceElevated,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: AppColors.borderStrong, width: 0.5),
+            ),
+            child: const Center(
+              child: Icon(
+                CupertinoIcons.folder_badge_plus,
+                color: AppColors.textSecondary,
+                size: 20,
+              ),
+            ),
+          ),
+        ),
       ],
+    );
+  }
+}
+
+// ── Category assignment sheet ──────────────────────────────────────────────
+
+class _CategorySheet extends ConsumerStatefulWidget {
+  const _CategorySheet({
+    required this.manga,
+    required this.allCategories,
+  });
+
+  final MangaEntry manga;
+  final List<String> allCategories;
+
+  @override
+  ConsumerState<_CategorySheet> createState() => _CategorySheetState();
+}
+
+class _CategorySheetState extends ConsumerState<_CategorySheet> {
+  late List<String> _selected;
+
+  @override
+  void initState() {
+    super.initState();
+    _selected = List.from(widget.manga.categories);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: Color(0xFF1C1C24),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      padding: EdgeInsets.only(
+        top: 12,
+        left: 20,
+        right: 20,
+        bottom: MediaQuery.of(context).padding.bottom + 20,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Container(
+              width: 36,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: 16),
+              decoration: BoxDecoration(
+                color: AppColors.borderStrong,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          Text('Add to Category', style: AppTextStyles.sectionTitle),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: widget.allCategories.map((cat) {
+              final isSelected = _selected.contains(cat);
+              return GestureDetector(
+                onTap: () => setState(() {
+                  if (isSelected) {
+                    _selected.remove(cat);
+                  } else {
+                    _selected.add(cat);
+                  }
+                }),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 140),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 7),
+                  decoration: BoxDecoration(
+                    color: isSelected ? AppColors.accent : AppColors.surface,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: isSelected
+                          ? AppColors.accent
+                          : AppColors.borderStrong,
+                      width: 0.5,
+                    ),
+                  ),
+                  child: Text(
+                    cat,
+                    style: AppTextStyles.bodySmall.copyWith(
+                      color: isSelected
+                          ? CupertinoColors.white
+                          : AppColors.textSecondary,
+                      fontWeight: isSelected
+                          ? FontWeight.w600
+                          : FontWeight.w400,
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            child: CupertinoButton(
+              color: AppColors.accent,
+              borderRadius: BorderRadius.circular(14),
+              onPressed: () async {
+                await ref
+                    .read(libraryNotifierProvider.notifier)
+                    .updateCategories(widget.manga.id, _selected);
+                if (context.mounted) Navigator.of(context).pop();
+              },
+              child: const Text(
+                'Save',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

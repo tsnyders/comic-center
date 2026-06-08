@@ -5,8 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/providers/settings_provider.dart';
 import 'features/root/root_scaffold.dart';
 
-class ComicCenterApp extends ConsumerWidget {
-  const ComicCenterApp({super.key});
+class YomiApp extends ConsumerWidget {
+  const YomiApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -20,7 +20,7 @@ class ComicCenterApp extends ConsumerWidget {
     );
 
     return CupertinoApp(
-      title: 'Comic Center',
+      title: 'Yomi',
       debugShowCheckedModeBanner: false,
       theme: CupertinoThemeData(
         brightness: brightness,

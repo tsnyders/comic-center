@@ -9,8 +9,7 @@ import '../models/manga_detail.dart';
 import '../models/manga_summary.dart';
 import '../source_interface.dart';
 
-/// AllManga source — allanime.day GraphQL API using full query strings.
-/// (Persisted-query hashes became stale; full queries are stable.)
+/// AllManga source — allanime.day GraphQL API.
 class AllMangaSource implements MangaSource {
   AllMangaSource()
       : _dio = Dio(
@@ -21,16 +20,16 @@ class AllMangaSource implements MangaSource {
                   'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 '
                   '(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
               'Referer': 'https://allmanga.to/',
+              'Origin': 'https://allmanga.to',
+              'Accept': 'application/json',
             },
-            connectTimeout: const Duration(seconds: 15),
+            connectTimeout: const Duration(seconds: 20),
             receiveTimeout: const Duration(seconds: 30),
           ),
         );
 
   final Dio _dio;
 
-  // Full GraphQL query strings — more stable than persisted-query hashes.
-  // Note: the API schema spells it "VaildTranslationTypeEnumType" (intentional typo).
   static const _gqlSearch =
       r'query($search: SearchInput, $limit: Int, $page: Int, '
       r'$translationType: VaildTranslationTypeEnumType, '
@@ -65,7 +64,6 @@ class AllMangaSource implements MangaSource {
   @override
   Uint8List get iconBytes => Uint8List(0);
   @override
-  // Chapter page images need the youtu-chan Referer to load from the CDN.
   Map<String, String> get imageHeaders =>
       const {'Referer': 'https://youtu-chan.com/'};
   @override
@@ -114,12 +112,10 @@ class AllMangaSource implements MangaSource {
   Future<List<ChapterInfo>> fetchChapterList(String mangaId) async {
     final data = await _query(gql: _gqlDetail, variables: {'_id': mangaId});
 
-    final show = data['show'] as Map<String, dynamic>? ?? {};
-    final detail =
-        show['availableChaptersDetail'] as Map<String, dynamic>? ?? {};
-    // Manga translated chapters live under 'sub'.
+    final show   = data['show'] as Map<String, dynamic>? ?? {};
+    final detail = show['availableChaptersDetail'] as Map<String, dynamic>? ?? {};
     final rawNums = detail['sub'] as List? ?? [];
-    final nums = rawNums.map((e) => e.toString()).toList();
+    final nums   = rawNums.map((e) => e.toString()).toList();
 
     return nums.map((num) {
       return ChapterInfo(
@@ -139,7 +135,7 @@ class AllMangaSource implements MangaSource {
   Future<List<String>> fetchPageUrls(String chapterId) async {
     final sep = chapterId.lastIndexOf('::');
     if (sep < 0) throw Exception('Invalid AllManga chapter ID: $chapterId');
-    final mangaId = chapterId.substring(0, sep);
+    final mangaId   = chapterId.substring(0, sep);
     final chapterNum = chapterId.substring(sep + 2);
 
     final data = await _query(
@@ -152,10 +148,9 @@ class AllMangaSource implements MangaSource {
     );
 
     final edges = (data['chapterPages']?['edges'] as List? ?? []);
-    final urls = <String>[];
+    final urls  = <String>[];
     for (final edge in edges) {
-      final pics =
-          (edge as Map<String, dynamic>)['pictureUrls'] as List? ?? [];
+      final pics = (edge as Map<String, dynamic>)['pictureUrls'] as List? ?? [];
       for (final pic in pics) {
         final String? raw;
         if (pic is String) {
@@ -166,7 +161,6 @@ class AllMangaSource implements MangaSource {
           raw = null;
         }
         if (raw == null || raw.isEmpty) continue;
-        // Relative paths need the image CDN prepended.
         urls.add(
           raw.startsWith('http') ? raw : 'https://ytimgf.fast4speed.rsvp$raw',
         );
@@ -214,6 +208,24 @@ class AllMangaSource implements MangaSource {
     required String gql,
     required Map<String, dynamic> variables,
   }) async {
+    // Try POST first (standard GraphQL), then fall back to GET query params.
+    try {
+      final resp = await _dio.post<Map<String, dynamic>>(
+        '/api',
+        data: jsonEncode({'query': gql, 'variables': variables}),
+        options: Options(headers: {'Content-Type': 'application/json'}),
+      );
+      final data = resp.data?['data'] as Map<String, dynamic>?;
+      if (data != null) return data;
+      final errors = resp.data?['errors'] as List?;
+      if (errors != null && errors.isNotEmpty) {
+        throw Exception('AllManga API: ${errors.first}');
+      }
+    } on DioException {
+      // Fall through to GET
+    }
+
+    // GET fallback
     final resp = await _dio.get<Map<String, dynamic>>(
       '/api',
       queryParameters: {
@@ -221,24 +233,21 @@ class AllMangaSource implements MangaSource {
         'variables': jsonEncode(variables),
       },
     );
-    return (resp.data?['data'] as Map<String, dynamic>?) ?? {};
+    final data = resp.data?['data'] as Map<String, dynamic>?;
+    if (data != null) return data;
+
+    final errors = resp.data?['errors'] as List?;
+    if (errors != null && errors.isNotEmpty) {
+      throw Exception('AllManga API: ${errors.first}');
+    }
+    return {};
   }
 
   String? _coverUrl(String? thumb) {
     if (thumb == null || thumb.isEmpty) return null;
-    if (thumb.startsWith('http')) {
-      final normalized = thumb.replaceAllMapped(
-        RegExp(r'\d+\.(jpg|png|webp)'),
-        (m) => '001.${m[1]}',
-      );
-      return '$normalized?w=250';
-    }
+    if (thumb.startsWith('http')) return thumb;
     final clean = thumb.startsWith('/') ? thumb : '/$thumb';
-    final normalized = clean.replaceAllMapped(
-      RegExp(r'\d+\.(jpg|png|webp)'),
-      (m) => '001.${m[1]}',
-    );
-    return 'https://wp.youtube-anime.com/aln.youtube-anime.com$normalized?w=250';
+    return 'https://wp.youtube-anime.com/aln.youtube-anime.com$clean';
   }
 
   String? _firstAuthor(dynamic authors) {

@@ -14,6 +14,7 @@ class ReaderChrome extends StatelessWidget {
     required this.totalPages,
     required this.onClose,
     required this.onSettings,
+    required this.onSeek,
   });
 
   final String chapterTitle;
@@ -21,6 +22,7 @@ class ReaderChrome extends StatelessWidget {
   final int totalPages;
   final VoidCallback onClose;
   final VoidCallback onSettings;
+  final ValueChanged<int> onSeek;
 
   @override
   Widget build(BuildContext context) {
@@ -34,6 +36,7 @@ class ReaderChrome extends StatelessWidget {
         _BottomBar(
           currentPage: currentPage,
           totalPages: totalPages,
+          onSeek: onSeek,
         ),
       ],
     );
@@ -112,10 +115,12 @@ class _BottomBar extends StatelessWidget {
   const _BottomBar({
     required this.currentPage,
     required this.totalPages,
+    required this.onSeek,
   });
 
   final int currentPage;
   final int totalPages;
+  final ValueChanged<int> onSeek;
 
   @override
   Widget build(BuildContext context) {
@@ -139,19 +144,26 @@ class _BottomBar extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Scrubber
-                _Scrubber(current: currentPage, total: totalPages),
+                _Scrubber(
+                  current: currentPage,
+                  total: totalPages,
+                  onSeek: onSeek,
+                ),
                 const SizedBox(height: 6),
-                // Labels
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text('1', style: AppTextStyles.caption),
                     Text(
-                      'Page ${currentPage + 1} of $totalPages',
+                      totalPages > 0
+                          ? 'Page ${currentPage + 1} of $totalPages'
+                          : 'Loading...',
                       style: AppTextStyles.caption,
                     ),
-                    Text('$totalPages', style: AppTextStyles.caption),
+                    Text(
+                      totalPages > 0 ? '$totalPages' : '--',
+                      style: AppTextStyles.caption,
+                    ),
                   ],
                 ),
               ],
@@ -163,53 +175,96 @@ class _BottomBar extends StatelessWidget {
   }
 }
 
-class _Scrubber extends StatelessWidget {
-  const _Scrubber({required this.current, required this.total});
+class _Scrubber extends StatefulWidget {
+  const _Scrubber({
+    required this.current,
+    required this.total,
+    required this.onSeek,
+  });
+
   final int current;
   final int total;
+  final ValueChanged<int> onSeek;
+
+  @override
+  State<_Scrubber> createState() => _ScrubberState();
+}
+
+class _ScrubberState extends State<_Scrubber> {
+  double? _dragPct;
+
+  double get _progress {
+    if (_dragPct != null) return _dragPct!;
+    if (widget.total <= 1) return 0.0;
+    return widget.current / (widget.total - 1);
+  }
+
+  void _seek(double x, double width) {
+    if (widget.total <= 1) return;
+    final pct = (x / width).clamp(0.0, 1.0);
+    setState(() => _dragPct = pct);
+    final page = (pct * (widget.total - 1)).round();
+    widget.onSeek(page);
+  }
+
+  void _endDrag() => setState(() => _dragPct = null);
 
   @override
   Widget build(BuildContext context) {
-    final progress = total == 0 ? 0.0 : (current + 1) / total;
+    final progress = _progress;
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        return Stack(
-          clipBehavior: Clip.none,
-          alignment: Alignment.centerLeft,
-          children: [
-            // Track
-            Container(
-              height: 4,
-              decoration: BoxDecoration(
-                color: AppColors.surfaceElevated,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            // Fill
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 150),
-              height: 4,
-              width: constraints.maxWidth * progress,
-              decoration: BoxDecoration(
-                color: AppColors.accent,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            // Thumb
-            Positioned(
-              left: (constraints.maxWidth * progress) - 10,
-              child: Container(
-                width: 20,
-                height: 20,
-                decoration: const BoxDecoration(
-                  color: CupertinoColors.white,
-                  shape: BoxShape.circle,
-                  boxShadow: [BoxShadow(color: Color(0x40000000), blurRadius: 6)],
+        final w = constraints.maxWidth;
+        final thumbLeft = (w * progress - 10).clamp(-10.0, w - 10.0);
+
+        return GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTapDown: (d) => _seek(d.localPosition.dx, w),
+          onHorizontalDragUpdate: (d) => _seek(d.localPosition.dx, w),
+          onHorizontalDragEnd: (_) => _endDrag(),
+          onHorizontalDragCancel: _endDrag,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Stack(
+              clipBehavior: Clip.none,
+              alignment: Alignment.centerLeft,
+              children: [
+                // Track
+                Container(
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceElevated,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
-              ),
+                // Fill — no animation during drag to stay locked to finger
+                Container(
+                  height: 4,
+                  width: w * progress,
+                  decoration: BoxDecoration(
+                    color: AppColors.accent,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                // Thumb
+                Positioned(
+                  left: thumbLeft,
+                  child: Container(
+                    width: 20,
+                    height: 20,
+                    decoration: const BoxDecoration(
+                      color: CupertinoColors.white,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(color: Color(0x40000000), blurRadius: 6),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         );
       },
     );
