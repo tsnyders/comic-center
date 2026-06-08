@@ -16,6 +16,19 @@ import 'backup_restore_screen.dart';
 import 'changelog_screen.dart';
 import 'drive_restore_screen.dart';
 
+// ── Icon background colors (iOS Settings palette) ─────────────────────────
+
+class _IColor {
+  static const indigo  = Color(0xFF5E5CE6);
+  static const orange  = Color(0xFFFF9F0A);
+  static const green   = Color(0xFF30D158);
+  static const blue    = Color(0xFF0A84FF);
+  static const purple  = Color(0xFFBF5AF2);
+  static const teal    = Color(0xFF32ADE6);
+  static const yellow  = Color(0xFFFFD60A);
+  static const gray    = Color(0xFF636366);
+}
+
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
@@ -55,6 +68,7 @@ class SettingsScreen extends ConsumerWidget {
           _buildSection(context, 'Appearance', [
             _SettingRow(
               icon: CupertinoIcons.moon_stars,
+              iconBgColor: _IColor.indigo,
               label: 'Theme',
               trailing: _ThemePicker(
                 brightness: brightness,
@@ -68,6 +82,7 @@ class SettingsScreen extends ConsumerWidget {
           _buildSection(context, 'Library', [
             _SettingRow(
               icon: CupertinoIcons.folder,
+              iconBgColor: _IColor.orange,
               label: 'Categories',
               trailing: const _Chevron(),
               onTap: () => Navigator.of(context, rootNavigator: true).push(
@@ -78,6 +93,7 @@ class SettingsScreen extends ConsumerWidget {
             ),
             _SettingRow(
               icon: CupertinoIcons.repeat,
+              iconBgColor: _IColor.green,
               label: 'Auto-Update',
               trailing: CupertinoSwitch(value: true, onChanged: (_) {}),
             ),
@@ -87,6 +103,7 @@ class SettingsScreen extends ConsumerWidget {
           _buildSection(context, 'Reader', [
             _SettingRow(
               icon: CupertinoIcons.book,
+              iconBgColor: _IColor.blue,
               label: 'Reading Direction',
               trailing: _SegmentedPicker<ReadingDirection>(
                 value: direction,
@@ -101,6 +118,7 @@ class SettingsScreen extends ConsumerWidget {
             ),
             _SettingRow(
               icon: CupertinoIcons.resize_h,
+              iconBgColor: _IColor.purple,
               label: 'Page Scale',
               trailing: _SegmentedPicker<PageScaleMode>(
                 value: scale,
@@ -115,6 +133,7 @@ class SettingsScreen extends ConsumerWidget {
             ),
             _SettingRow(
               icon: CupertinoIcons.moon,
+              iconBgColor: _IColor.gray,
               label: 'Background',
               trailing: _SegmentedPicker<ReaderBackground>(
                 value: background,
@@ -133,6 +152,7 @@ class SettingsScreen extends ConsumerWidget {
           _buildSection(context, 'Downloads', [
             _SettingRow(
               icon: CupertinoIcons.folder_badge_plus,
+              iconBgColor: _IColor.yellow,
               label: 'Storage Location',
               trailing: _LocationPicker(
                 value: dlLocation,
@@ -143,6 +163,7 @@ class SettingsScreen extends ConsumerWidget {
             if (dlLocation == DownloadLocation.googleDrive)
               _SettingRow(
                 icon: CupertinoIcons.cloud,
+                iconBgColor: _IColor.teal,
                 label: 'Google Drive Account',
                 trailing: driveAccount != null
                     ? _DriveConnectedBadge(email: driveAccount.email)
@@ -157,6 +178,7 @@ class SettingsScreen extends ConsumerWidget {
           _buildSection(context, 'Extensions', [
             _SettingRow(
               icon: CupertinoIcons.link,
+              iconBgColor: _IColor.orange,
               label: 'Repository URL',
               trailing: const _Chevron(),
             ),
@@ -166,12 +188,14 @@ class SettingsScreen extends ConsumerWidget {
           _buildSection(context, 'Backup & Sync', [
             _SettingRow(
               icon: CupertinoIcons.arrow_up_doc,
+              iconBgColor: _IColor.teal,
               label: 'Export Backup',
               trailing: const _Chevron(),
               onTap: () => _exportBackup(context, ref),
             ),
             _SettingRow(
               icon: CupertinoIcons.arrow_down_doc,
+              iconBgColor: _IColor.teal,
               label: 'Restore Backup',
               trailing: const _Chevron(),
               onTap: () => Navigator.of(context, rootNavigator: true).push(
@@ -183,12 +207,14 @@ class SettingsScreen extends ConsumerWidget {
             if (driveAccount != null) ...[
               _SettingRow(
                 icon: CupertinoIcons.cloud_upload,
+                iconBgColor: _IColor.teal,
                 label: 'Backup to Drive',
                 trailing: const _Chevron(),
                 onTap: () => _backupToDrive(context, ref),
               ),
               _SettingRow(
                 icon: CupertinoIcons.cloud_download,
+                iconBgColor: _IColor.teal,
                 label: 'Restore from Drive',
                 trailing: const _Chevron(),
                 onTap: () => Navigator.of(context, rootNavigator: true).push(
@@ -201,6 +227,7 @@ class SettingsScreen extends ConsumerWidget {
             if (driveAccount == null)
               _SettingRow(
                 icon: CupertinoIcons.cloud,
+                iconBgColor: _IColor.teal,
                 label: 'Connect Google Drive',
                 trailing: const _Chevron(),
                 onTap: () => _linkGoogleDrive(context, ref),
@@ -211,6 +238,7 @@ class SettingsScreen extends ConsumerWidget {
           _buildSection(context, 'About', [
             _SettingRow(
               icon: CupertinoIcons.info,
+              iconBgColor: _IColor.gray,
               label: 'Version',
               trailing: const Text(
                 '1.0.0',
@@ -219,7 +247,8 @@ class SettingsScreen extends ConsumerWidget {
             ),
             _SettingRow(
               icon: CupertinoIcons.sparkles,
-              label: 'What\'s New',
+              iconBgColor: _IColor.indigo,
+              label: "What's New",
               trailing: const _Chevron(),
               onTap: () => Navigator.of(context, rootNavigator: true).push(
                 CupertinoPageRoute<void>(
@@ -229,6 +258,7 @@ class SettingsScreen extends ConsumerWidget {
             ),
             _SettingRow(
               icon: CupertinoIcons.cloud_download,
+              iconBgColor: _IColor.blue,
               label: 'Check for Updates',
               trailing: const _Chevron(),
               onTap: () => _checkForUpdates(context),
@@ -269,6 +299,8 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
+  // ── Update check ─────────────────────────────────────────────────────────
+
   static Future<void> _checkForUpdates(BuildContext context) async {
     showCupertinoDialog<void>(
       context: context,
@@ -288,63 +320,23 @@ class SettingsScreen extends ConsumerWidget {
       Navigator.of(context, rootNavigator: true).pop();
 
       if (release == null) {
-        showCupertinoDialog<void>(
-          context: context,
-          builder: (_) => CupertinoAlertDialog(
-            title: const Text('No Updates Available'),
-            content: const Text('You are already on the latest version.'),
-            actions: [
-              CupertinoDialogAction(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('OK'),
-              ),
-            ],
-          ),
-        );
+        _showAlert(context, 'No Updates Available',
+            'You are already on the latest version.');
         return;
       }
 
       showCupertinoDialog<void>(
         context: context,
-        builder: (_) => CupertinoAlertDialog(
-          title: Text('Version ${release.tag}'),
-          content: Text(release.body.length > 200
-              ? '${release.body.substring(0, 200)}…'
-              : release.body),
-          actions: [
-            CupertinoDialogAction(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Later'),
-            ),
-            if (release.apkUrl != null)
-              CupertinoDialogAction(
-                onPressed: () {
-                  Navigator.pop(context);
-                  UpdateService.openUrl(release.apkUrl!);
-                },
-                child: const Text('Download'),
-              ),
-          ],
-        ),
+        builder: (_) => _UpdateDialog(release: release),
       );
     } catch (e) {
       if (!context.mounted) return;
       Navigator.of(context, rootNavigator: true).pop();
-      showCupertinoDialog<void>(
-        context: context,
-        builder: (_) => CupertinoAlertDialog(
-          title: const Text('Error'),
-          content: Text(e.toString()),
-          actions: [
-            CupertinoDialogAction(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('OK'),
-            ),
-          ],
-        ),
-      );
+      _showAlert(context, 'Error', e.toString());
     }
   }
+
+  // ── Google Drive actions ─────────────────────────────────────────────────
 
   static Future<void> _linkGoogleDrive(
       BuildContext context, WidgetRef ref) async {
@@ -353,7 +345,7 @@ class SettingsScreen extends ConsumerWidget {
       builder: (_) => CupertinoAlertDialog(
         title: const Text('Connect Google Drive'),
         content: const Text(
-            'Linking a Google account enables cloud backup and restore of your library via Google Drive.\n\nSign in to proceed.'),
+            'Linking a Google account enables cloud backup and restore of your library.\n\nSign in to proceed.'),
         actions: [
           CupertinoDialogAction(
             onPressed: () => Navigator.pop(context, false),
@@ -386,36 +378,44 @@ class SettingsScreen extends ConsumerWidget {
       Navigator.of(context, rootNavigator: true).pop();
       if (!ok) return;
       final account = ref.read(googleDriveProvider);
-      showCupertinoDialog<void>(
-        context: context,
-        builder: (_) => CupertinoAlertDialog(
-          title: const Text('Google Drive Connected'),
-          content: Text('Signed in as ${account?.email ?? ''}'),
-          actions: [
-            CupertinoDialogAction(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('OK'),
-            ),
-          ],
-        ),
-      );
+      _showAlert(context, 'Google Drive Connected',
+          'Signed in as ${account?.email ?? ''}');
     } catch (e) {
       if (!context.mounted) return;
       Navigator.of(context, rootNavigator: true).pop();
-      showCupertinoDialog<void>(
-        context: context,
-        builder: (_) => CupertinoAlertDialog(
-          title: const Text('Sign-In Failed'),
-          content: Text(e.toString()),
-          actions: [
-            CupertinoDialogAction(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('OK'),
-            ),
-          ],
-        ),
-      );
+      final msg = e.toString();
+      if (msg.contains('ApiException: 10') ||
+          msg.contains('DEVELOPER_ERROR') ||
+          msg.contains(': 10:')) {
+        _showDeveloperErrorDialog(context);
+      } else {
+        _showAlert(context, 'Sign-In Failed', msg);
+      }
     }
+  }
+
+  static void _showDeveloperErrorDialog(BuildContext context) {
+    showCupertinoDialog<void>(
+      context: context,
+      builder: (_) => CupertinoAlertDialog(
+        title: const Text('Google Drive Setup Required'),
+        content: const Text(
+          'Google Sign-In is not configured for this build.\n\n'
+          'To fix:\n'
+          '1. Register your app\'s SHA-1 fingerprint in Google Cloud Console\n'
+          '2. Download the updated google-services.json and rebuild\n\n'
+          'Get the debug fingerprint with:\n'
+          'keytool -list -v -keystore ~/.android/debug.keystore '
+          '-alias androiddebugkey -storepass android -keypass android',
+        ),
+        actions: [
+          CupertinoDialogAction(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
   }
 
   static Future<void> _signOutFromDrive(
@@ -425,7 +425,7 @@ class SettingsScreen extends ConsumerWidget {
       builder: (_) => CupertinoAlertDialog(
         title: const Text('Google Drive'),
         content: Text(
-            'Signed in as ${ref.read(googleDriveProvider)?.email ?? ''}.\n\nSign out from Google Drive?'),
+            'Signed in as ${ref.read(googleDriveProvider)?.email ?? ''}.\n\nSign out?'),
         actions: [
           CupertinoDialogAction(
             onPressed: () => Navigator.pop(context, false),
@@ -460,44 +460,22 @@ class SettingsScreen extends ConsumerWidget {
     try {
       final isar = ref.read(isarProvider);
       final categories = ref.read(libraryCategoriesProvider);
-      final backup = await BackupService.export(isar: isar, categories: categories);
+      final backup = await BackupService.export(
+          isar: isar, categories: categories);
       await GoogleDriveService.uploadBackup(backup.file);
       if (!context.mounted) return;
       Navigator.of(context, rootNavigator: true).pop();
-      showCupertinoDialog<void>(
-        context: context,
-        builder: (_) => CupertinoAlertDialog(
-          title: const Text('Backup Uploaded'),
-          content: Text(
-              'Uploaded ${backup.mangaCount ?? 0} manga to Google Drive.'),
-          actions: [
-            CupertinoDialogAction(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('OK'),
-            ),
-          ],
-        ),
-      );
+      _showAlert(context, 'Backup Uploaded',
+          'Uploaded ${backup.mangaCount ?? 0} manga to Google Drive.');
     } catch (e) {
       if (!context.mounted) return;
       Navigator.of(context, rootNavigator: true).pop();
-      showCupertinoDialog<void>(
-        context: context,
-        builder: (_) => CupertinoAlertDialog(
-          title: const Text('Upload Failed'),
-          content: Text(e.toString()),
-          actions: [
-            CupertinoDialogAction(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('OK'),
-            ),
-          ],
-        ),
-      );
+      _showAlert(context, 'Upload Failed', e.toString());
     }
   }
 
-  static Future<void> _exportBackup(BuildContext context, WidgetRef ref) async {
+  static Future<void> _exportBackup(
+      BuildContext context, WidgetRef ref) async {
     showCupertinoDialog<void>(
       context: context,
       barrierDismissible: false,
@@ -519,42 +497,125 @@ class SettingsScreen extends ConsumerWidget {
       );
       if (!context.mounted) return;
       Navigator.of(context, rootNavigator: true).pop();
-      showCupertinoDialog<void>(
-        context: context,
-        builder: (_) => CupertinoAlertDialog(
-          title: const Text('Backup Exported'),
-          content: Text(
-            'Saved ${backup.mangaCount ?? 0} manga to:\n${backup.file.path}',
-          ),
-          actions: [
-            CupertinoDialogAction(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('OK'),
-            ),
-          ],
-        ),
-      );
+      _showAlert(context, 'Backup Exported',
+          'Saved ${backup.mangaCount ?? 0} manga to:\n${backup.file.path}');
     } catch (e) {
       if (!context.mounted) return;
       Navigator.of(context, rootNavigator: true).pop();
-      showCupertinoDialog<void>(
-        context: context,
-        builder: (_) => CupertinoAlertDialog(
-          title: const Text('Export Failed'),
-          content: Text(e.toString()),
-          actions: [
-            CupertinoDialogAction(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('OK'),
-            ),
-          ],
-        ),
-      );
+      _showAlert(context, 'Export Failed', e.toString());
     }
+  }
+
+  static void _showAlert(BuildContext context, String title, String message) {
+    showCupertinoDialog<void>(
+      context: context,
+      builder: (_) => CupertinoAlertDialog(
+        title: Text(title),
+        content: Text(message),
+        actions: [
+          CupertinoDialogAction(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
   }
 }
 
-// ── Generic segmented picker ─────────────────────────────────────────────────
+// ── Update dialog ─────────────────────────────────────────────────────────
+
+class _UpdateDialog extends StatefulWidget {
+  const _UpdateDialog({required this.release});
+  final ReleaseInfo release;
+
+  @override
+  State<_UpdateDialog> createState() => _UpdateDialogState();
+}
+
+class _UpdateDialogState extends State<_UpdateDialog> {
+  double? _progress;
+  bool _downloading = false;
+
+  Future<void> _startDownload() async {
+    final url = widget.release.apkUrl;
+    if (url == null) {
+      await UpdateService.openUrl(
+          'https://github.com/tsnyders/comic-center/releases');
+      return;
+    }
+    setState(() { _downloading = true; _progress = 0; });
+    try {
+      await UpdateService.downloadAndInstall(
+        url,
+        onProgress: (p) {
+          if (mounted) setState(() => _progress = p);
+        },
+      );
+    } catch (e) {
+      if (mounted) {
+        setState(() => _downloading = false);
+        Navigator.of(context).pop();
+        showCupertinoDialog<void>(
+          context: context,
+          builder: (_) => CupertinoAlertDialog(
+            title: const Text('Update Failed'),
+            content: Text(e.toString()),
+            actions: [
+              CupertinoDialogAction(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return CupertinoAlertDialog(
+      title: Text('Version ${widget.release.tag}'),
+      content: _downloading
+          ? Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(height: 12),
+                const CupertinoActivityIndicator(),
+                const SizedBox(height: 8),
+                Text(
+                  _progress != null
+                      ? '${(_progress! * 100).toStringAsFixed(0)}%'
+                      : 'Starting…',
+                  style: const TextStyle(fontSize: 13),
+                ),
+              ],
+            )
+          : Text(widget.release.body.length > 300
+              ? '${widget.release.body.substring(0, 300)}…'
+              : widget.release.body.isNotEmpty
+                  ? widget.release.body
+                  : 'A new version is available.'),
+      actions: _downloading
+          ? []
+          : [
+              CupertinoDialogAction(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Later'),
+              ),
+              CupertinoDialogAction(
+                onPressed: _startDownload,
+                child: Text(widget.release.apkUrl != null
+                    ? 'Download & Install'
+                    : 'View Release'),
+              ),
+            ],
+    );
+  }
+}
+
+// ── Generic segmented picker ──────────────────────────────────────────────
 
 class _SegmentedPicker<T> extends StatelessWidget {
   const _SegmentedPicker({
@@ -642,7 +703,11 @@ class _LocationPicker extends StatelessWidget {
 }
 
 class _Pill extends StatelessWidget {
-  const _Pill({required this.label, required this.selected, required this.onTap});
+  const _Pill({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
   final String label;
   final bool selected;
   final VoidCallback onTap;
@@ -685,7 +750,8 @@ class _DriveStatusBadge extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.warning.withOpacity(0.15),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppColors.warning.withOpacity(0.3), width: 0.5),
+        border: Border.all(
+            color: AppColors.warning.withOpacity(0.3), width: 0.5),
       ),
       child: Text(
         'Not Connected',
@@ -736,12 +802,14 @@ class _DriveConnectedBadge extends StatelessWidget {
 class _SettingRow extends StatelessWidget {
   const _SettingRow({
     required this.icon,
+    required this.iconBgColor,
     required this.label,
     required this.trailing,
     this.onTap,
   });
 
   final IconData icon;
+  final Color iconBgColor;
   final String label;
   final Widget trailing;
   final VoidCallback? onTap;
@@ -752,14 +820,22 @@ class _SettingRow extends StatelessWidget {
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
           border: Border(
               bottom: BorderSide(color: context.borderColor, width: 0.5)),
         ),
         child: Row(
           children: [
-            Icon(icon, size: 18, color: AppColors.accent),
+            Container(
+              width: 30,
+              height: 30,
+              decoration: BoxDecoration(
+                color: iconBgColor,
+                borderRadius: BorderRadius.circular(7),
+              ),
+              child: Icon(icon, size: 16, color: CupertinoColors.white),
+            ),
             const SizedBox(width: 14),
             Expanded(child: Text(label, style: AppTextStyles.bodyMedium)),
             trailing,

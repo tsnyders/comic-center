@@ -19,6 +19,9 @@ class ChapterListTile extends ConsumerWidget {
   final VoidCallback onTap;
   final VoidCallback? onDownload;
 
+  bool get _isInProgress =>
+      !chapter.isRead && chapter.lastPageRead > 0 && chapter.pageCount > 0;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final queueStatus = ref
@@ -36,19 +39,25 @@ class ChapterListTile extends ConsumerWidget {
         ),
         child: Row(
           children: [
+            // Read status indicator
             SizedBox(
-              width: 40,
+              width: 22,
+              child: _ReadIndicator(chapter: chapter),
+            ),
+
+            // Chapter number
+            SizedBox(
+              width: 36,
               child: Text(
                 chapter.number?.toStringAsFixed(0) ?? '?',
                 style: AppTextStyles.bodyMedium.copyWith(
                   fontWeight: FontWeight.w700,
-                  color: chapter.isRead
-                      ? AppColors.textTertiary
-                      : null,
+                  color: chapter.isRead ? AppColors.textTertiary : null,
                 ),
               ),
             ),
 
+            // Title + date + progress
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -64,38 +73,44 @@ class ChapterListTile extends ConsumerWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  if (chapter.uploadDate != null) ...[
+                  if (chapter.uploadDate != null || _isInProgress) ...[
                     const SizedBox(height: 2),
-                    Text(
-                      _formatDate(chapter.uploadDate!),
-                      style: AppTextStyles.caption.copyWith(
-                        color: context.textTertiaryColor,
-                      ),
+                    Row(
+                      children: [
+                        if (chapter.uploadDate != null)
+                          Text(
+                            _formatDate(chapter.uploadDate!),
+                            style: AppTextStyles.caption.copyWith(
+                              color: context.textTertiaryColor,
+                            ),
+                          ),
+                        if (chapter.uploadDate != null && _isInProgress)
+                          Text(
+                            '  ·  ',
+                            style: AppTextStyles.caption.copyWith(
+                              color: context.textTertiaryColor,
+                            ),
+                          ),
+                        if (_isInProgress)
+                          Text(
+                            'pg ${chapter.lastPageRead + 1} / ${chapter.pageCount}',
+                            style: AppTextStyles.caption.copyWith(
+                              color: AppColors.warning,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                      ],
                     ),
                   ],
                 ],
               ),
             ),
 
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (!chapter.isRead)
-                  Container(
-                    width: 7,
-                    height: 7,
-                    margin: const EdgeInsets.only(right: 10),
-                    decoration: const BoxDecoration(
-                      color: AppColors.accent,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                _DownloadIndicator(
-                  chapter: chapter,
-                  queueStatus: queueStatus,
-                  onDownload: onDownload,
-                ),
-              ],
+            // Download status
+            _DownloadIndicator(
+              chapter: chapter,
+              queueStatus: queueStatus,
+              onDownload: onDownload,
             ),
           ],
         ),
@@ -114,6 +129,42 @@ class ChapterListTile extends ConsumerWidget {
     return '${(diff.inDays / 365).floor()}y ago';
   }
 }
+
+// ── Read status indicator ──────────────────────────────────────────────────
+
+class _ReadIndicator extends StatelessWidget {
+  const _ReadIndicator({required this.chapter});
+  final ChapterEntry chapter;
+
+  @override
+  Widget build(BuildContext context) {
+    if (chapter.isRead) {
+      return const Icon(
+        CupertinoIcons.checkmark_circle_fill,
+        size: 14,
+        color: AppColors.downloaded,
+      );
+    }
+    if (chapter.lastPageRead > 0) {
+      return const Icon(
+        CupertinoIcons.circle_lefthalf_fill,
+        size: 14,
+        color: AppColors.warning,
+      );
+    }
+    return Container(
+      width: 7,
+      height: 7,
+      margin: const EdgeInsets.symmetric(horizontal: 3.5, vertical: 3.5),
+      decoration: const BoxDecoration(
+        color: AppColors.accent,
+        shape: BoxShape.circle,
+      ),
+    );
+  }
+}
+
+// ── Download indicator ─────────────────────────────────────────────────────
 
 class _DownloadIndicator extends StatelessWidget {
   const _DownloadIndicator({

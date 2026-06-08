@@ -1,7 +1,8 @@
+import 'dart:io';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/services.dart';
-
-// ── Update service ────────────────────────────────────────────────────────────
+import 'package:path_provider/path_provider.dart';
 
 class ReleaseInfo {
   const ReleaseInfo({
@@ -20,12 +21,9 @@ class ReleaseInfo {
   final String? apkUrl;
   final bool isPrerelease;
 
-  /// Parsed publish date, or null if the string is malformed.
   DateTime? get publishedAtDate => DateTime.tryParse(publishedAt);
 }
 
-/// Thrown when we cannot reach the update server or parse its response.
-/// Distinct from returning null (which means "no releases published yet").
 class UpdateCheckException implements Exception {
   const UpdateCheckException(this.message);
   final String message;
@@ -39,12 +37,9 @@ class UpdateService {
 
   static final _dio = Dio(BaseOptions(
     connectTimeout: const Duration(seconds: 10),
-    receiveTimeout: const Duration(seconds: 10),
+    receiveTimeout: const Duration(minutes: 5),
   ));
 
-  /// Returns the latest release from GitHub.
-  /// Returns null if no releases have been published yet (HTTP 404).
-  /// Throws [UpdateCheckException] for network/parse failures.
   static Future<ReleaseInfo?> fetchLatestRelease() async {
     try {
       final resp = await _dio.get<dynamic>(
@@ -52,9 +47,7 @@ class UpdateService {
       );
       return _parseRelease(resp.data as Map<String, dynamic>);
     } on DioException catch (e) {
-      if (e.response?.statusCode == 404) {
-        return null;
-      }
+      if (e.response?.statusCode == 404) return null;
       throw UpdateCheckException(
         e.message ?? 'Network error while checking for updates',
       );
@@ -63,8 +56,6 @@ class UpdateService {
     }
   }
 
-  /// Returns up to 30 most-recent releases, newest first.
-  /// Throws [UpdateCheckException] on network/parse failures.
   static Future<List<ReleaseInfo>> fetchReleases() async {
     try {
       final resp = await _dio.get<dynamic>(
@@ -92,22 +83,41 @@ class UpdateService {
         .map((a) => a['browser_download_url'] as String)
         .firstOrNull;
     return ReleaseInfo(
-      tag         : d['tag_name']    as String? ?? '',
-      name        : d['name']        as String? ?? '',
-      body        : d['body']        as String? ?? '',
+      tag         : d['tag_name']     as String? ?? '',
+      name        : d['name']         as String? ?? '',
+      body        : d['body']         as String? ?? '',
       publishedAt : d['published_at'] as String? ?? '',
       apkUrl      : apkUrl,
-      isPrerelease: d['prerelease']  as bool?   ?? false,
+      isPrerelease: d['prerelease']   as bool?   ?? false,
     );
   }
 
-  /// Open a URL via the native Android intent (VIEW action).
   static Future<void> openUrl(String url) async {
     try {
       await _channel.invokeMethod<void>('openUrl', {'url': url});
-    } catch (_) {
-      // Platform channel not configured — silently ignore.
-    }
+    } catch (_) {}
+  }
+
+  /// Downloads the APK at [apkUrl] and triggers the system package installer.
+  /// Progress is reported via [onProgress] (0.0 → 1.0).
+  static Future<void> downloadAndInstall(
+    String apkUrl, {
+    required void Function(double) onProgress,
+  }) async {
+    Directory? dir;
+    try {
+      dir = await getExternalStorageDirectory();
+    } catch (_) {}
+    dir ??= await getTemporaryDirectory();
+
+    final path = '${dir.path}/yomi_update.apk';
+    await _dio.download(
+      apkUrl,
+      path,
+      onReceiveProgress: (received, total) {
+        if (total > 0) onProgress(received / total);
+      },
+    );
+    await _channel.invokeMethod<void>('installApk', {'path': path});
   }
 }
-

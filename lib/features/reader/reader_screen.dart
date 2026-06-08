@@ -6,6 +6,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/providers/library_provider.dart';
 import '../../core/providers/reader_provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
@@ -43,17 +44,8 @@ class ReaderScreen extends ConsumerStatefulWidget {
   final String sourceId;
   final String sourceChapterId;
   final String chapterTitle;
-
-  /// When true the reader uses a continuous vertical ListView (webtoon/manhwa
-  /// style) instead of the page-by-page PageView used for manga.
   final bool isWebtoon;
-
-  /// Full chapter list (sorted descending by number) used for "Next Chapter"
-  /// navigation. Empty list disables the feature.
   final List<ReaderChapterSummary> chapters;
-
-  /// Index of the current chapter within [chapters]. Lower index = higher
-  /// chapter number (since the list is sorted descending).
   final int chapterIndex;
 
   @override
@@ -64,9 +56,10 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   late final PageController   _pageController;
   late final ScrollController _scrollController;
 
-  bool   _pillVisible      = false;
-  double _webtoonProgress  = 0.0;
+  bool   _pillVisible         = false;
+  double _webtoonProgress     = 0.0;
   Timer? _pillHideTimer;
+  bool   _chapterMarkedRead   = false;
 
   @override
   void initState() {
@@ -118,6 +111,18 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     );
   }
 
+  // ── Auto-mark as read ────────────────────────────────────────────────────
+
+  void _tryMarkAsRead(int lastPage) {
+    if (_chapterMarkedRead) return;
+    _chapterMarkedRead = true;
+    ref.read(libraryNotifierProvider.notifier).markChapterRead(
+          mangaId: widget.mangaId,
+          chapterId: widget.chapterId,
+          lastPage: lastPage,
+        );
+  }
+
   // ── Webtoon scroll tracking ───────────────────────────────────────────────
 
   void _onWebtoonScroll() {
@@ -144,6 +149,11 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     _pillHideTimer = Timer(const Duration(seconds: 2), () {
       if (mounted) setState(() => _pillVisible = false);
     });
+
+    // Mark as read when 95% through the webtoon
+    if (rawProgress >= 0.95 && total > 0) {
+      _tryMarkAsRead(total - 1);
+    }
   }
 
   // ── Seek (chrome scrubber) ───────────────────────────────────────────────
@@ -303,6 +313,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
           Future.delayed(const Duration(seconds: 2), () {
             if (mounted) setState(() => _pillVisible = false);
           });
+          if (i == pages.length - 1) _tryMarkAsRead(i);
         },
         itemBuilder: (context, i) => _ReaderPage(
           url: pages[i],
@@ -393,7 +404,6 @@ class _ReaderSettingsSheet extends ConsumerWidget {
                   .copyWith(color: AppColors.textPrimary)),
           const SizedBox(height: 20),
 
-          // Direction setting only shown for paged manga mode.
           if (!isWebtoon) ...[
             Text('DIRECTION',
                 style: AppTextStyles.labelSmall
@@ -472,14 +482,12 @@ class _OptionRow<T> extends StatelessWidget {
           onTap: () => onChanged(opt.$1),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 140),
-            padding:
-                const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
             decoration: BoxDecoration(
               color: selected ? AppColors.accent : AppColors.surface,
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color:
-                    selected ? AppColors.accent : AppColors.borderStrong,
+                color: selected ? AppColors.accent : AppColors.borderStrong,
                 width: 0.5,
               ),
             ),
@@ -487,11 +495,8 @@ class _OptionRow<T> extends StatelessWidget {
               opt.$2,
               style: TextStyle(
                 fontSize: 13,
-                color: selected
-                    ? CupertinoColors.white
-                    : AppColors.textSecondary,
-                fontWeight:
-                    selected ? FontWeight.w600 : FontWeight.w400,
+                color: selected ? CupertinoColors.white : AppColors.textSecondary,
+                fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
               ),
             ),
           ),
@@ -552,8 +557,7 @@ class _ReaderPage extends ConsumerWidget {
                       color: AppColors.textTertiary, size: 32),
                   const SizedBox(height: 8),
                   Text('Failed to load page ${index + 1}',
-                      style: const TextStyle(
-                          color: AppColors.textTertiary)),
+                      style: const TextStyle(color: AppColors.textTertiary)),
                 ],
               ),
             );
@@ -581,12 +585,10 @@ class _WebtoonPage extends StatelessWidget {
       url,
       fit: BoxFit.fitWidth,
       width: screenWidth,
-      // height is unconstrained — image renders at full width, natural height.
       mode: ExtendedImageMode.none,
       loadStateChanged: (state) {
         switch (state.extendedImageLoadState) {
           case LoadState.loading:
-            // Placeholder tall enough to be visible while loading.
             return SizedBox(
               width: screenWidth,
               height: screenWidth * 1.5,
@@ -604,21 +606,20 @@ class _WebtoonPage extends StatelessWidget {
                         color: AppColors.textTertiary, size: 32),
                     const SizedBox(height: 8),
                     Text('Failed to load image ${index + 1}',
-                        style: const TextStyle(
-                            color: AppColors.textTertiary)),
+                        style: const TextStyle(color: AppColors.textTertiary)),
                   ],
                 ),
               ),
             );
           case LoadState.completed:
-            return null; // natural dimensions
+            return null;
         }
       },
     );
   }
 }
 
-// ── Next chapter – paged banner (frosted glass, bottom overlay) ───────────────
+// ── Next chapter – paged banner ───────────────────────────────────────────────
 
 class _NextChapterBanner extends StatelessWidget {
   const _NextChapterBanner({required this.title, required this.onTap});
@@ -685,7 +686,7 @@ class _NextChapterBanner extends StatelessWidget {
   }
 }
 
-// ── Next chapter – webtoon footer (list item at bottom of scroll) ─────────────
+// ── Next chapter – webtoon footer ─────────────────────────────────────────────
 
 class _NextChapterFooter extends StatelessWidget {
   const _NextChapterFooter({required this.title, required this.onTap});
