@@ -17,7 +17,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # needed for auto release notes
+          fetch-depth: 0
 
       - uses: actions/setup-java@v4
         with:
@@ -59,41 +59,32 @@ jobs:
       - name: Verify APK exists and rename
         run: |
           set -e
-          echo "── Build output tree ──"
-          ls -la build/app/outputs/flutter-apk/ || true
           APK=build/app/outputs/flutter-apk/app-release.apk
           if [ ! -f "$APK" ]; then
             echo "::error::APK not found at $APK"
             find build -name "*.apk" -ls
             exit 1
           fi
-          cp "$APK" yomi-release.apk
-          echo "APK size: $(du -h yomi-release.apk)"
+          cp "$APK" yomi-beta.apk
+          echo "APK size: $(du -h yomi-beta.apk)"
 
-      - name: Generate release tag
-        id: tag
-        run: echo "tag=v1.0.0-beta.$(date +'%Y%m%d-%H%M')" >> $GITHUB_OUTPUT
-
-      - name: Build install instructions
-        id: install
-        run: |
-          cat >> $GITHUB_OUTPUT << 'INSTALL'
-          body<<EOF
-          ## Install
-          1. Download **yomi-release.apk** below
-          2. On your Android device: Settings → Apps → Special permissions → Install unknown apps
-          3. Open the downloaded APK and tap **Install**
-          EOF
-          INSTALL
-
-      - name: Create GitHub Release with APK
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.tag.outputs.tag }}
-          name: "Yomi ${{ steps.tag.outputs.tag }}"
-          body: ${{ steps.install.outputs.body }}
+          tag_name: "v1.0-beta.${{ github.run_number }}"
+          name: "Yomi Beta 1.0 (Build ${{ github.run_number }})"
+          body: |
+            ## What's new
+            See the commit history below for changes in this build.
+
+            ## Install
+            1. Download **yomi-beta.apk** below
+            2. On your Android device: Settings → Apps → Special permissions → Install unknown apps
+            3. Open the downloaded APK and tap **Install**
+
+            > This is a beta build. Use the in-app **What's New** section to update automatically.
           generate_release_notes: true
-          files: yomi-release.apk
+          files: yomi-beta.apk
           prerelease: true
           fail_on_unmatched_files: true
         env:
