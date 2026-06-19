@@ -30,6 +30,21 @@ final _sourceGradients = <String, LinearGradient>{
     end: Alignment.bottomRight,
     colors: [Color(0xFFFF416C), Color(0xFFFF4B2B)],
   ),
+  'asurascans_en': const LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xFF1A1A2E), Color(0xFF16213E)],
+  ),
+  'reaperscans_en': const LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xFF8E0E00), Color(0xFF1F1C18)],
+  ),
+  'flamescans_en': const LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xFFFF6B35), Color(0xFFF7C59F)],
+  ),
 };
 
 LinearGradient _gradientFor(MangaSource source) =>
