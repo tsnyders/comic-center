@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/services.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
 
 class ReleaseInfo {
@@ -24,6 +25,8 @@ class ReleaseInfo {
   DateTime? get publishedAtDate => DateTime.tryParse(publishedAt);
 }
 
+/// Thrown when we cannot reach the update server or parse its response.
+/// Distinct from returning null (which means "already on latest version").
 class UpdateCheckException implements Exception {
   const UpdateCheckException(this.message);
   final String message;
@@ -40,12 +43,22 @@ class UpdateService {
     receiveTimeout: const Duration(minutes: 5),
   ));
 
+  /// Returns the latest release if it is newer than the installed build,
+  /// or null if already up to date (or no releases exist yet).
+  /// Throws [UpdateCheckException] on network/parse failures.
   static Future<ReleaseInfo?> fetchLatestRelease() async {
     try {
       final resp = await _dio.get<dynamic>(
         'https://api.github.com/repos/$_repo/releases/latest',
       );
-      return _parseRelease(resp.data as Map<String, dynamic>);
+      final release = _parseRelease(resp.data as Map<String, dynamic>);
+
+      final info         = await PackageInfo.fromPlatform();
+      final currentBuild = int.tryParse(info.buildNumber) ?? 0;
+      final releaseBuild = _parseBuildNumber(release.tag);
+
+      if (releaseBuild <= currentBuild) return null;
+      return release;
     } on DioException catch (e) {
       if (e.response?.statusCode == 404) return null;
       throw UpdateCheckException(
@@ -56,6 +69,7 @@ class UpdateService {
     }
   }
 
+  /// Returns up to 30 most-recent releases, newest first.
   static Future<List<ReleaseInfo>> fetchReleases() async {
     try {
       final resp = await _dio.get<dynamic>(
@@ -73,29 +87,6 @@ class UpdateService {
     } catch (e) {
       throw UpdateCheckException(e.toString());
     }
-  }
-
-  static ReleaseInfo _parseRelease(Map<String, dynamic> d) {
-    final assets = (d['assets'] as List?) ?? [];
-    final apkUrl = assets
-        .cast<Map<String, dynamic>>()
-        .where((a) => (a['name'] as String).toLowerCase().endsWith('.apk'))
-        .map((a) => a['browser_download_url'] as String)
-        .firstOrNull;
-    return ReleaseInfo(
-      tag         : d['tag_name']     as String? ?? '',
-      name        : d['name']         as String? ?? '',
-      body        : d['body']         as String? ?? '',
-      publishedAt : d['published_at'] as String? ?? '',
-      apkUrl      : apkUrl,
-      isPrerelease: d['prerelease']   as bool?   ?? false,
-    );
-  }
-
-  static Future<void> openUrl(String url) async {
-    try {
-      await _channel.invokeMethod<void>('openUrl', {'url': url});
-    } catch (_) {}
   }
 
   /// Downloads the APK at [apkUrl] and triggers the system package installer.
@@ -119,5 +110,35 @@ class UpdateService {
       },
     );
     await _channel.invokeMethod<void>('installApk', {'path': path});
+  }
+
+  /// Open a URL via the native Android intent (VIEW action).
+  static Future<void> openUrl(String url) async {
+    try {
+      await _channel.invokeMethod<void>('openUrl', {'url': url});
+    } catch (_) {}
+  }
+
+  static ReleaseInfo _parseRelease(Map<String, dynamic> d) {
+    final assets = (d['assets'] as List?) ?? [];
+    final apkUrl = assets
+        .cast<Map<String, dynamic>>()
+        .where((a) => (a['name'] as String).toLowerCase().endsWith('.apk'))
+        .map((a) => a['browser_download_url'] as String)
+        .firstOrNull;
+    return ReleaseInfo(
+      tag         : d['tag_name']     as String? ?? '',
+      name        : d['name']         as String? ?? '',
+      body        : d['body']         as String? ?? '',
+      publishedAt : d['published_at'] as String? ?? '',
+      apkUrl      : apkUrl,
+      isPrerelease: d['prerelease']   as bool?   ?? false,
+    );
+  }
+
+  /// Extracts the trailing integer from a tag like "v1.0-beta.45" → 45.
+  static int _parseBuildNumber(String tag) {
+    final match = RegExp(r'\.(\d+)$').firstMatch(tag);
+    return int.tryParse(match?.group(1) ?? '') ?? 0;
   }
 }

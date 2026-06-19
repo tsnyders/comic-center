@@ -45,6 +45,9 @@ dependencies:
   # Reader screen brightness control
   screen_brightness: ^1.0.1
 
+  # App version info (for update comparison)
+  package_info_plus: ^8.0.0
+
   # Icons
   cupertino_icons: ^1.0.6
 
