@@ -137,9 +137,9 @@ class AsuraScansSource implements MangaSource {
 
     return list.map<ChapterInfo>((ch) {
       final m   = ch as Map<String, dynamic>;
-      final uuid = m['id']?.toString() ??
+      final uuid = m['slug']?.toString() ??
           m['uuid']?.toString() ??
-          m['slug']?.toString() ??
+          m['id']?.toString() ??
           '';
       final chNum = (m['number'] ?? m['chapter_number'] as num?)?.toDouble();
       final title = m['title']?.toString() ??
@@ -282,7 +282,13 @@ class AsuraScansSource implements MangaSource {
   }
 
   List<String> _stringList(dynamic v) {
-    if (v is List) return v.whereType<String>().toList();
+    if (v is List) {
+      return v.map<String>((e) {
+        if (e is String) return e;
+        if (e is Map) return e['name']?.toString() ?? '';
+        return '';
+      }).where((s) => s.isNotEmpty).toList();
+    }
     return [];
   }
 
