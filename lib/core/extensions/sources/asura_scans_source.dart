@@ -137,9 +137,9 @@ class AsuraScansSource implements MangaSource {
 
     return list.map<ChapterInfo>((ch) {
       final m   = ch as Map<String, dynamic>;
-      final uuid = m['id']?.toString() ??
+      final uuid = m['slug']?.toString() ??
           m['uuid']?.toString() ??
-          m['slug']?.toString() ??
+          m['id']?.toString() ??
           '';
       final chNum = (m['number'] ?? m['chapter_number'] as num?)?.toDouble();
       final title = m['title']?.toString() ??
@@ -216,17 +216,30 @@ class AsuraScansSource implements MangaSource {
   }
 
   List<String> _extractPageUrls(dynamic body) {
-    // Pages may be under a 'pages' key or at the root level.
+    // Primary shape: { "data": { "chapter": { "pages": [{"url":"..."}] } } }
+    if (body is Map) {
+      final data = body['data'];
+      if (data is Map) {
+        final chapter = data['chapter'];
+        if (chapter is Map && chapter['pages'] is List) {
+          return (chapter['pages'] as List).map<String>((p) {
+            if (p is String) return p;
+            if (p is Map) return p['url']?.toString() ?? p['image']?.toString() ?? '';
+            return '';
+          }).where((u) => u.isNotEmpty).toList();
+        }
+      }
+    }
+
+    // Fallback: pages may be under a 'pages' key or at the root level.
     final raw = (body is Map && body.containsKey('pages'))
         ? body['pages']
         : body;
     final pages = _dataList(raw);
-
     return pages.map<String>((p) {
       if (p is String) return p;
       if (p is Map<String, dynamic>) {
-        return (p['url'] ?? p['image'] ?? p['src'] ?? p['link'] ?? '')
-            as String;
+        return (p['url'] ?? p['image'] ?? p['src'] ?? p['link'] ?? '') as String;
       }
       return '';
     }).where((url) => url.isNotEmpty).toList();
@@ -282,7 +295,13 @@ class AsuraScansSource implements MangaSource {
   }
 
   List<String> _stringList(dynamic v) {
-    if (v is List) return v.whereType<String>().toList();
+    if (v is List) {
+      return v.map<String>((e) {
+        if (e is String) return e;
+        if (e is Map) return e['name']?.toString() ?? '';
+        return '';
+      }).where((s) => s.isNotEmpty).toList();
+    }
     return [];
   }
 
