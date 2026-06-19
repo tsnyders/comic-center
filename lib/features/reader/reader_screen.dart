@@ -289,6 +289,16 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                 ),
               ),
 
+              // ── Persistent back button (top-left, always visible) ─────────
+              if (!chromeVisible)
+                Positioned(
+                  top: MediaQuery.of(context).padding.top + 12,
+                  left: 16,
+                  child: _BackButton(
+                    onTap: () => Navigator.of(context).pop(),
+                  ),
+                ),
+
               // ── Tap-to-reveal chrome ──────────────────────────────────────
               Positioned.fill(
                 child: AnimatedOpacity(
@@ -734,6 +744,33 @@ class _WebtoonPage extends StatelessWidget {
             return null;
         }
       },
+    );
+  }
+}
+
+// ── Back – persistent floating button ────────────────────────────────────────
+
+/// Liquid-glass back button anchored to the top-left, always visible
+/// so the reader can be closed without tapping to reveal the chrome.
+class _BackButton extends StatelessWidget {
+  const _BackButton({required this.onTap});
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: LiquidGlass(
+        borderRadius: 26,
+        blur: 22,
+        padding: const EdgeInsets.all(13),
+        child: const Icon(
+          CupertinoIcons.chevron_left,
+          color: CupertinoColors.white,
+          size: 22,
+        ),
+      ),
     );
   }
 }
