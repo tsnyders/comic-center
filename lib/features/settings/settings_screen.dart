@@ -856,3 +856,105 @@ class _Chevron extends StatelessWidget {
         color: AppColors.textTertiary,
       );
 }
+
+// ── Update dialog ─────────────────────────────────────────────────────────────
+
+class _UpdateDialog extends StatefulWidget {
+  const _UpdateDialog({required this.release});
+  final ReleaseInfo release;
+
+  @override
+  State<_UpdateDialog> createState() => _UpdateDialogState();
+}
+
+class _UpdateDialogState extends State<_UpdateDialog> {
+  double? _progress;
+  bool _downloading = false;
+
+  Future<void> _startDownload() async {
+    final url = widget.release.apkUrl;
+    if (url == null) {
+      Navigator.of(context).pop();
+      await UpdateService.openUrl(
+          'https://github.com/tsnyders/comic-center/releases');
+      return;
+    }
+    setState(() {
+      _downloading = true;
+      _progress    = 0;
+    });
+    try {
+      await UpdateService.downloadAndInstall(
+        url,
+        onProgress: (p) {
+          if (mounted) setState(() => _progress = p);
+        },
+      );
+      // installApk hands off to the system installer — dialog can close.
+      if (mounted) Navigator.of(context).pop();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _downloading = false);
+      Navigator.of(context).pop();
+      showCupertinoDialog<void>(
+        context: context,
+        builder: (_) => CupertinoAlertDialog(
+          title: const Text('Update Failed'),
+          content: Text(e.toString()),
+          actions: [
+            CupertinoDialogAction(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return CupertinoAlertDialog(
+      title: Text('Version ${widget.release.tag}'),
+      content: _downloading
+          ? Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(height: 12),
+                const CupertinoActivityIndicator(),
+                const SizedBox(height: 8),
+                Text(
+                  _progress != null
+                      ? '${(_progress! * 100).toStringAsFixed(0)}%'
+                      : 'Starting…',
+                  style: const TextStyle(fontSize: 13),
+                ),
+              ],
+            )
+          : Text(
+              widget.release.body.length > 300
+                  ? '${widget.release.body.substring(0, 300)}…'
+                  : widget.release.body.isNotEmpty
+                      ? widget.release.body
+                      : 'A new version is available.',
+            ),
+      actions: _downloading
+          ? const []
+          : [
+              CupertinoDialogAction(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Later'),
+              ),
+              CupertinoDialogAction(
+                isDefaultAction: true,
+                onPressed: _startDownload,
+                child: Text(
+                  widget.release.apkUrl != null
+                      ? 'Download & Install'
+                      : 'View Release',
+                ),
+              ),
+            ],
+    );
+  }
+}
