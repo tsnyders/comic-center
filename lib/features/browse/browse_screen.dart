@@ -20,11 +20,6 @@ final _sourceGradients = <String, LinearGradient>{
     end: Alignment.bottomRight,
     colors: [Color(0xFF667EEA), Color(0xFF764BA2)],
   ),
-  'all_manga_en': const LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-    colors: [Color(0xFF11998E), Color(0xFF38EF7D)],
-  ),
   'demonicscans_en': const LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
@@ -39,11 +34,6 @@ final _sourceGradients = <String, LinearGradient>{
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
     colors: [Color(0xFF8E0E00), Color(0xFF1F1C18)],
-  ),
-  'flamescans_en': const LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-    colors: [Color(0xFFFF6B35), Color(0xFFF7C59F)],
   ),
 };
 
