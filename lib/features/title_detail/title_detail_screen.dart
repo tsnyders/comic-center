@@ -2,6 +2,7 @@ import 'dart:ui';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart' show DraggableScrollableSheet;
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/database/models/chapter_entry.dart';
@@ -15,6 +16,7 @@ import '../../core/providers/settings_provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../shared/widgets/cover_image.dart';
+import '../library/widgets/manga_card.dart' show mangaCoverHeroTag;
 import '../reader/reader_screen.dart';
 import 'widgets/chapter_list_tile.dart';
 
@@ -132,12 +134,15 @@ class _DetailHero extends StatelessWidget {
           Positioned(
             top: 80,
             right: 20,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: SizedBox(
-                width: 100,
-                height: 150,
-                child: CoverImage(url: manga.coverUrl),
+            child: Hero(
+              tag: mangaCoverHeroTag(manga.id),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: SizedBox(
+                  width: 100,
+                  height: 150,
+                  child: CoverImage(url: manga.coverUrl),
+                ),
               ),
             ),
           ),
@@ -205,7 +210,9 @@ class _AddToLibraryButton extends ConsumerWidget {
 
 // ── Bottom sheet ───────────────────────────────────────────────────────────
 
-class _DetailSheet extends ConsumerWidget {
+enum _ChapterFilter { all, unread, downloaded }
+
+class _DetailSheet extends ConsumerStatefulWidget {
   const _DetailSheet({
     required this.manga,
     required this.scrollController,
@@ -215,7 +222,30 @@ class _DetailSheet extends ConsumerWidget {
   final ScrollController scrollController;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_DetailSheet> createState() => _DetailSheetState();
+}
+
+class _DetailSheetState extends ConsumerState<_DetailSheet> {
+  _ChapterFilter _filter = _ChapterFilter.all;
+
+  /// false = newest first (default, matches source order); true = oldest first.
+  bool _ascending = false;
+
+  MangaEntry get manga => widget.manga;
+  ScrollController get scrollController => widget.scrollController;
+
+  List<ChapterEntry> _applyFilterSort(List<ChapterEntry> chs) {
+    var result = switch (_filter) {
+      _ChapterFilter.all => chs,
+      _ChapterFilter.unread => chs.where((c) => !c.isRead).toList(),
+      _ChapterFilter.downloaded => chs.where((c) => c.isDownloaded).toList(),
+    };
+    if (_ascending) result = result.reversed.toList();
+    return result;
+  }
+
+  @override
+  Widget build(BuildContext context) {
     // Use live manga so chapter count updates after sync.
     final liveManga =
         ref.watch(liveMangaProvider(manga.id)).valueOrNull ?? manga;
@@ -346,15 +376,56 @@ class _DetailSheet extends ConsumerWidget {
                   ),
                 ),
 
-              // Chapters heading
+              // Chapters heading + filter / sort bar
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
-                  child: Text(
-                    '${liveManga.chapterCount} Chapters'.toUpperCase(),
-                    style: AppTextStyles.labelSmall.copyWith(
-                      letterSpacing: 0.5,
-                    ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          '${liveManga.chapterCount} Chapters'.toUpperCase(),
+                          style: AppTextStyles.labelSmall.copyWith(
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ),
+                      _SortButton(
+                        ascending: _ascending,
+                        onTap: () => setState(() => _ascending = !_ascending),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              // Filter pills
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+                  child: Row(
+                    children: [
+                      _FilterPill(
+                        label: 'All',
+                        selected: _filter == _ChapterFilter.all,
+                        onTap: () =>
+                            setState(() => _filter = _ChapterFilter.all),
+                      ),
+                      const SizedBox(width: 8),
+                      _FilterPill(
+                        label: 'Unread',
+                        selected: _filter == _ChapterFilter.unread,
+                        onTap: () =>
+                            setState(() => _filter = _ChapterFilter.unread),
+                      ),
+                      const SizedBox(width: 8),
+                      _FilterPill(
+                        label: 'Downloaded',
+                        selected: _filter == _ChapterFilter.downloaded,
+                        onTap: () => setState(
+                            () => _filter = _ChapterFilter.downloaded),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -370,19 +441,35 @@ class _DetailSheet extends ConsumerWidget {
                 error: (e, _) => SliverToBoxAdapter(
                   child: Text(e.toString(), style: AppTextStyles.bodySmall),
                 ),
-                data: (chs) => SliverPadding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  sliver: SliverList.builder(
-                    itemCount: chs.length,
-                    itemBuilder: (context, i) => ChapterListTile(
-                      chapter: chs[i],
-                      onTap: () => _openReader(context, chs, i),
-                      onDownload: chs[i].isDownloaded
-                          ? null
-                          : () => _downloadChapter(context, ref, chs[i]),
+                data: (chs) {
+                  final display = _applyFilterSort(chs);
+                  if (display.isEmpty) {
+                    return const SliverToBoxAdapter(
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(vertical: 32),
+                        child: Center(
+                          child: Text(
+                            'No chapters match this filter.',
+                            style: AppTextStyles.bodySmall,
+                          ),
+                        ),
+                      ),
+                    );
+                  }
+                  return SliverPadding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    sliver: SliverList.builder(
+                      itemCount: display.length,
+                      itemBuilder: (context, i) => ChapterListTile(
+                        chapter: display[i],
+                        onTap: () => _openReader(context, chs, display[i]),
+                        onDownload: display[i].isDownloaded
+                            ? null
+                            : () => _downloadChapter(context, ref, display[i]),
+                      ),
                     ),
-                  ),
-                ),
+                  );
+                },
               ),
 
               SliverToBoxAdapter(
@@ -426,8 +513,12 @@ class _DetailSheet extends ConsumerWidget {
   }
 
   void _openReader(
-      BuildContext context, List<ChapterEntry> chs, int index) {
-    final chapter = chs[index];
+      BuildContext context, List<ChapterEntry> chs, ChapterEntry chapter) {
+    // Index into the original (descending) list so next-chapter navigation
+    // stays correct regardless of the current display filter / sort order.
+    final index = chs.indexWhere((c) => c.id == chapter.id);
+    if (index < 0) return;
+    HapticFeedback.selectionClick();
     final isWebtoon = _isWebtoon(manga);
     final summaries = chs
         .map((c) => ReaderChapterSummary(
@@ -509,6 +600,85 @@ class _DetailSheet extends ConsumerWidget {
       s.isEmpty ? s : '${s[0].toUpperCase()}${s.substring(1)}';
 }
 
+class _SortButton extends StatelessWidget {
+  const _SortButton({required this.ascending, required this.onTap});
+  final bool ascending;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        onTap();
+      },
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            ascending
+                ? CupertinoIcons.arrow_up
+                : CupertinoIcons.arrow_down,
+            size: 13,
+            color: AppColors.accent,
+          ),
+          const SizedBox(width: 4),
+          Text(
+            ascending ? 'Oldest' : 'Newest',
+            style: AppTextStyles.labelSmall.copyWith(
+              color: AppColors.accent,
+              letterSpacing: 0,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FilterPill extends StatelessWidget {
+  const _FilterPill({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        onTap();
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 140),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        decoration: BoxDecoration(
+          color: selected ? AppColors.accent : AppColors.surfaceElevated,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: selected ? AppColors.accent : AppColors.borderStrong,
+            width: 0.5,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12.5,
+            fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+            color:
+                selected ? CupertinoColors.white : AppColors.textSecondary,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _GenreChip extends StatelessWidget {
   const _GenreChip({required this.label});
   final String label;
@@ -542,6 +712,7 @@ class _ActionRow extends ConsumerWidget {
 
   void _continueReading(BuildContext context, List<ChapterEntry> chs) {
     if (chs.isEmpty) return;
+    HapticFeedback.selectionClick();
     // chs is sorted descending (latest first). Reading order is ascending.
     // Find the first unread chapter in ascending order (i.e., last unread from
     // the end of chs).

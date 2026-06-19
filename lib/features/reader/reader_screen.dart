@@ -5,6 +5,7 @@ import 'package:extended_image/extended_image.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:screen_brightness/screen_brightness.dart';
 
 import '../../core/providers/library_provider.dart';
 import '../../core/providers/reader_provider.dart';
@@ -53,6 +54,9 @@ class ReaderScreen extends ConsumerStatefulWidget {
 }
 
 class _ReaderScreenState extends ConsumerState<ReaderScreen> {
+  static const _platform   = MethodChannel('yomi/platform');
+  static const _volumeKeys = EventChannel('yomi/volume_keys');
+
   late final PageController   _pageController;
   late final ScrollController _scrollController;
 
@@ -60,6 +64,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   double _webtoonProgress     = 0.0;
   Timer? _pillHideTimer;
   bool   _chapterMarkedRead   = false;
+  StreamSubscription<dynamic>? _volumeSub;
 
   @override
   void initState() {
@@ -71,16 +76,64 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     if (widget.isWebtoon) {
       _scrollController.addListener(_onWebtoonScroll);
     }
+    _enableVolumeKeys();
   }
 
   @override
   void dispose() {
     _pillHideTimer?.cancel();
+    _volumeSub?.cancel();
+    _platform.invokeMethod<void>('setVolumeKeyIntercept', {'enabled': false});
+    _restoreBrightness();
     _pageController.dispose();
     _scrollController.dispose();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.manual,
         overlays: SystemUiOverlay.values);
     super.dispose();
+  }
+
+  // ── Volume-key page turning ──────────────────────────────────────────────
+
+  void _enableVolumeKeys() {
+    _platform.invokeMethod<void>('setVolumeKeyIntercept', {'enabled': true});
+    _volumeSub = _volumeKeys.receiveBroadcastStream().listen((event) {
+      if (event == 'down') {
+        _turnPage(forward: true);
+      } else if (event == 'up') {
+        _turnPage(forward: false);
+      }
+    });
+  }
+
+  void _turnPage({required bool forward}) {
+    final reader = ref.read(readerProvider);
+    final total = reader.totalPages;
+    if (total == 0) return;
+    final target =
+        (forward ? reader.currentPage + 1 : reader.currentPage - 1)
+            .clamp(0, total - 1);
+    if (target == reader.currentPage) return;
+    HapticFeedback.selectionClick();
+    if (widget.isWebtoon) {
+      if (!_scrollController.hasClients) return;
+      _scrollController.animateTo(
+        (target / total) * _scrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOut,
+      );
+    } else {
+      _pageController.animateToPage(
+        target,
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeInOut,
+      );
+    }
+  }
+
+  Future<void> _restoreBrightness() async {
+    try {
+      await ScreenBrightness().resetScreenBrightness();
+    } catch (_) {}
   }
 
   // ── Next chapter navigation ──────────────────────────────────────────────
@@ -92,6 +145,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
       widget.chapters[widget.chapterIndex - 1];
 
   void _goToNextChapter(BuildContext context) {
+    HapticFeedback.lightImpact();
     final nextIdx = widget.chapterIndex - 1;
     final next = widget.chapters[nextIdx];
     Navigator.of(context).pushReplacement(
@@ -302,6 +356,15 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
 
     return GestureDetector(
       onTap: () => ref.read(readerProvider.notifier).toggleChrome(),
+      // Swipe down to dismiss the reader (horizontal paging only, where
+      // vertical drags are otherwise unused).
+      onVerticalDragEnd: isVertical
+          ? null
+          : (details) {
+              if ((details.primaryVelocity ?? 0) > 320) {
+                Navigator.of(context).maybePop();
+              }
+            },
       child: PageView.builder(
         controller: _pageController,
         scrollDirection: isVertical ? Axis.vertical : Axis.horizontal,
@@ -440,6 +503,13 @@ class _ReaderSettingsSheet extends ConsumerWidget {
             const SizedBox(height: 16),
           ],
 
+          Text('BRIGHTNESS',
+              style: AppTextStyles.labelSmall
+                  .copyWith(color: AppColors.textTertiary)),
+          const SizedBox(height: 8),
+          const _BrightnessSlider(),
+          const SizedBox(height: 16),
+
           Text('BACKGROUND',
               style: AppTextStyles.labelSmall
                   .copyWith(color: AppColors.textTertiary)),
@@ -456,6 +526,57 @@ class _ReaderSettingsSheet extends ConsumerWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Reader brightness control backed by the platform screen brightness.
+class _BrightnessSlider extends StatefulWidget {
+  const _BrightnessSlider();
+
+  @override
+  State<_BrightnessSlider> createState() => _BrightnessSliderState();
+}
+
+class _BrightnessSliderState extends State<_BrightnessSlider> {
+  double _value = 0.5;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final current = await ScreenBrightness().current;
+      if (mounted) setState(() => _value = current.clamp(0.0, 1.0));
+    } catch (_) {}
+  }
+
+  Future<void> _set(double v) async {
+    setState(() => _value = v);
+    try {
+      await ScreenBrightness().setScreenBrightness(v);
+    } catch (_) {}
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        const Icon(CupertinoIcons.sun_min,
+            size: 18, color: AppColors.textTertiary),
+        Expanded(
+          child: CupertinoSlider(
+            value: _value,
+            activeColor: AppColors.accent,
+            onChanged: _set,
+          ),
+        ),
+        const Icon(CupertinoIcons.sun_max_fill,
+            size: 18, color: AppColors.textSecondary),
+      ],
     );
   }
 }
@@ -479,7 +600,10 @@ class _OptionRow<T> extends StatelessWidget {
       children: options.map((opt) {
         final selected = value == opt.$1;
         return GestureDetector(
-          onTap: () => onChanged(opt.$1),
+          onTap: () {
+            HapticFeedback.selectionClick();
+            onChanged(opt.$1);
+          },
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 140),
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
