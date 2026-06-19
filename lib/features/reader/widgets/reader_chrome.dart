@@ -64,9 +64,24 @@ class _TopBar extends StatelessWidget {
       right: 0,
       child: ClipRect(
         child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
+          filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
           child: Container(
-            color: const Color(0xCC000000),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  CupertinoColors.white.withOpacity(0.12),
+                  const Color(0x55000000),
+                ],
+              ),
+              border: Border(
+                bottom: BorderSide(
+                  color: CupertinoColors.white.withOpacity(0.14),
+                  width: 0.5,
+                ),
+              ),
+            ),
             padding: EdgeInsets.only(
               top: topPadding + 4,
               left: 20,
@@ -132,9 +147,24 @@ class _BottomBar extends StatelessWidget {
       right: 0,
       child: ClipRect(
         child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
+          filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
           child: Container(
-            color: const Color(0xCC000000),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.bottomCenter,
+                end: Alignment.topCenter,
+                colors: [
+                  CupertinoColors.white.withOpacity(0.12),
+                  const Color(0x55000000),
+                ],
+              ),
+              border: Border(
+                top: BorderSide(
+                  color: CupertinoColors.white.withOpacity(0.14),
+                  width: 0.5,
+                ),
+              ),
+            ),
             padding: EdgeInsets.only(
               top: 12,
               left: 24,

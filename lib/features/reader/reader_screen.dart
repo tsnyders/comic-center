@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:ui';
 
 import 'package:extended_image/extended_image.dart';
 import 'package:flutter/cupertino.dart';
@@ -11,6 +10,7 @@ import '../../core/providers/library_provider.dart';
 import '../../core/providers/reader_provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
+import 'widgets/liquid_glass.dart';
 import 'widgets/page_pill.dart';
 import 'widgets/progress_line.dart';
 import 'widgets/reader_chrome.dart';
@@ -320,18 +320,13 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                 ),
               ),
 
-              // ── Next chapter banner (paged only, last page) ───────────────
-              if (!widget.isWebtoon &&
-                  _hasNextChapter &&
-                  readerState.totalPages > 0 &&
-                  readerState.currentPage == readerState.totalPages - 1 &&
-                  !chromeVisible)
+              // ── Persistent next-chapter button (bottom-right, below the
+              //     page count pill) — visible the whole time you read ───────
+              if (_hasNextChapter && !chromeVisible)
                 Positioned(
-                  bottom: MediaQuery.of(context).padding.bottom + 16,
-                  left: 20,
-                  right: 20,
-                  child: _NextChapterBanner(
-                    title: _nextSummary.title,
+                  bottom: MediaQuery.of(context).padding.bottom + 30,
+                  right: 16,
+                  child: _NextChapterButton(
                     onTap: () => _goToNextChapter(context),
                   ),
                 ),
@@ -743,67 +738,27 @@ class _WebtoonPage extends StatelessWidget {
   }
 }
 
-// ── Next chapter – paged banner ───────────────────────────────────────────────
+// ── Next chapter – persistent floating button ─────────────────────────────────
 
-class _NextChapterBanner extends StatelessWidget {
-  const _NextChapterBanner({required this.title, required this.onTap});
-  final String title;
+/// Small circular liquid-glass button that stays in the bottom-right corner
+/// the entire time you read, so the next chapter is always one tap away.
+class _NextChapterButton extends StatelessWidget {
+  const _NextChapterButton({required this.onTap});
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-            decoration: BoxDecoration(
-              color: const Color(0xD4000000),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                  color: AppColors.accent.withOpacity(0.4), width: 0.5),
-            ),
-            child: Row(
-              children: [
-                const Icon(CupertinoIcons.arrow_right_circle_fill,
-                    color: AppColors.accent, size: 22),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text(
-                        'Next Chapter',
-                        style: TextStyle(
-                          color: AppColors.textSecondary,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        title,
-                        style: const TextStyle(
-                          color: CupertinoColors.white,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                const Icon(CupertinoIcons.chevron_right,
-                    color: AppColors.textTertiary, size: 14),
-              ],
-            ),
-          ),
+      behavior: HitTestBehavior.opaque,
+      child: LiquidGlass(
+        borderRadius: 26,
+        blur: 22,
+        padding: const EdgeInsets.all(13),
+        child: const Icon(
+          CupertinoIcons.chevron_right_2,
+          color: CupertinoColors.white,
+          size: 22,
         ),
       ),
     );
