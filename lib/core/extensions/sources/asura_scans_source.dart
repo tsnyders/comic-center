@@ -216,17 +216,30 @@ class AsuraScansSource implements MangaSource {
   }
 
   List<String> _extractPageUrls(dynamic body) {
-    // Pages may be under a 'pages' key or at the root level.
+    // Primary shape: { "data": { "chapter": { "pages": [{"url":"..."}] } } }
+    if (body is Map) {
+      final data = body['data'];
+      if (data is Map) {
+        final chapter = data['chapter'];
+        if (chapter is Map && chapter['pages'] is List) {
+          return (chapter['pages'] as List).map<String>((p) {
+            if (p is String) return p;
+            if (p is Map) return p['url']?.toString() ?? p['image']?.toString() ?? '';
+            return '';
+          }).where((u) => u.isNotEmpty).toList();
+        }
+      }
+    }
+
+    // Fallback: pages may be under a 'pages' key or at the root level.
     final raw = (body is Map && body.containsKey('pages'))
         ? body['pages']
         : body;
     final pages = _dataList(raw);
-
     return pages.map<String>((p) {
       if (p is String) return p;
       if (p is Map<String, dynamic>) {
-        return (p['url'] ?? p['image'] ?? p['src'] ?? p['link'] ?? '')
-            as String;
+        return (p['url'] ?? p['image'] ?? p['src'] ?? p['link'] ?? '') as String;
       }
       return '';
     }).where((url) => url.isNotEmpty).toList();
