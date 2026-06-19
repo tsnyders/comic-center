@@ -2,20 +2,43 @@ package com.comiccenter.comic_center
 
 import android.content.Intent
 import android.net.Uri
+import android.view.KeyEvent
 import androidx.core.content.FileProvider
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
 import java.io.File
 
 class MainActivity : FlutterActivity() {
     private val channel = "yomi/platform"
+    private val volumeKeyChannel = "yomi/volume_keys"
+
+    private var volumeKeyInterceptEnabled = false
+    private var volumeEventSink: EventChannel.EventSink? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+
+        EventChannel(flutterEngine.dartExecutor.binaryMessenger, volumeKeyChannel)
+            .setStreamHandler(object : EventChannel.StreamHandler {
+                override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
+                    volumeEventSink = events
+                }
+
+                override fun onCancel(arguments: Any?) {
+                    volumeEventSink = null
+                }
+            })
+
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, channel)
             .setMethodCallHandler { call, result ->
                 when (call.method) {
+                    "setVolumeKeyIntercept" -> {
+                        volumeKeyInterceptEnabled =
+                            call.argument<Boolean>("enabled") ?: false
+                        result.success(null)
+                    }
                     "openUrl" -> {
                         val url = call.argument<String>("url")
                         if (url != null) {
@@ -55,5 +78,24 @@ class MainActivity : FlutterActivity() {
                     else -> result.notImplemented()
                 }
             }
+    }
+
+    // Intercept hardware volume keys while the reader requests it, forwarding
+    // them to Flutter as page-turn events. When disabled, the keys behave
+    // normally (system volume control).
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (volumeKeyInterceptEnabled && event.action == KeyEvent.ACTION_DOWN) {
+            when (event.keyCode) {
+                KeyEvent.KEYCODE_VOLUME_UP -> {
+                    volumeEventSink?.success("up")
+                    return true
+                }
+                KeyEvent.KEYCODE_VOLUME_DOWN -> {
+                    volumeEventSink?.success("down")
+                    return true
+                }
+            }
+        }
+        return super.dispatchKeyEvent(event)
     }
 }

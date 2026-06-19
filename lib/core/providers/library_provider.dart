@@ -96,6 +96,9 @@ final librarySearchProvider    = StateProvider<String>((_) => '');
 final libraryStatusFilterProvider  = StateProvider<String?>((_) => null);
 final libraryGenreFilterProvider   = StateProvider<List<String>>((_) => const []);
 
+/// Number of columns in the library grid (2 or 3). In-memory only.
+final libraryGridColumnsProvider = StateProvider<int>((_) => 2);
+
 // ── Library stream ─────────────────────────────────────────────────────────────
 
 final libraryStreamProvider = StreamProvider<List<MangaEntry>>((ref) {
@@ -135,6 +138,15 @@ final filteredLibraryProvider = Provider<AsyncValue<List<MangaEntry>>>((ref) {
     }
     return result;
   });
+});
+
+// ── Continue reading (recently read, in-progress titles) ──────────────────────
+
+final continueReadingProvider = Provider<List<MangaEntry>>((ref) {
+  final library = ref.watch(libraryStreamProvider).valueOrNull ?? [];
+  final reading = library.where((m) => m.lastReadAt != null).toList()
+    ..sort((a, b) => b.lastReadAt!.compareTo(a.lastReadAt!));
+  return reading.take(12).toList();
 });
 
 // ── Categories derived from library + custom list ──────────────────────────────
@@ -212,6 +224,29 @@ class LibraryNotifier extends AsyncNotifier<void> {
           ..lastReadPage        = lastPage
           ..lastReadAt          = DateTime.now();
         await isar.chapterEntrys.put(chapter);
+        await isar.mangaEntrys.put(manga);
+      }
+    });
+  }
+
+  /// Marks every chapter of [mangaId] as read and zeroes the unread count.
+  Future<void> markAllChaptersRead(int mangaId) async {
+    final isar = ref.read(isarProvider);
+    await isar.writeTxn(() async {
+      final chapters =
+          await isar.chapterEntrys.filter().mangaIdEqualTo(mangaId).findAll();
+      final now = DateTime.now();
+      for (final c in chapters) {
+        if (!c.isRead) {
+          c
+            ..isRead = true
+            ..readAt = now;
+          await isar.chapterEntrys.put(c);
+        }
+      }
+      final manga = await isar.mangaEntrys.get(mangaId);
+      if (manga != null) {
+        manga.unreadCount = 0;
         await isar.mangaEntrys.put(manga);
       }
     });

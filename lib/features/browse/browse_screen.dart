@@ -7,6 +7,7 @@ import '../../core/extensions/source_interface.dart';
 import '../../core/providers/source_registry_provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../../shared/widgets/empty_state.dart';
 import 'extensions_screen.dart';
 import 'source_manga_screen.dart';
 import 'widgets/featured_source_card.dart';
@@ -100,48 +101,13 @@ class BrowseScreen extends ConsumerWidget {
             // ── Empty state ─────────────────────────────────────────────
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 40, 20, 32),
-                child: Column(
-                  children: [
-                    const Icon(
-                      CupertinoIcons.square_grid_2x2,
-                      size: 52,
-                      color: AppColors.textQuaternary,
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'No extensions installed',
-                      style: AppTextStyles.bodyMedium.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Install an extension to start browsing manga.',
-                      style: AppTextStyles.bodySmall,
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 20),
-                    GestureDetector(
-                      onTap: () => _openExtensions(context),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 20, vertical: 12),
-                        decoration: BoxDecoration(
-                          color: AppColors.accent,
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: const Text(
-                          'Browse Extensions',
-                          style: TextStyle(
-                            color: CupertinoColors.white,
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
+                padding: const EdgeInsets.fromLTRB(20, 48, 20, 32),
+                child: EmptyState(
+                  icon: CupertinoIcons.square_grid_2x2,
+                  title: 'No extensions installed',
+                  message: 'Install an extension to start browsing manga.',
+                  actionLabel: 'Browse Extensions',
+                  onAction: () => _openExtensions(context),
                 ),
               ),
             )

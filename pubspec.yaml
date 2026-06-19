@@ -1,7 +1,7 @@
 name: comic_center
 description: A manga and manhwa reading app with an immersive iOS-native design.
 publish_to: 'none'
-version: 1.0.0+2
+version: 1.0.0+3
 
 environment:
   sdk: '>=3.3.0 <4.0.0'
@@ -41,6 +41,9 @@ dependencies:
   googleapis_auth: ^1.6.0
   google_sign_in: ^6.2.1
   http: ^1.2.0
+
+  # Reader screen brightness control
+  screen_brightness: ^1.0.1
 
   # Icons
   cupertino_icons: ^1.0.6
