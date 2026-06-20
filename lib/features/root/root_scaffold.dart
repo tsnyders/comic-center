@@ -73,18 +73,15 @@ class _RootScaffoldState extends ConsumerState<RootScaffold> {
             final isDark =
                 CupertinoTheme.of(ctx).brightness == Brightness.dark;
             return DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: RadialGradient(
-                  center: const Alignment(0.0, -0.4),
-                  radius: 1.4,
-                  colors: isDark
-                      ? const [Color(0xFF0D1B3E), Color(0xFF0A0A0F)]
-                      : [
-                          const Color(0xFF3B82F6).withOpacity(0.10),
-                          const Color(0xFFF2F2F7),
-                        ],
-                ),
-              ),
+              decoration: isDark
+                  ? const BoxDecoration(
+                      gradient: RadialGradient(
+                        center: Alignment(0.0, -0.4),
+                        radius: 1.4,
+                        colors: [Color(0xFF0D1B3E), Color(0xFF0A0A0F)],
+                      ),
+                    )
+                  : const BoxDecoration(color: AppColors.lightBackground),
             );
           }),
 
