@@ -23,13 +23,23 @@ import 'widgets/chapter_list_tile.dart';
 
 // ── Webtoon detection ──────────────────────────────────────────────────────
 
+/// Sources that publish exclusively long-strip webtoons / manhwa / manhua.
+/// Titles from these always use the continuous vertical-scroll reader so the
+/// tall strip images are never cut off by the page-by-page manga reader.
+const _webtoonSources = <String>{
+  'demonicscans_en',
+  'asurascans_en',
+  'reaperscans_en',
+  'flamescans_en',
+};
+
 /// Returns true when the manga should use the continuous vertical scroll
 /// reader (webtoon mode) rather than the page-by-page manga reader.
 ///
-/// Triggers on DemonicScans (all manhwa) and on any title whose genre list
-/// contains "manhwa", "webtoon", or "manhua".
+/// Triggers on any known webtoon-only source, and on any title whose genre
+/// list contains "manhwa", "webtoon", or "manhua".
 bool _isWebtoon(MangaEntry manga) {
-  if (manga.sourceId == 'demonicscans_en') return true;
+  if (_webtoonSources.contains(manga.sourceId)) return true;
   return manga.genres.any((g) {
     final lower = g.toLowerCase();
     return lower == 'manhwa' || lower == 'webtoon' || lower == 'manhua';

@@ -110,9 +110,24 @@ class _TopBar extends ConsumerWidget {
           ? AppGlass(borderRadius: 0, blur: 30, sheen: false, child: content)
           : ClipRect(
               child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
-                child: ColoredBox(
-                  color: const Color(0xCC000000),
+                filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        CupertinoColors.white.withOpacity(0.12),
+                        const Color(0x55000000),
+                      ],
+                    ),
+                    border: Border(
+                      bottom: BorderSide(
+                        color: CupertinoColors.white.withOpacity(0.14),
+                        width: 0.5,
+                      ),
+                    ),
+                  ),
                   child: content,
                 ),
               ),
@@ -181,9 +196,24 @@ class _BottomBar extends ConsumerWidget {
           ? AppGlass(borderRadius: 0, blur: 30, sheen: false, child: content)
           : ClipRect(
               child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
-                child: ColoredBox(
-                  color: const Color(0xCC000000),
+                filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.bottomCenter,
+                      end: Alignment.topCenter,
+                      colors: [
+                        CupertinoColors.white.withOpacity(0.12),
+                        const Color(0x55000000),
+                      ],
+                    ),
+                    border: Border(
+                      top: BorderSide(
+                        color: CupertinoColors.white.withOpacity(0.14),
+                        width: 0.5,
+                      ),
+                    ),
+                  ),
                   child: content,
                 ),
               ),
