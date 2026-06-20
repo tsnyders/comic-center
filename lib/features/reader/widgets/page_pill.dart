@@ -1,9 +1,7 @@
-import 'dart:ui';
-
 import 'package:flutter/cupertino.dart';
 
-import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../shared/widgets/app_glass.dart';
 
 /// Floating pill showing "current / total". Place inside a `Positioned`
 /// in the reader Stack (bottom-center, above the tab bar clearance).
@@ -25,23 +23,14 @@ class PagePill extends StatelessWidget {
       opacity: visible ? 1.0 : 0.0,
       duration: const Duration(milliseconds: 200),
       child: Center(
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(14),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-              decoration: BoxDecoration(
-                color: const Color(0xB3000000),
-                borderRadius: BorderRadius.circular(14),
-                border:
-                    Border.all(color: AppColors.borderStrong, width: 0.5),
-              ),
-              child: Text(
-                '$current / $total',
-                style: AppTextStyles.readerPagePill,
-              ),
-            ),
+        child: AppGlass(
+          borderRadius: 14,
+          blur: 20,
+          tint: const Color(0xB3000000),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+          child: Text(
+            '$current / $total',
+            style: AppTextStyles.readerPagePill,
           ),
         ),
       ),

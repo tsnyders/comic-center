@@ -15,6 +15,7 @@ import '../../core/providers/library_provider.dart';
 import '../../core/providers/settings_provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../../shared/widgets/app_glass.dart';
 import '../../shared/widgets/cover_image.dart';
 import '../library/widgets/manga_card.dart' show mangaCoverHeroTag;
 import '../reader/reader_screen.dart';
@@ -163,20 +164,12 @@ class _NavButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-            decoration: BoxDecoration(
-              color: const Color(0x80000000),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.borderStrong, width: 0.5),
-            ),
-            child: child,
-          ),
-        ),
+      child: AppGlass(
+        borderRadius: 16,
+        blur: 10,
+        tint: const Color(0x66000000),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+        child: child,
       ),
     );
   }

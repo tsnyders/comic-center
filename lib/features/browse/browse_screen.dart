@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -7,6 +5,7 @@ import '../../core/extensions/source_interface.dart';
 import '../../core/providers/source_registry_provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../../shared/widgets/app_glass.dart';
 import '../../shared/widgets/empty_state.dart';
 import 'extensions_screen.dart';
 import 'source_manga_screen.dart';
@@ -204,40 +203,30 @@ class BrowseScreen extends ConsumerWidget {
 class _GlassSearchBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(14),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-        child: Container(
-          height: 46,
-          decoration: BoxDecoration(
-            color: context.surfaceElevatedColor.withOpacity(0.7),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: context.borderColor,
-              width: 0.5,
+    return AppGlass(
+      borderRadius: 14,
+      blur: 16,
+      child: SizedBox(
+        height: 46,
+        child: Row(
+          children: [
+            const SizedBox(width: 14),
+            const Icon(
+              CupertinoIcons.search,
+              size: 16,
+              color: AppColors.textTertiary,
             ),
-          ),
-          child: Row(
-            children: [
-              const SizedBox(width: 14),
-              const Icon(
-                CupertinoIcons.search,
-                size: 16,
-                color: AppColors.textTertiary,
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  'Search all sources...',
-                  style: AppTextStyles.bodyLarge.copyWith(
-                    color: AppColors.textTertiary,
-                    fontWeight: FontWeight.w400,
-                  ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Search all sources...',
+                style: AppTextStyles.bodyLarge.copyWith(
+                  color: AppColors.textTertiary,
+                  fontWeight: FontWeight.w400,
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -268,64 +257,53 @@ class _ExtensionsCardState extends State<_ExtensionsCard> {
         scale: _pressed ? 0.97 : 1.0,
         duration: const Duration(milliseconds: 120),
         curve: Curves.easeOut,
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(16),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-            child: Container(
-              padding: const EdgeInsets.all(18),
-              decoration: BoxDecoration(
-                color: AppColors.accent.withOpacity(0.08),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: AppColors.accent.withOpacity(0.25),
-                  width: 0.5,
+        child: AppGlass(
+          borderRadius: 16,
+          blur: 20,
+          tint: AppColors.accent.withOpacity(0.08),
+          padding: const EdgeInsets.all(18),
+          child: Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: AppColors.accent.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  CupertinoIcons.square_grid_2x2,
+                  color: AppColors.accent,
+                  size: 20,
                 ),
               ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: AppColors.accent.withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(12),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Extension Catalogue',
+                      style: AppTextStyles.bodyMedium.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
-                    child: const Icon(
-                      CupertinoIcons.square_grid_2x2,
-                      color: AppColors.accent,
-                      size: 20,
+                    const SizedBox(height: 3),
+                    Text(
+                      'Install, uninstall and update extensions',
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: AppColors.textTertiary,
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Extension Catalogue',
-                          style: AppTextStyles.bodyMedium.copyWith(
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const SizedBox(height: 3),
-                        Text(
-                          'Install, uninstall and update extensions',
-                          style: AppTextStyles.bodySmall.copyWith(
-                            color: AppColors.textTertiary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const Icon(
-                    CupertinoIcons.chevron_right,
-                    color: AppColors.textTertiary,
-                    size: 16,
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
+              const Icon(
+                CupertinoIcons.chevron_right,
+                color: AppColors.textTertiary,
+                size: 16,
+              ),
+            ],
           ),
         ),
       ),
