@@ -1,16 +1,19 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app.dart';
 import 'core/database/isar_service.dart';
 import 'core/extensions/source_registry.dart';
 import 'core/providers/database_provider.dart';
+import 'core/providers/preferences_provider.dart';
 import 'core/services/extension_manager.dart';
 import 'core/services/whats_new_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  final prefs = await SharedPreferences.getInstance();
   final isar = await IsarService.init();
 
   // On first run (empty DB) seed all bundled sources so users are not greeted
@@ -34,6 +37,7 @@ void main() async {
       overrides: [
         isarProvider.overrideWithValue(isar),
         showWhatsNewProvider.overrideWithValue(showWhatsNew),
+        sharedPreferencesProvider.overrideWithValue(prefs),
       ],
       child: const YomiApp(),
     ),

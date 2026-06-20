@@ -38,6 +38,7 @@ class SettingsScreen extends ConsumerWidget {
     final bottomPadding = MediaQuery.of(context).padding.bottom;
     final dlLocation    = ref.watch(downloadLocationProvider);
     final brightness    = ref.watch(brightnessProvider);
+    final glassTheme    = ref.watch(glassThemeProvider);
     final direction     = ref.watch(readingDirectionProvider);
     final scale         = ref.watch(pageScaleModeProvider);
     final background    = ref.watch(readerBackgroundProvider);
@@ -67,9 +68,19 @@ class SettingsScreen extends ConsumerWidget {
           // ── Appearance ───────────────────────────────────────────────
           _buildSection(context, 'Appearance', [
             _SettingRow(
+              icon: CupertinoIcons.sparkles,
+              iconBgColor: _IColor.purple,
+              label: 'Theme',
+              trailing: _GlassThemePicker(
+                value: glassTheme,
+                onChanged: (g) =>
+                    ref.read(glassThemeProvider.notifier).state = g,
+              ),
+            ),
+            _SettingRow(
               icon: CupertinoIcons.moon_stars,
               iconBgColor: _IColor.indigo,
-              label: 'Theme',
+              label: 'Theme Mode',
               trailing: _ThemePicker(
                 brightness: brightness,
                 onChanged: (b) =>
@@ -549,6 +560,34 @@ class _SegmentedPicker<T> extends StatelessWidget {
             onTap: () => onChanged(items[i].$1),
           ),
         ],
+      ],
+    );
+  }
+}
+
+// ── Glass theme picker (frosty vs liquid) ─────────────────────────────────
+
+class _GlassThemePicker extends StatelessWidget {
+  const _GlassThemePicker({required this.value, required this.onChanged});
+  final GlassTheme value;
+  final ValueChanged<GlassTheme> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _Pill(
+          label: 'Frosty',
+          selected: value == GlassTheme.frosty,
+          onTap: () => onChanged(GlassTheme.frosty),
+        ),
+        const SizedBox(width: 6),
+        _Pill(
+          label: 'Liquid',
+          selected: value == GlassTheme.liquid,
+          onTap: () => onChanged(GlassTheme.liquid),
+        ),
       ],
     );
   }

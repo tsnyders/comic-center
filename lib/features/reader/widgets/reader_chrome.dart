@@ -1,9 +1,12 @@
 import 'dart:ui';
 
 import 'package:flutter/cupertino.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/providers/settings_provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../shared/widgets/app_glass.dart';
 
 /// Top + bottom chrome bars revealed by a tap on the reader canvas.
 class ReaderChrome extends StatelessWidget {
@@ -43,7 +46,7 @@ class ReaderChrome extends StatelessWidget {
   }
 }
 
-class _TopBar extends StatelessWidget {
+class _TopBar extends ConsumerWidget {
   const _TopBar({
     required this.chapterTitle,
     required this.onClose,
@@ -55,78 +58,85 @@ class _TopBar extends StatelessWidget {
   final VoidCallback onSettings;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final topPadding = MediaQuery.of(context).padding.top;
+    final liquid = ref.watch(glassThemeProvider) == GlassTheme.liquid;
+
+    final content = Padding(
+      padding: EdgeInsets.only(
+        top: topPadding + 4,
+        left: 20,
+        right: 20,
+        bottom: 12,
+      ),
+      child: Row(
+        children: [
+          GestureDetector(
+            onTap: onClose,
+            child: const Text(
+              '✕',
+              style: TextStyle(
+                color: CupertinoColors.white,
+                fontSize: 20,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              chapterTitle,
+              style: AppTextStyles.readerChapterTitle,
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          GestureDetector(
+            onTap: onSettings,
+            child: const Icon(
+              CupertinoIcons.ellipsis,
+              color: CupertinoColors.white,
+              size: 20,
+            ),
+          ),
+        ],
+      ),
+    );
 
     return Positioned(
       top: 0,
       left: 0,
       right: 0,
-      child: ClipRect(
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
-          child: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  CupertinoColors.white.withOpacity(0.12),
-                  const Color(0x55000000),
-                ],
-              ),
-              border: Border(
-                bottom: BorderSide(
-                  color: CupertinoColors.white.withOpacity(0.14),
-                  width: 0.5,
-                ),
-              ),
-            ),
-            padding: EdgeInsets.only(
-              top: topPadding + 4,
-              left: 20,
-              right: 20,
-              bottom: 12,
-            ),
-            child: Row(
-              children: [
-                GestureDetector(
-                  onTap: onClose,
-                  child: const Text(
-                    '✕',
-                    style: TextStyle(
-                      color: CupertinoColors.white,
-                      fontSize: 20,
+      child: liquid
+          ? AppGlass(borderRadius: 0, blur: 30, sheen: false, child: content)
+          : ClipRect(
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        CupertinoColors.white.withOpacity(0.12),
+                        const Color(0x55000000),
+                      ],
+                    ),
+                    border: Border(
+                      bottom: BorderSide(
+                        color: CupertinoColors.white.withOpacity(0.14),
+                        width: 0.5,
+                      ),
                     ),
                   ),
+                  child: content,
                 ),
-                Expanded(
-                  child: Text(
-                    chapterTitle,
-                    style: AppTextStyles.readerChapterTitle,
-                    textAlign: TextAlign.center,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                GestureDetector(
-                  onTap: onSettings,
-                  child: const Icon(
-                    CupertinoIcons.ellipsis,
-                    color: CupertinoColors.white,
-                    size: 20,
-                  ),
-                ),
-              ],
+              ),
             ),
-          ),
-        ),
-      ),
     );
   }
 }
 
-class _BottomBar extends StatelessWidget {
+class _BottomBar extends ConsumerWidget {
   const _BottomBar({
     required this.currentPage,
     required this.totalPages,
@@ -138,69 +148,76 @@ class _BottomBar extends StatelessWidget {
   final ValueChanged<int> onSeek;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final bottomPadding = MediaQuery.of(context).padding.bottom;
+    final liquid = ref.watch(glassThemeProvider) == GlassTheme.liquid;
+
+    final content = Padding(
+      padding: EdgeInsets.only(
+        top: 12,
+        left: 24,
+        right: 24,
+        bottom: bottomPadding + 12,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _Scrubber(
+            current: currentPage,
+            total: totalPages,
+            onSeek: onSeek,
+          ),
+          const SizedBox(height: 6),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('1', style: AppTextStyles.caption),
+              Text(
+                totalPages > 0
+                    ? 'Page ${currentPage + 1} of $totalPages'
+                    : 'Loading...',
+                style: AppTextStyles.caption,
+              ),
+              Text(
+                totalPages > 0 ? '$totalPages' : '--',
+                style: AppTextStyles.caption,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
 
     return Positioned(
       bottom: 0,
       left: 0,
       right: 0,
-      child: ClipRect(
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
-          child: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.bottomCenter,
-                end: Alignment.topCenter,
-                colors: [
-                  CupertinoColors.white.withOpacity(0.12),
-                  const Color(0x55000000),
-                ],
-              ),
-              border: Border(
-                top: BorderSide(
-                  color: CupertinoColors.white.withOpacity(0.14),
-                  width: 0.5,
-                ),
-              ),
-            ),
-            padding: EdgeInsets.only(
-              top: 12,
-              left: 24,
-              right: 24,
-              bottom: bottomPadding + 12,
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _Scrubber(
-                  current: currentPage,
-                  total: totalPages,
-                  onSeek: onSeek,
-                ),
-                const SizedBox(height: 6),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text('1', style: AppTextStyles.caption),
-                    Text(
-                      totalPages > 0
-                          ? 'Page ${currentPage + 1} of $totalPages'
-                          : 'Loading...',
-                      style: AppTextStyles.caption,
+      child: liquid
+          ? AppGlass(borderRadius: 0, blur: 30, sheen: false, child: content)
+          : ClipRect(
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.bottomCenter,
+                      end: Alignment.topCenter,
+                      colors: [
+                        CupertinoColors.white.withOpacity(0.12),
+                        const Color(0x55000000),
+                      ],
                     ),
-                    Text(
-                      totalPages > 0 ? '$totalPages' : '--',
-                      style: AppTextStyles.caption,
+                    border: Border(
+                      top: BorderSide(
+                        color: CupertinoColors.white.withOpacity(0.14),
+                        width: 0.5,
+                      ),
                     ),
-                  ],
+                  ),
+                  child: content,
                 ),
-              ],
+              ),
             ),
-          ),
-        ),
-      ),
     );
   }
 }

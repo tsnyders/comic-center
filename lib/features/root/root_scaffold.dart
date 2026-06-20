@@ -4,10 +4,12 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/providers/settings_provider.dart';
 import '../../core/services/update_service.dart';
 import '../../core/services/whats_new_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../../shared/widgets/app_glass.dart';
 import '../browse/browse_screen.dart';
 import '../downloads/downloads_screen.dart';
 import '../library/library_screen.dart';
@@ -115,7 +117,7 @@ class _RootScaffoldState extends ConsumerState<RootScaffold> {
 
 // ── Glass navigation bar ──────────────────────────────────────────────────
 
-class _GlassNavBar extends StatefulWidget {
+class _GlassNavBar extends ConsumerStatefulWidget {
   const _GlassNavBar({
     required this.selectedIndex,
     required this.onTap,
@@ -125,10 +127,10 @@ class _GlassNavBar extends StatefulWidget {
   final ValueChanged<int> onTap;
 
   @override
-  State<_GlassNavBar> createState() => _GlassNavBarState();
+  ConsumerState<_GlassNavBar> createState() => _GlassNavBarState();
 }
 
-class _GlassNavBarState extends State<_GlassNavBar>
+class _GlassNavBarState extends ConsumerState<_GlassNavBar>
     with TickerProviderStateMixin {
   late final AnimationController _indicatorCtrl;
   late Animation<double> _indicatorPos;
@@ -177,33 +179,133 @@ class _GlassNavBarState extends State<_GlassNavBar>
     super.dispose();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final isDark = CupertinoTheme.of(context).brightness == Brightness.dark;
+  /// Inner bar content (specular highlight + animated indicator + tab row),
+  /// shared by both the frosty and liquid material wrappers.
+  Widget _content(BuildContext context, {required bool isDark, required bool showSpecular}) {
+    return SizedBox(
+      height: 64,
+      child: Stack(
+        children: [
+          // Specular highlight on top edge (frosty only — the liquid lens
+          // renders its own rim light).
+          if (showSpecular)
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              height: 28,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(28),
+                  ),
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      const Color(0xFFFFFFFF)
+                          .withOpacity(isDark ? 0.14 : 0.50),
+                      const Color(0x00FFFFFF),
+                    ],
+                  ),
+                ),
+              ),
+            ),
 
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(28),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF000000).withOpacity(isDark ? 0.45 : 0.15),
-            blurRadius: 40,
-            spreadRadius: -4,
-            offset: const Offset(0, 12),
+          // Animated pill indicator
+          AnimatedBuilder(
+            animation: _indicatorPos,
+            builder: (_, __) {
+              return Positioned(
+                top: 8,
+                bottom: 8,
+                left: _indicatorPos.value / _tabs.length *
+                            (MediaQuery.of(context).size.width - 40 - 16) +
+                        8,
+                width: (MediaQuery.of(context).size.width - 40 - 16) /
+                    _tabs.length,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: AppColors.accent.withOpacity(0.25),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: AppColors.accent.withOpacity(0.50),
+                      width: 0.75,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.accent.withOpacity(0.20),
+                        blurRadius: 12,
+                        spreadRadius: -2,
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
           ),
-          BoxShadow(
-            color: AppColors.accent.withOpacity(0.10),
-            blurRadius: 30,
-            offset: const Offset(0, 6),
+
+          // Tab icons + labels
+          Row(
+            children: List.generate(_tabs.length, (i) {
+              final isActive = i == widget.selectedIndex;
+              return Expanded(
+                child: _TabButton(
+                  tab: _tabs[i],
+                  isActive: isActive,
+                  onTap: () => widget.onTap(i),
+                ),
+              );
+            }),
           ),
         ],
       ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = CupertinoTheme.of(context).brightness == Brightness.dark;
+    final liquid = ref.watch(glassThemeProvider) == GlassTheme.liquid;
+
+    // Shared drop shadow (accent glow + soft dark) under either material.
+    final shadow = BoxDecoration(
+      borderRadius: BorderRadius.circular(28),
+      boxShadow: [
+        BoxShadow(
+          color: const Color(0xFF000000).withOpacity(isDark ? 0.45 : 0.15),
+          blurRadius: 40,
+          spreadRadius: -4,
+          offset: const Offset(0, 12),
+        ),
+        BoxShadow(
+          color: AppColors.accent.withOpacity(0.10),
+          blurRadius: 30,
+          offset: const Offset(0, 6),
+        ),
+      ],
+    );
+
+    if (liquid) {
+      return Container(
+        decoration: shadow,
+        child: AppGlass(
+          borderRadius: 28,
+          blur: 40,
+          sheen: false,
+          child: _content(context, isDark: isDark, showSpecular: false),
+        ),
+      );
+    }
+
+    // Frosty (default) — original BackdropFilter bar.
+    return Container(
+      decoration: shadow,
       child: ClipRRect(
         borderRadius: BorderRadius.circular(28),
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 40, sigmaY: 40),
-          child: Container(
-            height: 64,
+          child: DecoratedBox(
             decoration: BoxDecoration(
               color: (isDark
                       ? const Color(0xFF16162A)
@@ -218,80 +320,7 @@ class _GlassNavBarState extends State<_GlassNavBar>
                 width: 0.75,
               ),
             ),
-            child: Stack(
-              children: [
-                // Specular highlight on top edge
-                Positioned(
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  height: 28,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      borderRadius: const BorderRadius.vertical(
-                        top: Radius.circular(28),
-                      ),
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          const Color(0xFFFFFFFF)
-                              .withOpacity(isDark ? 0.14 : 0.50),
-                          const Color(0x00FFFFFF),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-
-                // Animated pill indicator
-                AnimatedBuilder(
-                  animation: _indicatorPos,
-                  builder: (_, __) {
-                    return Positioned(
-                      top: 8,
-                      bottom: 8,
-                      left: _indicatorPos.value / _tabs.length *
-                                  (MediaQuery.of(context).size.width - 40 - 16) +
-                              8,
-                      width: (MediaQuery.of(context).size.width - 40 - 16) /
-                          _tabs.length,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: AppColors.accent.withOpacity(0.25),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: AppColors.accent.withOpacity(0.50),
-                            width: 0.75,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppColors.accent.withOpacity(0.20),
-                              blurRadius: 12,
-                              spreadRadius: -2,
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
-
-                // Tab icons + labels
-                Row(
-                  children: List.generate(_tabs.length, (i) {
-                    final isActive = i == widget.selectedIndex;
-                    return Expanded(
-                      child: _TabButton(
-                        tab: _tabs[i],
-                        isActive: isActive,
-                        onTap: () => widget.onTap(i),
-                      ),
-                    );
-                  }),
-                ),
-              ],
-            ),
+            child: _content(context, isDark: isDark, showSpecular: true),
           ),
         ),
       ),
