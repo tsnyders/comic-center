@@ -121,21 +121,30 @@ class _DetailHero extends StatelessWidget {
         children: [
           // Blurred cover
           CoverImage(url: manga.coverUrl),
-          // Dark overlay + fade to background at bottom
-          Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Color(0x33000000),
-                  Color(0xCC0A0A0F),
-                  AppColors.background,
-                ],
-                stops: [0.0, 0.55, 0.85],
+          // Overlay + fade to background — brightness-aware
+          Builder(builder: (ctx) {
+            final dark = ctx.isDark;
+            return Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: dark
+                      ? const [
+                          Color(0x33000000),
+                          Color(0xCC0A0A0F),
+                          AppColors.background,
+                        ]
+                      : const [
+                          Color(0x22000000),
+                          Color(0x88F2F2F7),
+                          AppColors.lightBackground,
+                        ],
+                  stops: const [0.0, 0.55, 0.85],
+                ),
               ),
-            ),
-          ),
+            );
+          }),
           // Blur layer
           BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
@@ -713,14 +722,19 @@ class _ActionRow extends ConsumerWidget {
   final VoidCallback onShowDownloadSheet;
   final VoidCallback onManageCategories;
 
+  bool _hasStarted(List<ChapterEntry> chs) =>
+      chs.any((c) => c.isRead || c.lastPageRead > 0);
+
   void _continueReading(BuildContext context, List<ChapterEntry> chs) {
     if (chs.isEmpty) return;
     HapticFeedback.selectionClick();
-    // chs is sorted descending (latest first). Reading order is ascending.
-    // Find the first unread chapter in ascending order (i.e., last unread from
-    // the end of chs).
-    final targetIdx = chs.lastIndexWhere((c) => !c.isRead);
-    final index = targetIdx >= 0 ? targetIdx : 0;
+    // chs is sorted descending (latest/highest chapter first).
+    // "Continue": open the highest-numbered chapter the user has touched.
+    // "Start":    open the first chapter (lowest number = last in desc list).
+    final started = _hasStarted(chs);
+    final rawIdx =
+        started ? chs.indexWhere((c) => c.isRead || c.lastPageRead > 0) : -1;
+    final index = rawIdx >= 0 ? rawIdx : chs.length - 1;
     final target = chs[index];
     final summaries = chs
         .map((c) => ReaderChapterSummary(
@@ -749,6 +763,7 @@ class _ActionRow extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final chs = chapters.valueOrNull ?? [];
+    final started = _hasStarted(chs);
     return Row(
       children: [
         Expanded(
@@ -760,7 +775,7 @@ class _ActionRow extends ConsumerWidget {
             child: chapters.isLoading
                 ? const CupertinoActivityIndicator()
                 : Text(
-                    '▶  Continue Reading',
+                    started ? '▶  Continue Reading' : '▶  Start Reading',
                     style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
