@@ -5,69 +5,77 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:liquid_glass_easy/liquid_glass_easy.dart';
 
 import '../../core/providers/settings_provider.dart';
+import '../../core/theme/app_glass_spec.dart';
 
 /// The single translucent-surface primitive used across the whole app.
 ///
-/// It renders one of two materials depending on [glassThemeProvider]:
+/// It renders one of two materials depending on [glassThemeProvider], each
+/// tuned per mode via [AppGlassSpec] (four tuned specs total):
 ///
-/// * [GlassTheme.frosty] — the original `BackdropFilter` blur + specular
-///   sheen + hairline border (the app's long-standing look, kept as default).
-/// * [GlassTheme.liquid] — a real-time refraction lens from
-///   `liquid_glass_easy` (`LiquidGlassLens`), which bends the live content
-///   behind it. On Android/iOS (Impeller) this works anywhere with no
-///   background plumbing.
+/// * [GlassTheme.frosty] — `BackdropFilter` blur + specular sheen + hairline
+///   border: a tinted, sheen-lit frosted pane.
+/// * [GlassTheme.liquid] — a real-time refraction lens from `liquid_glass_easy`
+///   (`LiquidGlassLens`): clearer, brighter-rimmed, little body tint.
 ///
-/// Both paths size themselves to [child] (plus [padding]), so call sites are
-/// identical regardless of the active theme — wrap content and go.
+/// Any of [borderRadius] / [blur] / [tint] / [sheen] left null falls back to
+/// the active [AppGlassSpec], so most call sites can simply wrap content and
+/// inherit the design-system material; pass a value only to override (e.g.
+/// `borderRadius: 0` for a full-bleed bar, or a large radius for a pill).
 class AppGlass extends ConsumerWidget {
   const AppGlass({
     super.key,
     required this.child,
-    this.borderRadius = 22,
-    this.blur = 24,
+    this.borderRadius,
+    this.blur,
     this.padding,
     this.tint,
-    this.sheen = true,
+    this.sheen,
   });
 
   final Widget child;
 
-  /// Corner radius. Pass a large value (≥ height/2) for a pill/circle.
-  final double borderRadius;
+  /// Corner radius. Null → spec radius. Pass a large value for a pill/circle.
+  final double? borderRadius;
 
-  /// Backdrop blur strength (frosty) / beneath-glass blur (liquid).
-  final double blur;
+  /// Backdrop blur strength (frosty) / beneath-glass blur (liquid). Null → spec.
+  final double? blur;
 
   final EdgeInsetsGeometry? padding;
 
-  /// Base tint mixed under the glass. When null, a brightness-appropriate
-  /// default is used.
+  /// Base tint mixed under the glass. Null → spec tint.
   final Color? tint;
 
-  /// Whether to draw the top specular highlight (frosty only).
-  final bool sheen;
+  /// Whether to draw the top specular highlight (frosty only). Null → spec.
+  final bool? sheen;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = ref.watch(glassThemeProvider);
     final isDark = CupertinoTheme.brightnessOf(context) == Brightness.dark;
+    final spec = AppGlassSpec.of(theme, isDark);
+
+    final r = borderRadius ?? spec.radius;
+    final b = blur ?? spec.blur;
 
     return switch (theme) {
       GlassTheme.frosty => _FrostyGlass(
-          borderRadius: borderRadius,
-          blur: blur,
+          borderRadius: r,
+          blur: b,
           padding: padding,
-          tint: tint,
-          sheen: sheen,
-          isDark: isDark,
+          tint: tint ?? spec.tint,
+          sheen: sheen ?? spec.sheen,
+          sheenColor: spec.sheenColor,
+          borderColor: spec.borderColor,
+          borderWidth: spec.borderWidth,
           child: child,
         ),
       GlassTheme.liquid => _LiquidGlass(
-          borderRadius: borderRadius,
-          blur: blur,
+          borderRadius: r,
+          blur: b,
           padding: padding,
-          tint: tint,
-          isDark: isDark,
+          tint: tint ?? spec.tint,
+          borderColor: spec.borderColor,
+          borderWidth: spec.borderWidth,
           child: child,
         ),
     };
@@ -84,54 +92,34 @@ class _FrostyGlass extends StatelessWidget {
     required this.padding,
     required this.tint,
     required this.sheen,
-    required this.isDark,
+    required this.sheenColor,
+    required this.borderColor,
+    required this.borderWidth,
   });
 
   final Widget child;
   final double borderRadius;
   final double blur;
   final EdgeInsetsGeometry? padding;
-  final Color? tint;
+  final Color tint;
   final bool sheen;
-  final bool isDark;
+  final Color sheenColor;
+  final Color borderColor;
+  final double borderWidth;
 
   @override
   Widget build(BuildContext context) {
     final radius = BorderRadius.circular(borderRadius);
-    final baseTint = tint ??
-        (isDark ? const Color(0x40000000) : const Color(0x66FFFFFF));
-    final highlight =
-        isDark ? const Color(0xFFFFFFFF) : const Color(0xFFFFFFFF);
-    final borderColor = isDark
-        ? CupertinoColors.white.withOpacity(0.26)
-        : CupertinoColors.black.withOpacity(0.08);
 
     return ClipRRect(
       borderRadius: radius,
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
-        child: Container(
-          padding: padding,
+        child: DecoratedBox(
           decoration: BoxDecoration(
+            color: tint,
             borderRadius: radius,
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                highlight.withOpacity(isDark ? 0.20 : 0.45),
-                highlight.withOpacity(isDark ? 0.05 : 0.18),
-                baseTint,
-              ],
-              stops: const [0.0, 0.5, 1.0],
-            ),
-            border: Border.all(color: borderColor, width: 0.8),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0x33000000),
-                blurRadius: 20,
-                offset: const Offset(0, 8),
-              ),
-            ],
+            border: Border.all(color: borderColor, width: borderWidth),
           ),
           child: sheen
               ? Stack(
@@ -140,27 +128,32 @@ class _FrostyGlass extends StatelessWidget {
                       top: 0,
                       left: 0,
                       right: 0,
-                      child: Container(
-                        height: borderRadius,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.vertical(
-                            top: Radius.circular(borderRadius),
-                          ),
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              highlight.withOpacity(isDark ? 0.28 : 0.5),
-                              highlight.withOpacity(0.0),
-                            ],
+                      child: IgnorePointer(
+                        child: Container(
+                          height: borderRadius > 0 ? borderRadius + 10 : 18,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.vertical(
+                              top: Radius.circular(borderRadius),
+                            ),
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [sheenColor, sheenColor.withOpacity(0.0)],
+                            ),
                           ),
                         ),
                       ),
                     ),
-                    child,
+                    Padding(
+                      padding: padding ?? EdgeInsets.zero,
+                      child: child,
+                    ),
                   ],
                 )
-              : child,
+              : Padding(
+                  padding: padding ?? EdgeInsets.zero,
+                  child: child,
+                ),
         ),
       ),
     );
@@ -176,32 +169,29 @@ class _LiquidGlass extends StatelessWidget {
     required this.blur,
     required this.padding,
     required this.tint,
-    required this.isDark,
+    required this.borderColor,
+    required this.borderWidth,
   });
 
   final Widget child;
   final double borderRadius;
   final double blur;
   final EdgeInsetsGeometry? padding;
-  final Color? tint;
-  final bool isDark;
+  final Color tint;
+  final Color borderColor;
+  final double borderWidth;
 
   @override
   Widget build(BuildContext context) {
-    final baseTint = tint ??
-        (isDark ? const Color(0x26FFFFFF) : const Color(0x40FFFFFF));
-
     return LiquidGlassLens(
       style: LiquidGlassStyle(
         shape: LiquidGlassShape.continuousRoundedRectangle(
           cornerRadius: borderRadius,
-          borderWidth: 1.0,
-          borderColor: isDark
-              ? CupertinoColors.white.withOpacity(0.30)
-              : CupertinoColors.white.withOpacity(0.55),
+          borderWidth: borderWidth,
+          borderColor: borderColor,
         ),
         appearance: LiquidGlassAppearance(
-          color: baseTint,
+          color: tint,
           blur: LiquidGlassBlur(sigmaX: blur * 0.4, sigmaY: blur * 0.4),
         ),
         refraction: const LiquidGlassRefraction(

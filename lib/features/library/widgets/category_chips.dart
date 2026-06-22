@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/providers/library_provider.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
 
 class CategoryChips extends ConsumerWidget {
@@ -17,9 +18,9 @@ class CategoryChips extends ConsumerWidget {
       height: 36,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 20),
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.gutter),
         itemCount: categories.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        separatorBuilder: (_, __) => const SizedBox(width: AppSpacing.x4),
         itemBuilder: (context, i) {
           final cat = categories[i];
           final isActive = cat == selected;
@@ -35,7 +36,7 @@ class CategoryChips extends ConsumerWidget {
   }
 }
 
-class _Chip extends StatelessWidget {
+class _Chip extends StatefulWidget {
   const _Chip({
     required this.label,
     required this.isActive,
@@ -47,25 +48,52 @@ class _Chip extends StatelessWidget {
   final VoidCallback onTap;
 
   @override
+  State<_Chip> createState() => _ChipState();
+}
+
+class _ChipState extends State<_Chip> {
+  bool _pressed = false;
+
+  @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onTap,
+      onTap: widget.onTap,
+      onTapDown: (_) => setState(() => _pressed = true),
+      onTapUp: (_) => setState(() => _pressed = false),
+      onTapCancel: () => setState(() => _pressed = false),
       child: AnimatedContainer(
+        // Chip/segment select: standard curve, 140–220ms
         duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        transform: _pressed
+            ? (Matrix4.identity()..scaleByDouble(0.96, 0.96, 1.0, 1.0))
+            : Matrix4.identity(),
+        padding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: AppSpacing.x3,
+        ),
         decoration: BoxDecoration(
-          color: isActive ? AppColors.accentSubtle : AppColors.surface,
-          borderRadius: BorderRadius.circular(18),
+          // Selected = accent fill; unselected = surfaceElevated + hairline
+          color: widget.isActive
+              ? context.accentColor
+              : context.surfaceElevatedColor,
+          borderRadius: BorderRadius.circular(AppRadius.pill),
           border: Border.all(
-            color: isActive ? AppColors.accent.withOpacity(0.5) : AppColors.border,
-            width: 0.5,
+            color: widget.isActive
+                ? context.accentColor
+                : context.borderStrongColor,
+            width: AppRadius.hairline,
           ),
         ),
         child: Text(
-          label,
+          widget.label,
           style: AppTextStyles.labelMedium.copyWith(
-            color: isActive ? AppColors.accent : AppColors.textSecondary,
-            fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
+            color: widget.isActive
+                ? CupertinoColors.white
+                : context.textSecondaryColor,
+            fontWeight:
+                widget.isActive ? FontWeight.w600 : FontWeight.w400,
+            fontSize: 12.5,
+            letterSpacing: -0.05,
           ),
         ),
       ),

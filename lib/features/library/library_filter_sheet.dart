@@ -3,13 +3,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/providers/library_provider.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text_styles.dart';
 
 class LibraryFilterSheet extends ConsumerStatefulWidget {
   const LibraryFilterSheet({super.key});
 
   @override
-  ConsumerState<LibraryFilterSheet> createState() => _LibraryFilterSheetState();
+  ConsumerState<LibraryFilterSheet> createState() =>
+      _LibraryFilterSheetState();
 }
 
 class _LibraryFilterSheetState extends ConsumerState<LibraryFilterSheet> {
@@ -36,27 +38,36 @@ class _LibraryFilterSheetState extends ConsumerState<LibraryFilterSheet> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
-        color: Color(0xFF1C1C24),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      decoration: BoxDecoration(
+        color: context.surfaceElevatedColor,
+        borderRadius: const BorderRadius.vertical(
+          top: Radius.circular(AppRadius.xl),
+        ),
+        border: Border(
+          top: BorderSide(
+            color: context.borderColor,
+            width: AppRadius.hairline,
+          ),
+        ),
       ),
       padding: EdgeInsets.only(
-        top: 12,
-        left: 20,
-        right: 20,
-        bottom: MediaQuery.of(context).padding.bottom + 20,
+        top: AppSpacing.x5,
+        left: AppSpacing.gutter,
+        right: AppSpacing.gutter,
+        bottom: MediaQuery.of(context).padding.bottom + AppSpacing.gutter,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Handle
+          // Drag handle
           Center(
             child: Container(
-              width: 36, height: 4,
-              margin: const EdgeInsets.only(bottom: 16),
+              width: 36,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: AppSpacing.x6),
               decoration: BoxDecoration(
-                color: AppColors.borderStrong,
+                color: context.borderStrongColor,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -66,24 +77,37 @@ class _LibraryFilterSheetState extends ConsumerState<LibraryFilterSheet> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Filter', style: AppTextStyles.sectionTitle),
+              Text(
+                'Filter',
+                style: AppTextStyles.sectionTitle.copyWith(
+                  color: context.textPrimaryColor,
+                ),
+              ),
               CupertinoButton(
                 padding: EdgeInsets.zero,
                 onPressed: _reset,
                 child: Text(
                   'Reset',
-                  style: AppTextStyles.bodySmall.copyWith(color: AppColors.accent),
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: context.accentColor,
+                  ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: AppSpacing.x6),
 
           // Status section
-          Text('STATUS', style: AppTextStyles.labelSmall),
-          const SizedBox(height: 8),
+          Text(
+            'STATUS',
+            style: AppTextStyles.overline.copyWith(
+              color: context.textTertiaryColor,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.x4),
           Wrap(
-            spacing: 8, runSpacing: 8,
+            spacing: AppSpacing.x4,
+            runSpacing: AppSpacing.x4,
             children: _statuses.map((s) {
               final isSelected = _status == s.$2;
               return _FilterChip(
@@ -95,14 +119,20 @@ class _LibraryFilterSheetState extends ConsumerState<LibraryFilterSheet> {
           ),
 
           if (_availableGenres.isNotEmpty) ...[
-            const SizedBox(height: 16),
-            Text('GENRES', style: AppTextStyles.labelSmall),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.x6),
+            Text(
+              'GENRES',
+              style: AppTextStyles.overline.copyWith(
+                color: context.textTertiaryColor,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.x4),
             ConstrainedBox(
               constraints: const BoxConstraints(maxHeight: 160),
               child: SingleChildScrollView(
                 child: Wrap(
-                  spacing: 8, runSpacing: 8,
+                  spacing: AppSpacing.x4,
+                  runSpacing: AppSpacing.x4,
                   children: _availableGenres.map((g) {
                     final isSelected = _genres.contains(g);
                     return _FilterChip(
@@ -122,17 +152,22 @@ class _LibraryFilterSheetState extends ConsumerState<LibraryFilterSheet> {
             ),
           ],
 
-          const SizedBox(height: 20),
+          const SizedBox(height: AppSpacing.gutter),
 
           // Apply button
           SizedBox(
             width: double.infinity,
             child: CupertinoButton(
-              color: AppColors.accent,
-              borderRadius: BorderRadius.circular(14),
+              color: context.accentColor,
+              borderRadius: BorderRadius.circular(AppRadius.md),
               onPressed: _apply,
-              child: const Text('Apply Filters',
-                  style: TextStyle(fontWeight: FontWeight.w600)),
+              child: const Text(
+                'Apply Filters',
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  color: CupertinoColors.white,
+                ),
+              ),
             ),
           ),
         ],
@@ -142,7 +177,8 @@ class _LibraryFilterSheetState extends ConsumerState<LibraryFilterSheet> {
 
   void _apply() {
     ref.read(libraryStatusFilterProvider.notifier).state = _status;
-    ref.read(libraryGenreFilterProvider.notifier).state  = List.from(_genres);
+    ref.read(libraryGenreFilterProvider.notifier).state =
+        List.from(_genres);
     Navigator.of(context).pop();
   }
 
@@ -152,12 +188,12 @@ class _LibraryFilterSheetState extends ConsumerState<LibraryFilterSheet> {
       _genres = [];
     });
     ref.read(libraryStatusFilterProvider.notifier).state = null;
-    ref.read(libraryGenreFilterProvider.notifier).state  = [];
+    ref.read(libraryGenreFilterProvider.notifier).state = [];
     Navigator.of(context).pop();
   }
 }
 
-class _FilterChip extends StatelessWidget {
+class _FilterChip extends StatefulWidget {
   const _FilterChip({
     required this.label,
     required this.selected,
@@ -165,29 +201,52 @@ class _FilterChip extends StatelessWidget {
   });
 
   final String label;
-  final bool   selected;
+  final bool selected;
   final VoidCallback onTap;
+
+  @override
+  State<_FilterChip> createState() => _FilterChipState();
+}
+
+class _FilterChipState extends State<_FilterChip> {
+  bool _pressed = false;
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onTap,
+      onTap: widget.onTap,
+      onTapDown: (_) => setState(() => _pressed = true),
+      onTapUp: (_) => setState(() => _pressed = false),
+      onTapCancel: () => setState(() => _pressed = false),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 140),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        transform: _pressed
+            ? (Matrix4.identity()..scaleByDouble(0.96, 0.96, 1.0, 1.0))
+            : Matrix4.identity(),
+        padding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: AppSpacing.x3,
+        ),
         decoration: BoxDecoration(
-          color: selected ? AppColors.accent : AppColors.surface,
-          borderRadius: BorderRadius.circular(20),
+          color: widget.selected
+              ? context.accentColor
+              : context.surfaceColor,
+          borderRadius: BorderRadius.circular(AppRadius.pill),
           border: Border.all(
-            color: selected ? AppColors.accent : AppColors.borderStrong,
-            width: 0.5,
+            color: widget.selected
+                ? context.accentColor
+                : context.borderStrongColor,
+            width: AppRadius.hairline,
           ),
         ),
         child: Text(
-          label,
+          widget.label,
           style: AppTextStyles.bodySmall.copyWith(
-            color: selected ? CupertinoColors.white : AppColors.textSecondary,
-            fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+            color: widget.selected
+                ? CupertinoColors.white
+                : context.textSecondaryColor,
+            fontWeight:
+                widget.selected ? FontWeight.w600 : FontWeight.w400,
           ),
         ),
       ),

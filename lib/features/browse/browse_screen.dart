@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/extensions/source_interface.dart';
 import '../../core/providers/source_registry_provider.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../shared/widgets/app_glass.dart';
 import '../../shared/widgets/empty_state.dart';
@@ -17,45 +18,51 @@ final _sourceGradients = <String, LinearGradient>{
   'mangadex_en_v5': const LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [Color(0xFF667EEA), Color(0xFF764BA2)],
+    colors: AppColors.gradViolet,
   ),
   'demonicscans_en': const LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [Color(0xFFFF416C), Color(0xFFFF4B2B)],
+    colors: AppColors.gradEmber,
   ),
   'asurascans_en': const LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [Color(0xFF1A1A2E), Color(0xFF16213E)],
+    colors: AppColors.gradTeal,
   ),
   'reaperscans_en': const LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [Color(0xFF8E0E00), Color(0xFF1F1C18)],
+    colors: AppColors.gradRose,
   ),
   'readcomiconline_en': const LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [Color(0xFFE52D27), Color(0xFFB31217)],
+    colors: AppColors.gradEmber,
   ),
   'comicextra_en': const LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [Color(0xFF2027E5), Color(0xFF12B3A6)],
+    colors: AppColors.gradTeal,
   ),
 };
 
-LinearGradient _gradientFor(MangaSource source) =>
-    _sourceGradients[source.id] ??
-    LinearGradient(
-      begin: Alignment.topLeft,
-      end: Alignment.bottomRight,
-      colors: [
-        AppColors.accent,
-        AppColors.accent.withOpacity(0.5),
-      ],
-    );
+LinearGradient _gradientFor(MangaSource source) {
+  final known = _sourceGradients[source.id];
+  if (known != null) return known;
+  final seeds = [
+    AppColors.gradEmber,
+    AppColors.gradViolet,
+    AppColors.gradTeal,
+    AppColors.gradRose,
+  ];
+  final colors = seeds[source.id.hashCode.abs() % 4];
+  return LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: colors,
+  );
+}
 
 class BrowseScreen extends ConsumerWidget {
   const BrowseScreen({super.key});
@@ -89,7 +96,7 @@ class BrowseScreen extends ConsumerWidget {
         slivers: [
           SliverToBoxAdapter(child: SizedBox(height: topPadding + 8)),
 
-          // Title
+          // ── Title + search pill ──────────────────────────────────────────
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
@@ -98,10 +105,8 @@ class BrowseScreen extends ConsumerWidget {
                 children: [
                   Text(
                     'Browse',
-                    style: AppTextStyles.sectionTitle.copyWith(
-                      fontSize: 28,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.5,
+                    style: AppTextStyles.hero.copyWith(
+                      color: context.textPrimaryColor,
                     ),
                   ),
                   const SizedBox(height: 10),
@@ -112,7 +117,7 @@ class BrowseScreen extends ConsumerWidget {
           ),
 
           if (sources.isEmpty)
-            // ── Empty state ─────────────────────────────────────────────
+            // ── Empty state ────────────────────────────────────────────────
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(20, 48, 20, 32),
@@ -126,27 +131,40 @@ class BrowseScreen extends ConsumerWidget {
               ),
             )
           else ...[
-            // ── Featured carousel ────────────────────────────────────────
+            // ── Featured carousel ──────────────────────────────────────────
             SliverToBoxAdapter(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Padding(
                     padding: const EdgeInsets.fromLTRB(20, 4, 20, 14),
-                    child: Text('Featured', style: AppTextStyles.sectionTitle),
+                    child: Row(
+                      children: [
+                        Text(
+                          'Featured',
+                          style: AppTextStyles.sectionTitle.copyWith(
+                            color: context.textPrimaryColor,
+                          ),
+                        ),
+                        const Spacer(),
+                      ],
+                    ),
                   ),
                   SizedBox(
-                    height: 160,
+                    height: 140,
                     child: ListView.separated(
                       scrollDirection: Axis.horizontal,
                       physics: const BouncingScrollPhysics(),
                       padding: const EdgeInsets.symmetric(horizontal: 20),
                       itemCount: sources.length,
                       separatorBuilder: (_, __) => const SizedBox(width: 12),
-                      itemBuilder: (_, i) => FeaturedSourceCard(
-                        source: sources[i],
-                        gradient: _gradientFor(sources[i]),
-                        onTap: () => _openSource(context, sources[i].id),
+                      itemBuilder: (_, i) => SizedBox(
+                        width: 248,
+                        child: FeaturedSourceCard(
+                          source: sources[i],
+                          gradient: _gradientFor(sources[i]),
+                          onTap: () => _openSource(context, sources[i].id),
+                        ),
                       ),
                     ),
                   ),
@@ -156,13 +174,35 @@ class BrowseScreen extends ConsumerWidget {
 
             const SliverToBoxAdapter(child: SizedBox(height: 24)),
 
-            // ── Installed sources list ───────────────────────────────────
+            // ── Installed sources header ───────────────────────────────────
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
-                child: Text('Installed', style: AppTextStyles.sectionTitle),
+                child: Row(
+                  children: [
+                    Text(
+                      'Installed',
+                      style: AppTextStyles.sectionTitle.copyWith(
+                        color: context.textPrimaryColor,
+                      ),
+                    ),
+                    const Spacer(),
+                    GestureDetector(
+                      onTap: () => _openExtensions(context),
+                      child: Text(
+                        'Manage',
+                        style: AppTextStyles.labelMedium.copyWith(
+                          color: context.accentColor,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
+
+            // ── Installed sources list ─────────────────────────────────────
             SliverPadding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               sliver: SliverList.builder(
@@ -177,11 +217,16 @@ class BrowseScreen extends ConsumerWidget {
             ),
           ],
 
-          // ── Extensions card ──────────────────────────────────────────────
+          // ── Extensions card ────────────────────────────────────────────────
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
-              child: Text('Extensions', style: AppTextStyles.sectionTitle),
+              child: Text(
+                'Extensions',
+                style: AppTextStyles.sectionTitle.copyWith(
+                  color: context.textPrimaryColor,
+                ),
+              ),
             ),
           ),
           SliverToBoxAdapter(
@@ -198,30 +243,30 @@ class BrowseScreen extends ConsumerWidget {
   }
 }
 
-// ── Glass search bar ─────────────────────────────────────────────────────────
+// ── Glass search bar ──────────────────────────────────────────────────────────
 
 class _GlassSearchBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AppGlass(
-      borderRadius: 14,
+      borderRadius: AppRadius.pill,
       blur: 16,
       child: SizedBox(
         height: 46,
         child: Row(
           children: [
             const SizedBox(width: 14),
-            const Icon(
+            Icon(
               CupertinoIcons.search,
               size: 16,
-              color: AppColors.textTertiary,
+              color: context.textTertiaryColor,
             ),
             const SizedBox(width: 10),
             Expanded(
               child: Text(
-                'Search all sources...',
+                'Search all sources…',
                 style: AppTextStyles.bodyLarge.copyWith(
-                  color: AppColors.textTertiary,
+                  color: context.textTertiaryColor,
                   fontWeight: FontWeight.w400,
                 ),
               ),
@@ -233,7 +278,7 @@ class _GlassSearchBar extends StatelessWidget {
   }
 }
 
-// ── Extensions card ──────────────────────────────────────────────────────────
+// ── Extensions card ───────────────────────────────────────────────────────────
 
 class _ExtensionsCard extends StatefulWidget {
   const _ExtensionsCard({required this.onTap});
@@ -254,13 +299,13 @@ class _ExtensionsCardState extends State<_ExtensionsCard> {
       onTapUp: (_) => setState(() => _pressed = false),
       onTapCancel: () => setState(() => _pressed = false),
       child: AnimatedScale(
-        scale: _pressed ? 0.97 : 1.0,
-        duration: const Duration(milliseconds: 120),
-        curve: Curves.easeOut,
+        scale: _pressed ? AppMotion.pressScale : 1.0,
+        duration: AppMotion.fast,
+        curve: AppMotion.easeOut,
         child: AppGlass(
-          borderRadius: 16,
+          borderRadius: AppRadius.lg,
           blur: 20,
-          tint: AppColors.accent.withOpacity(0.08),
+          tint: context.accentSubtleColor,
           padding: const EdgeInsets.all(18),
           child: Row(
             children: [
@@ -268,8 +313,8 @@ class _ExtensionsCardState extends State<_ExtensionsCard> {
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(
-                  color: AppColors.accent.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(12),
+                  color: context.accentSubtleColor,
+                  borderRadius: BorderRadius.circular(AppRadius.md),
                 ),
                 child: const Icon(
                   CupertinoIcons.square_grid_2x2,
@@ -286,21 +331,22 @@ class _ExtensionsCardState extends State<_ExtensionsCard> {
                       'Extension Catalogue',
                       style: AppTextStyles.bodyMedium.copyWith(
                         fontWeight: FontWeight.w700,
+                        color: context.textPrimaryColor,
                       ),
                     ),
                     const SizedBox(height: 3),
                     Text(
                       'Install, uninstall and update extensions',
                       style: AppTextStyles.bodySmall.copyWith(
-                        color: AppColors.textTertiary,
+                        color: context.textTertiaryColor,
                       ),
                     ),
                   ],
                 ),
               ),
-              const Icon(
+              Icon(
                 CupertinoIcons.chevron_right,
-                color: AppColors.textTertiary,
+                color: context.textTertiaryColor,
                 size: 16,
               ),
             ],

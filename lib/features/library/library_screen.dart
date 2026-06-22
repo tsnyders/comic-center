@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/database/models/manga_entry.dart';
 import '../../core/providers/library_provider.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../shared/widgets/empty_state.dart';
 import '../title_detail/title_detail_screen.dart';
@@ -32,7 +33,8 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   void initState() {
     super.initState();
     _scrollController.addListener(() {
-      _scrollOffset.value = _scrollController.offset.clamp(0.0, double.infinity);
+      _scrollOffset.value =
+          _scrollController.offset.clamp(0.0, double.infinity);
     });
   }
 
@@ -50,10 +52,10 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     final library = ref.watch(filteredLibraryProvider);
 
     return CupertinoPageScaffold(
-      backgroundColor: CupertinoTheme.of(context).scaffoldBackgroundColor,
+      backgroundColor: context.backgroundColor,
       child: Stack(
         children: [
-          // Ambient radial glow
+          // Ambient radial glow — mode-aware
           Positioned.fill(
             child: _AmbientBackground(),
           ),
@@ -68,17 +70,29 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                 child: SizedBox(height: topPadding + 64),
               ),
 
-              // "My Library" display title
+              // "My / Library" display title
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.gutter,
+                    AppSpacing.x4,
+                    AppSpacing.gutter,
+                    AppSpacing.x6,
+                  ),
                   child: RichText(
                     text: TextSpan(
                       children: [
-                        TextSpan(text: 'My\n', style: AppTextStyles.displayTitle),
+                        TextSpan(
+                          text: 'My\n',
+                          style: AppTextStyles.displayTitle.copyWith(
+                            color: context.textPrimaryColor,
+                          ),
+                        ),
                         TextSpan(
                           text: 'Library',
-                          style: AppTextStyles.displayTitleAccent,
+                          style: AppTextStyles.displayTitleAccent.copyWith(
+                            color: context.accentColor,
+                          ),
                         ),
                       ],
                     ),
@@ -156,13 +170,14 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   Widget _buildGrid(List<MangaEntry> mangas) {
     final columns = ref.watch(libraryGridColumnsProvider);
     return SliverPadding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
+      padding:
+          const EdgeInsets.symmetric(horizontal: AppSpacing.gutter),
       sliver: SliverGrid(
         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: columns,
           childAspectRatio: 2 / 3,
-          crossAxisSpacing: columns == 2 ? 14 : 10,
-          mainAxisSpacing: columns == 2 ? 14 : 10,
+          crossAxisSpacing: columns == 2 ? AppSpacing.gridGap : 10,
+          mainAxisSpacing: columns == 2 ? AppSpacing.gridGap : 10,
         ),
         delegate: SliverChildBuilderDelegate(
           (context, i) => MangaCard(
@@ -180,13 +195,14 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   Widget _buildShimmerGrid() {
     final columns = ref.watch(libraryGridColumnsProvider);
     return SliverPadding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
+      padding:
+          const EdgeInsets.symmetric(horizontal: AppSpacing.gutter),
       sliver: SliverGrid(
         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: columns,
           childAspectRatio: 2 / 3,
-          crossAxisSpacing: columns == 2 ? 14 : 10,
-          mainAxisSpacing: columns == 2 ? 14 : 10,
+          crossAxisSpacing: columns == 2 ? AppSpacing.gridGap : 10,
+          mainAxisSpacing: columns == 2 ? AppSpacing.gridGap : 10,
         ),
         delegate: SliverChildBuilderDelegate(
           (_, __) => _ShimmerCard(),
@@ -280,20 +296,21 @@ class _FrostedTopBar extends StatelessWidget {
     return ValueListenableBuilder<double>(
       valueListenable: scrollOffset,
       builder: (context, offset, _) {
-        final blurAlpha = (offset / 40).clamp(0.0, 1.0);
+        // Transparent until scrolled >8px, then ramp in blur+bg
+        final blurAlpha = ((offset - 8) / 32).clamp(0.0, 1.0);
 
         return ClipRect(
           child: BackdropFilter(
             filter: ImageFilter.blur(
-              sigmaX: blurAlpha * 24,
-              sigmaY: blurAlpha * 24,
+              sigmaX: blurAlpha * 20,
+              sigmaY: blurAlpha * 20,
             ),
             child: Container(
-              color: context.backgroundColor.withOpacity(0.7 * blurAlpha),
+              color: context.backgroundColor.withValues(alpha: 0.72 * blurAlpha),
               padding: EdgeInsets.only(
                 top: topPadding + 8,
-                left: 20,
-                right: 20,
+                left: AppSpacing.gutter,
+                right: AppSpacing.gutter,
                 bottom: 10,
               ),
               child: Row(
@@ -305,57 +322,30 @@ class _FrostedTopBar extends StatelessWidget {
                             autofocus: true,
                             onChanged: onSearchChanged,
                             style: AppTextStyles.bodySmall.copyWith(
-                              color: AppColors.textPrimary,
+                              color: context.textPrimaryColor,
                             ),
                           )
                         : GestureDetector(
                             onTap: onSearchTap,
-                            child: Container(
-                              height: 38,
-                              decoration: BoxDecoration(
-                                color: context.surfaceElevatedColor.withOpacity(0.8),
-                                borderRadius: BorderRadius.circular(19),
-                                border: Border.all(
-                                  color: context.borderStrongColor,
-                                  width: 0.5,
-                                ),
-                              ),
-                              child: Row(
-                                children: [
-                                  const SizedBox(width: 12),
-                                  const Icon(
-                                    CupertinoIcons.search,
-                                    size: 16,
-                                    color: AppColors.textTertiary,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'Search library',
-                                    style: AppTextStyles.bodySmall.copyWith(
-                                      color: AppColors.textTertiary,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
+                            child: _SearchPill(),
                           ),
                   ),
                   const SizedBox(width: 10),
                   if (searchActive)
                     CupertinoButton(
                       padding: EdgeInsets.zero,
-                      minSize: 38,
+                      minimumSize: const Size(38, 38),
                       onPressed: onSearchClose,
-                      child: const Text(
+                      child: Text(
                         'Cancel',
                         style: TextStyle(
-                          color: AppColors.accent,
+                          color: context.accentColor,
                           fontSize: 14,
                         ),
                       ),
                     )
                   else ...[
-                    // Grid density toggle
+                    // Grid density toggle — 38px circular surfaceElevated button
                     _CircleIconButton(
                       icon: columns == 2
                           ? CupertinoIcons.square_grid_3x2
@@ -379,26 +369,82 @@ class _FrostedTopBar extends StatelessWidget {
   }
 }
 
-// ── Circular icon button (top bar) ─────────────────────────────────────────
+// ── Search pill (h38, radius.pill, surfaceElevated@80%) ────────────────────
 
-class _CircleIconButton extends StatelessWidget {
+class _SearchPill extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 38,
+      decoration: BoxDecoration(
+        color: context.surfaceElevatedColor.withValues(alpha: 0.80),
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+        border: Border.all(
+          color: context.borderStrongColor,
+          width: AppRadius.hairline,
+        ),
+      ),
+      child: Row(
+        children: [
+          const SizedBox(width: 12),
+          Icon(
+            CupertinoIcons.search,
+            size: 16,
+            color: context.textTertiaryColor,
+          ),
+          const SizedBox(width: 8),
+          Text(
+            'Search library',
+            style: AppTextStyles.bodySmall.copyWith(
+              color: context.textTertiaryColor,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Circular icon button (top bar, 38px, surfaceElevated tone) ─────────────
+
+class _CircleIconButton extends StatefulWidget {
   const _CircleIconButton({required this.icon, required this.onTap});
   final IconData icon;
   final VoidCallback onTap;
 
   @override
+  State<_CircleIconButton> createState() => _CircleIconButtonState();
+}
+
+class _CircleIconButtonState extends State<_CircleIconButton> {
+  bool _pressed = false;
+
+  @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onTap,
-      child: Container(
+      onTap: widget.onTap,
+      onTapDown: (_) => setState(() => _pressed = true),
+      onTapUp: (_) => setState(() => _pressed = false),
+      onTapCancel: () => setState(() => _pressed = false),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 80),
         width: 38,
         height: 38,
         decoration: BoxDecoration(
-          color: context.surfaceElevatedColor.withOpacity(0.8),
-          borderRadius: BorderRadius.circular(19),
-          border: Border.all(color: context.borderStrongColor, width: 0.5),
+          color: _pressed
+              ? context.surfaceElevatedColor
+              : context.surfaceElevatedColor.withValues(alpha: 0.80),
+          borderRadius: BorderRadius.circular(AppRadius.pill),
+          border: Border.all(
+            color: context.borderStrongColor,
+            width: AppRadius.hairline,
+          ),
         ),
-        child: Icon(icon, size: 16, color: AppColors.textSecondary),
+        child: Icon(
+          widget.icon,
+          size: 16,
+          color: context.textSecondaryColor,
+        ),
       ),
     );
   }
@@ -409,13 +455,18 @@ class _CircleIconButton extends StatelessWidget {
 class _AmbientBackground extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    final seedColor = context.isDark
+        ? const Color(0x26667EEA)
+        : const Color(0x1A667EEA);
+    final baseColor = context.backgroundColor;
+
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: RadialGradient(
-          center: Alignment(-0.4, -0.8),
+          center: const Alignment(-0.4, -0.8),
           radius: 1.2,
-          colors: [Color(0x26667EEA), AppColors.background],
-          stops: [0.0, 0.6],
+          colors: [seedColor, baseColor],
+          stops: const [0.0, 0.6],
         ),
       ),
     );
@@ -450,13 +501,18 @@ class _ErrorView extends StatelessWidget {
   Widget build(BuildContext context) {
     return SliverFillRemaining(
       child: Center(
-        child: Text(message, style: AppTextStyles.bodySmall),
+        child: Text(
+          message,
+          style: AppTextStyles.bodySmall.copyWith(
+            color: context.textSecondaryColor,
+          ),
+        ),
       ),
     );
   }
 }
 
-// ── Shimmer card ───────────────────────────────────────────────────────────
+// ── Shimmer card (1200ms ease in/out per spec) ─────────────────────────────
 
 class _ShimmerCard extends StatefulWidget {
   @override
@@ -466,6 +522,7 @@ class _ShimmerCard extends StatefulWidget {
 class _ShimmerCardState extends State<_ShimmerCard>
     with SingleTickerProviderStateMixin {
   late final AnimationController _ctrl;
+  late final Animation<double> _anim;
 
   @override
   void initState() {
@@ -474,6 +531,7 @@ class _ShimmerCardState extends State<_ShimmerCard>
       vsync: this,
       duration: const Duration(milliseconds: 1200),
     )..repeat(reverse: true);
+    _anim = CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut);
   }
 
   @override
@@ -485,10 +543,14 @@ class _ShimmerCardState extends State<_ShimmerCard>
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
-      animation: _ctrl,
+      animation: _anim,
       builder: (_, __) => Container(
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(AppRadius.cover),
+          border: Border.all(
+            color: context.borderColor,
+            width: AppRadius.hairline,
+          ),
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
@@ -497,7 +559,7 @@ class _ShimmerCardState extends State<_ShimmerCard>
               Color.lerp(
                 context.surfaceColor,
                 context.surfaceElevatedColor,
-                _ctrl.value,
+                _anim.value,
               )!,
             ],
           ),

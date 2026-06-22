@@ -1,10 +1,11 @@
 import 'package:flutter/cupertino.dart';
 
+import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../shared/widgets/app_glass.dart';
 
-/// Floating pill showing "current / total". Place inside a `Positioned`
-/// in the reader Stack (bottom-center, above the tab bar clearance).
+/// Floating pill showing "current / total". Visible only when chrome is
+/// hidden. Uses `AppGlass(borderRadius: AppRadius.pill, blur: 20)` per spec.
 class PagePill extends StatelessWidget {
   const PagePill({
     super.key,
@@ -24,7 +25,7 @@ class PagePill extends StatelessWidget {
       duration: const Duration(milliseconds: 200),
       child: Center(
         child: AppGlass(
-          borderRadius: 14,
+          borderRadius: AppRadius.pill,
           blur: 20,
           tint: const Color(0xB3000000),
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),

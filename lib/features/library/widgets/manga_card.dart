@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../../../core/database/models/manga_entry.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../shared/widgets/cover_image.dart';
 import '../../../shared/widgets/unread_badge.dart';
@@ -29,51 +30,75 @@ class MangaCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(14),
-      child: AspectRatio(
-        aspectRatio: 2 / 3,
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            // Cover art (hero-animated into the detail screen)
-            Hero(
-              tag: mangaCoverHeroTag(manga.id),
-              child: CoverImage(url: manga.coverUrl),
-            ),
+    final elevation =
+        context.isDark ? AppElevation.e2 : AppElevation.e2Light;
 
-            // Bottom gradient + metadata
-            Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              child: _BottomOverlay(manga: manga, compact: compact),
-            ),
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(AppRadius.cover),
+        boxShadow: elevation,
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(AppRadius.cover),
+        child: AspectRatio(
+          aspectRatio: 2 / 3,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              // Cover art (hero-animated into the detail screen)
+              Hero(
+                tag: mangaCoverHeroTag(manga.id),
+                child: CoverImage(url: manga.coverUrl),
+              ),
 
-            // Unread badge
-            if (manga.unreadCount > 0)
+              // Bottom protection gradient + metadata
               Positioned(
-                top: 8,
-                right: 8,
-                child: UnreadBadge(count: manga.unreadCount),
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: _BottomOverlay(manga: manga, compact: compact),
               ),
 
-            // Single gesture detector on top — handles tap, long-press, highlight.
-            Positioned.fill(
-              child: _TapHighlight(
-                onTap: () {
-                  HapticFeedback.selectionClick();
-                  onTap();
-                },
-                onLongPress: onLongPress == null
-                    ? null
-                    : () {
-                        HapticFeedback.mediumImpact();
-                        onLongPress!();
-                      },
+              // Unread badge — top-right, 8px inset, using context.unreadColor
+              if (manga.unreadCount > 0)
+                Positioned(
+                  top: AppSpacing.x4,
+                  right: AppSpacing.x4,
+                  child: UnreadBadge(count: manga.unreadCount),
+                ),
+
+              // Hairline border overlay
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(AppRadius.cover),
+                      border: Border.all(
+                        color: context.borderColor,
+                        width: AppRadius.hairline,
+                      ),
+                    ),
+                  ),
+                ),
               ),
-            ),
-          ],
+
+              // Single gesture detector on top — handles tap, long-press, highlight.
+              Positioned.fill(
+                child: _TapHighlight(
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    onTap();
+                  },
+                  onLongPress: onLongPress == null
+                      ? null
+                      : () {
+                          HapticFeedback.mediumImpact();
+                          onLongPress!();
+                        },
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -88,12 +113,23 @@ class _BottomOverlay extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: EdgeInsets.fromLTRB(10, 30, 10, compact ? 8 : 10),
+      padding: EdgeInsets.fromLTRB(
+        10,
+        compact ? 26 : 30,
+        10,
+        compact ? 8 : 10,
+      ),
       decoration: const BoxDecoration(
         gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: AppColors.heroGradientColors,
+          begin: Alignment.bottomCenter,
+          end: Alignment.topCenter,
+          // rgba(0,0,0,.85) at bottom → transparent at top (~40% height)
+          stops: [0.0, 0.55, 1.0],
+          colors: [
+            Color(0xD9000000),
+            Color(0x66000000),
+            Color(0x00000000),
+          ],
         ),
       ),
       child: Column(
@@ -103,8 +139,13 @@ class _BottomOverlay extends StatelessWidget {
           Text(
             manga.title,
             style: compact
-                ? AppTextStyles.cardTitle.copyWith(fontSize: 12)
-                : AppTextStyles.cardTitle,
+                ? AppTextStyles.cardTitle.copyWith(
+                    fontSize: 12,
+                    color: CupertinoColors.white,
+                  )
+                : AppTextStyles.cardTitle.copyWith(
+                    color: CupertinoColors.white,
+                  ),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),
@@ -114,7 +155,9 @@ class _BottomOverlay extends StatelessWidget {
               manga.lastReadChapterId != null
                   ? 'Ch. ${manga.lastReadChapterNumber?.toStringAsFixed(0) ?? "?"}'
                   : '${manga.chapterCount} chapters',
-              style: AppTextStyles.cardSubtitle,
+              style: AppTextStyles.cardSubtitle.copyWith(
+                color: const Color(0xA6FFFFFF), // white @ 65%
+              ),
             ),
           ],
         ],
@@ -144,8 +187,11 @@ class _TapHighlightState extends State<_TapHighlight> {
       onTapUp: (_) => setState(() => _pressed = false),
       onTapCancel: () => setState(() => _pressed = false),
       child: AnimatedContainer(
+        // 80ms press dim overlay per spec
         duration: const Duration(milliseconds: 80),
-        color: _pressed ? AppColors.textQuaternary : const Color(0x00000000),
+        color: _pressed
+            ? const Color(0x2E000000) // rgba(0,0,0,.18)
+            : const Color(0x00000000),
       ),
     );
   }
