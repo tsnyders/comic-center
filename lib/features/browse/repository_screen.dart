@@ -5,6 +5,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text_styles.dart';
 
 // ── Provider ────────────────────────────────────────────────────────────────
@@ -97,9 +98,9 @@ class _RepositoryScreenState extends ConsumerState<RepositoryScreen> {
                 children: [
                   GestureDetector(
                     onTap: () => Navigator.of(context).pop(),
-                    child: const Icon(
+                    child: Icon(
                       CupertinoIcons.chevron_back,
-                      color: AppColors.accent,
+                      color: context.accentColor,
                       size: 20,
                     ),
                   ),
@@ -107,6 +108,7 @@ class _RepositoryScreenState extends ConsumerState<RepositoryScreen> {
                   Text(
                     'Extension Repository',
                     style: AppTextStyles.sectionTitle.copyWith(
+                      color: context.textPrimaryColor,
                       fontSize: 22,
                       fontWeight: FontWeight.w800,
                     ),
@@ -130,7 +132,12 @@ class _RepositoryScreenState extends ConsumerState<RepositoryScreen> {
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
-              child: Text('Built-in Sources', style: AppTextStyles.sectionTitle),
+              child: Text(
+                'Built-in Sources',
+                style: AppTextStyles.sectionTitle.copyWith(
+                  color: context.textPrimaryColor,
+                ),
+              ),
             ),
           ),
 
@@ -138,9 +145,9 @@ class _RepositoryScreenState extends ConsumerState<RepositoryScreen> {
             padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
             sliver: SliverList(
               delegate: SliverChildListDelegate([
-                _NativeExtensionTile(name: 'MangaDex', lang: 'EN', version: '1.0.0'),
-                _NativeExtensionTile(name: 'AllManga', lang: 'EN', version: '1.0.0'),
-                _NativeExtensionTile(name: 'DemonicScans', lang: 'EN', version: '1.0.0'),
+                const _NativeExtensionTile(name: 'MangaDex', lang: 'EN', version: '1.0.0'),
+                const _NativeExtensionTile(name: 'AllManga', lang: 'EN', version: '1.0.0'),
+                const _NativeExtensionTile(name: 'DemonicScans', lang: 'EN', version: '1.0.0'),
               ]),
             ),
           ),
@@ -149,7 +156,12 @@ class _RepositoryScreenState extends ConsumerState<RepositoryScreen> {
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
-              child: Text('Keiyoushi Index', style: AppTextStyles.sectionTitle),
+              child: Text(
+                'Keiyoushi Index',
+                style: AppTextStyles.sectionTitle.copyWith(
+                  color: context.textPrimaryColor,
+                ),
+              ),
             ),
           ),
 
@@ -165,7 +177,9 @@ class _RepositoryScreenState extends ConsumerState<RepositoryScreen> {
                 padding: const EdgeInsets.all(20),
                 child: Text(
                   'Failed to load repository:\n$e',
-                  style: AppTextStyles.bodySmall,
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: context.textSecondaryColor,
+                  ),
                   textAlign: TextAlign.center,
                 ),
               ),
@@ -216,37 +230,49 @@ class _GlassSearchBarState extends State<_GlassSearchBar> {
     return Container(
       height: 44,
       decoration: BoxDecoration(
-        color: AppColors.surfaceElevated.withOpacity(0.7),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.borderStrong, width: 0.5),
+        color: context.surfaceElevatedColor.withValues(alpha: 0.7),
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(
+          color: context.borderStrongColor,
+          width: AppRadius.hairline,
+        ),
       ),
       child: Row(
         children: [
           const SizedBox(width: 12),
-          const Icon(CupertinoIcons.search, size: 15, color: AppColors.textTertiary),
+          Icon(CupertinoIcons.search, size: 15, color: context.textTertiaryColor),
           const SizedBox(width: 8),
           Expanded(
             child: CupertinoTextField(
               controller: _ctrl,
               placeholder: 'Search extensions...',
               placeholderStyle: AppTextStyles.bodySmall.copyWith(
-                color: AppColors.textQuaternary,
+                color: context.textQuaternaryColor,
               ),
-              style: AppTextStyles.bodySmall.copyWith(color: AppColors.textPrimary),
+              style: AppTextStyles.bodySmall.copyWith(
+                color: context.textPrimaryColor,
+              ),
               decoration: null,
-              onChanged: widget.onChanged,
+              onChanged: (v) {
+                setState(() {});
+                widget.onChanged(v);
+              },
             ),
           ),
           if (_ctrl.text.isNotEmpty)
             GestureDetector(
               onTap: () {
                 _ctrl.clear();
+                setState(() {});
                 widget.onChanged('');
               },
-              child: const Padding(
-                padding: EdgeInsets.only(right: 10),
-                child: Icon(CupertinoIcons.xmark_circle_fill,
-                    size: 15, color: AppColors.textTertiary),
+              child: Padding(
+                padding: const EdgeInsets.only(right: 10),
+                child: Icon(
+                  CupertinoIcons.xmark_circle_fill,
+                  size: 15,
+                  color: context.textTertiaryColor,
+                ),
               ),
             ),
         ],
@@ -272,9 +298,12 @@ class _NativeExtensionTile extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: AppColors.surfaceElevated.withOpacity(0.6),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.accent.withOpacity(0.3), width: 0.5),
+        color: context.surfaceElevatedColor.withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(
+          color: context.accentLineColor,
+          width: AppRadius.hairline,
+        ),
       ),
       child: Row(
         children: [
@@ -282,35 +311,46 @@ class _NativeExtensionTile extends StatelessWidget {
             width: 38,
             height: 38,
             decoration: BoxDecoration(
-              color: AppColors.accent.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(10),
+              color: context.accentSubtleColor,
+              borderRadius: BorderRadius.circular(AppRadius.sm),
             ),
-            child: const Icon(CupertinoIcons.book, color: AppColors.accent, size: 18),
+            child: Icon(
+              CupertinoIcons.book,
+              color: context.accentColor,
+              size: 18,
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(name,
-                    style: AppTextStyles.bodyMedium
-                        .copyWith(fontWeight: FontWeight.w600)),
-                Text('$lang · v$version',
-                    style: AppTextStyles.caption
-                        .copyWith(color: AppColors.textTertiary)),
+                Text(
+                  name,
+                  style: AppTextStyles.bodyMedium.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: context.textPrimaryColor,
+                  ),
+                ),
+                Text(
+                  '$lang · v$version',
+                  style: AppTextStyles.caption.copyWith(
+                    color: context.textTertiaryColor,
+                  ),
+                ),
               ],
             ),
           ),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
             decoration: BoxDecoration(
-              color: AppColors.accent.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(6),
+              color: context.accentSubtleColor,
+              borderRadius: BorderRadius.circular(AppRadius.xs),
             ),
             child: Text(
               'Built-in',
               style: AppTextStyles.caption.copyWith(
-                color: AppColors.accent,
+                color: context.accentColor,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -325,31 +365,48 @@ class _ExtensionTile extends StatelessWidget {
   const _ExtensionTile({required this.entry});
   final _ExtensionEntry entry;
 
+  static const _gradients = [
+    AppColors.gradEmber,
+    AppColors.gradViolet,
+    AppColors.gradTeal,
+    AppColors.gradRose,
+  ];
+
   @override
   Widget build(BuildContext context) {
+    final gradIndex = entry.name[0].codeUnitAt(0) % 4;
+    final gradient = _gradients[gradIndex];
+
     return Container(
       margin: const EdgeInsets.only(bottom: 6),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: AppColors.surface.withOpacity(0.4),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppColors.border, width: 0.5),
+        color: context.surfaceElevatedColor.withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(
+          color: context.borderColor,
+          width: AppRadius.hairline,
+        ),
       ),
       child: Row(
         children: [
           Container(
-            width: 34,
-            height: 34,
+            width: 44,
+            height: 44,
             decoration: BoxDecoration(
-              color: AppColors.surfaceElevated,
-              borderRadius: BorderRadius.circular(8),
+              gradient: LinearGradient(
+                colors: gradient,
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(AppRadius.md),
             ),
             child: Center(
               child: Text(
                 entry.name.substring(0, 1).toUpperCase(),
                 style: const TextStyle(
-                  color: AppColors.textSecondary,
-                  fontSize: 14,
+                  color: CupertinoColors.white,
+                  fontSize: 18,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -362,14 +419,16 @@ class _ExtensionTile extends StatelessWidget {
               children: [
                 Text(
                   entry.name,
-                  style: AppTextStyles.bodySmall
-                      .copyWith(fontWeight: FontWeight.w500),
+                  style: AppTextStyles.sourceName.copyWith(
+                    color: context.textPrimaryColor,
+                  ),
                   overflow: TextOverflow.ellipsis,
                 ),
                 Text(
                   '${entry.lang.toUpperCase()} · v${entry.version}${entry.isNsfw ? ' · 18+' : ''}',
-                  style: AppTextStyles.caption
-                      .copyWith(color: AppColors.textQuaternary),
+                  style: AppTextStyles.caption.copyWith(
+                    color: context.textTertiaryColor,
+                  ),
                 ),
               ],
             ),
@@ -377,7 +436,7 @@ class _ExtensionTile extends StatelessWidget {
           Icon(
             CupertinoIcons.arrow_down_to_line,
             size: 16,
-            color: AppColors.textTertiary.withOpacity(0.5),
+            color: context.textTertiaryColor,
           ),
         ],
       ),

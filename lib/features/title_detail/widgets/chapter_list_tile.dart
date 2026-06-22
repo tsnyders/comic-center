@@ -5,6 +5,7 @@ import '../../../core/database/models/chapter_entry.dart';
 import '../../../core/database/models/download_entry.dart';
 import '../../../core/providers/download_provider.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
 
 class ChapterListTile extends ConsumerWidget {
@@ -33,7 +34,7 @@ class ChapterListTile extends ConsumerWidget {
 
     final titleColor = chapter.isRead
         ? context.textTertiaryColor
-        : CupertinoColors.label.resolveFrom(context);
+        : context.textPrimaryColor;
 
     return GestureDetector(
       onTap: onTap,
@@ -42,14 +43,22 @@ class ChapterListTile extends ConsumerWidget {
         padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
           border: Border(
-            bottom: BorderSide(color: context.borderColor, width: 0.5),
+            bottom: BorderSide(
+              color: context.borderColor,
+              width: AppRadius.hairline,
+            ),
           ),
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // ── Read / unread status dot ───────────────────────────────────
-            SizedBox(width: 20, child: _StatusDot(chapter: chapter)),
+            // ── Read / unread status dot — 10px wide column ──────────────
+            SizedBox(
+              width: 10,
+              child: _StatusDot(chapter: chapter),
+            ),
+
+            const SizedBox(width: AppSpacing.x5),
 
             // ── Title + meta + progress ───────────────────────────────────
             Expanded(
@@ -88,7 +97,7 @@ class ChapterListTile extends ConsumerWidget {
                           Text(
                             'Page ${chapter.lastPageRead + 1} of ${chapter.pageCount}',
                             style: AppTextStyles.caption.copyWith(
-                              color: AppColors.accent,
+                              color: context.accentColor,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -104,7 +113,7 @@ class ChapterListTile extends ConsumerWidget {
               ),
             ),
 
-            const SizedBox(width: 12),
+            const SizedBox(width: AppSpacing.x5),
 
             // ── Download button ───────────────────────────────────────────
             _DownloadButton(
@@ -142,16 +151,16 @@ class _StatusDot extends StatelessWidget {
     if (chapter.isRead) return const SizedBox.shrink();
 
     final inProgress = chapter.lastPageRead > 0;
-    // Unread = filled accent dot; in-progress = accent ring.
+    // Unread = filled accent dot; in-progress = accent ring (2px).
     return Center(
       child: Container(
         width: 9,
         height: 9,
         decoration: BoxDecoration(
-          color: inProgress ? null : AppColors.accent,
+          color: inProgress ? null : context.accentColor,
           shape: BoxShape.circle,
           border: inProgress
-              ? Border.all(color: AppColors.accent, width: 2)
+              ? Border.all(color: context.accentColor, width: 2)
               : null,
         ),
       ),
@@ -181,8 +190,8 @@ class _ProgressBar extends StatelessWidget {
             FractionallySizedBox(
               widthFactor: value,
               alignment: Alignment.centerLeft,
-              child: const DecoratedBox(
-                decoration: BoxDecoration(color: AppColors.accent),
+              child: DecoratedBox(
+                decoration: BoxDecoration(color: context.accentColor),
               ),
             ),
           ],
@@ -192,9 +201,9 @@ class _ProgressBar extends StatelessWidget {
   }
 }
 
-// ── Download button (enlarged, theme-neutral so it fits frosty + liquid) ─────
+// ── Download button — 40px circle, color@12% bg, hairline@32% border ────────
 
-class _DownloadButton extends StatelessWidget {
+class _DownloadButton extends ConsumerWidget {
   const _DownloadButton({
     required this.chapter,
     required this.queueStatus,
@@ -206,7 +215,7 @@ class _DownloadButton extends StatelessWidget {
   final VoidCallback? onDownload;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final done =
         chapter.isDownloaded || queueStatus == DownloadStatus.completed;
 
@@ -215,37 +224,37 @@ class _DownloadButton extends StatelessWidget {
         switch (true) {
       _ when done => (
           CupertinoIcons.checkmark_alt,
-          AppColors.downloaded,
+          context.downloadedColor,
           false,
           null,
         ),
       _ when queueStatus == DownloadStatus.pending => (
           CupertinoIcons.clock,
-          AppColors.warning,
+          context.warningColor,
           false,
           null,
         ),
       _ when queueStatus == DownloadStatus.downloading => (
           null,
-          AppColors.accent,
+          context.accentColor,
           false,
           const CupertinoActivityIndicator(radius: 9),
         ),
       _ when queueStatus == DownloadStatus.paused => (
           CupertinoIcons.pause_fill,
-          AppColors.warning,
+          context.warningColor,
           true,
           null,
         ),
       _ when queueStatus == DownloadStatus.failed => (
           CupertinoIcons.arrow_clockwise,
-          AppColors.unread,
+          context.unreadColor,
           true,
           null,
         ),
       _ => (
           CupertinoIcons.arrow_down,
-          AppColors.accent,
+          context.accentColor,
           true,
           null,
         ),
@@ -258,13 +267,15 @@ class _DownloadButton extends StatelessWidget {
         width: 40,
         height: 40,
         decoration: BoxDecoration(
-          color: color.withOpacity(0.12),
+          color: color.withValues(alpha: 0.12),
           shape: BoxShape.circle,
-          border: Border.all(color: color.withOpacity(0.30), width: 0.75),
+          border: Border.all(
+            color: color.withValues(alpha: 0.32),
+            width: AppRadius.hairline,
+          ),
         ),
         child: Center(
-          child: custom ??
-              Icon(icon, size: 20, color: color),
+          child: custom ?? Icon(icon, size: 20, color: color),
         ),
       ),
     );
