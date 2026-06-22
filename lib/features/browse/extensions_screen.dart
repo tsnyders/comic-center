@@ -6,6 +6,7 @@ import '../../core/providers/database_provider.dart';
 import '../../core/providers/extension_provider.dart';
 import '../../core/providers/source_registry_provider.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text_styles.dart';
 
 // ── Tabs ──────────────────────────────────────────────────────────────────
@@ -44,32 +45,40 @@ class _ExtensionsScreenState extends ConsumerState<ExtensionsScreen> {
           // ── Header ──────────────────────────────────────────────────────
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.x7,
+                0,
+                AppSpacing.x7,
+                AppSpacing.x5,
+              ),
               child: Row(
                 children: [
-                  GestureDetector(
-                    onTap: () => Navigator.of(context).pop(),
-                    child: const Icon(
-                      CupertinoIcons.chevron_back,
-                      color: AppColors.accent,
-                      size: 22,
+                  CupertinoButton(
+                    padding: EdgeInsets.zero,
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: Text(
+                      '‹ Browse',
+                      style: TextStyle(
+                        color: context.accentColor,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       'Extensions',
-                      style: AppTextStyles.sectionTitle.copyWith(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
+                      style: AppTextStyles.hero.copyWith(
+                        color: context.textPrimaryColor,
                       ),
                     ),
                   ),
                   GestureDetector(
                     onTap: () => ref.invalidate(extensionIndexProvider),
-                    child: const Icon(
+                    child: Icon(
                       CupertinoIcons.arrow_clockwise,
-                      color: AppColors.accent,
+                      color: context.accentColor,
                       size: 18,
                     ),
                   ),
@@ -81,7 +90,12 @@ class _ExtensionsScreenState extends ConsumerState<ExtensionsScreen> {
           // ── Search bar ──────────────────────────────────────────────────
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.x7,
+                0,
+                AppSpacing.x7,
+                AppSpacing.x5,
+              ),
               child: _SearchBar(
                 onChanged: (q) => setState(() => _query = q.toLowerCase()),
               ),
@@ -91,7 +105,12 @@ class _ExtensionsScreenState extends ConsumerState<ExtensionsScreen> {
           // ── Tab selector ─────────────────────────────────────────────────
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.x7,
+                0,
+                AppSpacing.x7,
+                AppSpacing.x6,
+              ),
               child: CupertinoSlidingSegmentedControl<_Tab>(
                 groupValue: _tab,
                 onValueChanged: (t) => setState(() => _tab = t!),
@@ -149,17 +168,24 @@ class _ExtensionsScreenState extends ConsumerState<ExtensionsScreen> {
           padding: const EdgeInsets.all(24),
           child: Column(
             children: [
-              const Icon(CupertinoIcons.wifi_slash,
-                  size: 40, color: AppColors.textTertiary),
+              Icon(CupertinoIcons.wifi_slash,
+                  size: 40, color: context.textTertiaryColor),
               const SizedBox(height: 12),
-              Text('Failed to load extension index',
-                  style: AppTextStyles.bodyMedium.copyWith(
-                    fontWeight: FontWeight.w600,
-                  )),
+              Text(
+                'Failed to load extension index',
+                style: AppTextStyles.bodyMedium.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: context.textPrimaryColor,
+                ),
+              ),
               const SizedBox(height: 6),
-              Text('Check your connection and tap ↻ to retry.',
-                  style: AppTextStyles.bodySmall,
-                  textAlign: TextAlign.center),
+              Text(
+                'Check your connection and tap ↻ to retry.',
+                style: AppTextStyles.bodySmall.copyWith(
+                  color: context.textTertiaryColor,
+                ),
+                textAlign: TextAlign.center,
+              ),
             ],
           ),
         ),
@@ -185,7 +211,7 @@ class _ExtensionsScreenState extends ConsumerState<ExtensionsScreen> {
     }
 
     return SliverPadding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.x7),
       sliver: SliverList.builder(
         itemCount: installed.length,
         itemBuilder: (_, i) => _ExtensionTile(
@@ -225,7 +251,7 @@ class _ExtensionsScreenState extends ConsumerState<ExtensionsScreen> {
         available.where((e) => !e.isNativelySupported).toList();
 
     return SliverPadding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.x7),
       sliver: SliverList(
         delegate: SliverChildListDelegate([
           if (native.isNotEmpty) ...[
@@ -283,7 +309,7 @@ class _ExtensionsScreenState extends ConsumerState<ExtensionsScreen> {
     }
 
     return SliverPadding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.x7),
       sliver: SliverList.builder(
         itemCount: updates.length,
         itemBuilder: (_, i) => _ExtensionTile(
@@ -310,16 +336,24 @@ class _ExtensionsScreenState extends ConsumerState<ExtensionsScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, size: 48, color: AppColors.textQuaternary),
+              Icon(icon, size: 48, color: context.textQuaternaryColor),
               const SizedBox(height: 16),
-              Text(title,
-                  style: AppTextStyles.bodyMedium
-                      .copyWith(fontWeight: FontWeight.w700),
-                  textAlign: TextAlign.center),
+              Text(
+                title,
+                style: AppTextStyles.bodyMedium.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: context.textPrimaryColor,
+                ),
+                textAlign: TextAlign.center,
+              ),
               const SizedBox(height: 8),
-              Text(subtitle,
-                  style: AppTextStyles.bodySmall,
-                  textAlign: TextAlign.center),
+              Text(
+                subtitle,
+                style: AppTextStyles.bodySmall.copyWith(
+                  color: context.textTertiaryColor,
+                ),
+                textAlign: TextAlign.center,
+              ),
             ],
           ),
         ),
@@ -422,6 +456,46 @@ class _ExtensionsScreenState extends ConsumerState<ExtensionsScreen> {
 
 enum _ExtensionAction { install, uninstall, update, unavailable }
 
+// ── Gradient letter icon ──────────────────────────────────────────────────────
+
+/// A 44×44 gradient avatar with a white letter initial.
+/// Used as both [CachedNetworkImage] placeholder and errorWidget.
+class _GradientLetterIcon extends StatelessWidget {
+  const _GradientLetterIcon({
+    required this.name,
+    required this.gradientColors,
+  });
+
+  final String name;
+  final List<Color> gradientColors;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 44,
+      height: 44,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: gradientColors,
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        boxShadow: AppElevation.e1,
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        name.isNotEmpty ? name[0].toUpperCase() : '?',
+        style: const TextStyle(
+          color: Color(0xFFFFFFFF),
+          fontSize: 18,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
+
 // ── Extension tile ────────────────────────────────────────────────────────────
 
 class _ExtensionTile extends StatelessWidget {
@@ -439,20 +513,53 @@ class _ExtensionTile extends StatelessWidget {
   final _ExtensionAction action;
   final VoidCallback? onAction;
 
+  /// Pick a gradient seed by hashing the first character of the extension name.
+  List<Color> _gradientFor(String name) {
+    final gradients = [
+      AppColors.gradEmber,
+      AppColors.gradViolet,
+      AppColors.gradTeal,
+      AppColors.gradRose,
+    ];
+    final index = name.isNotEmpty ? name[0].codeUnitAt(0) % 4 : 0;
+    return gradients[index];
+  }
+
   @override
   Widget build(BuildContext context) {
+    final gradientColors = _gradientFor(entry.name);
+
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
+      margin: const EdgeInsets.only(bottom: AppSpacing.x4),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: context.surfaceElevatedColor.withOpacity(0.55),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: context.borderColor, width: 0.5),
+        color: context.surfaceElevatedColor.withValues(alpha: 0.70),
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(
+          color: context.borderColor,
+          width: AppRadius.hairline,
+        ),
       ),
       child: Row(
         children: [
-          // Icon
-          _ExtensionIcon(iconUrl: entry.iconUrl, name: entry.name),
+          // Avatar
+          ClipRRect(
+            borderRadius: BorderRadius.circular(AppRadius.md),
+            child: CachedNetworkImage(
+              imageUrl: entry.iconUrl,
+              width: 44,
+              height: 44,
+              fit: BoxFit.cover,
+              errorWidget: (_, __, ___) => _GradientLetterIcon(
+                name: entry.name,
+                gradientColors: gradientColors,
+              ),
+              placeholder: (_, __) => _GradientLetterIcon(
+                name: entry.name,
+                gradientColors: gradientColors,
+              ),
+            ),
+          ),
           const SizedBox(width: 14),
 
           // Info
@@ -460,41 +567,44 @@ class _ExtensionTile extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Name row
                 Row(
                   children: [
                     Flexible(
                       child: Text(
                         entry.name,
-                        style: AppTextStyles.bodyMedium
-                            .copyWith(fontWeight: FontWeight.w600),
+                        style: AppTextStyles.sourceName.copyWith(
+                          color: context.textPrimaryColor,
+                        ),
+                        maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     if (entry.isNsfw) ...[
                       const SizedBox(width: 6),
-                      _Badge(label: '18+', color: AppColors.unread),
+                      _Badge(label: '18+', color: context.unreadColor),
                     ],
                   ],
                 ),
                 const SizedBox(height: 3),
+                // Meta row
                 Row(
                   children: [
-                    _Badge(
-                      label: entry.lang.toUpperCase(),
-                      color: AppColors.accent,
-                    ),
+                    _LanguageBadge(lang: entry.lang),
                     const SizedBox(width: 6),
                     Text(
                       'v${entry.version}',
-                      style: AppTextStyles.caption
-                          .copyWith(color: AppColors.textTertiary),
+                      style: AppTextStyles.sourceMeta.copyWith(
+                        color: context.textTertiaryColor,
+                      ),
                     ),
                     if (!entry.isNativelySupported) ...[
                       const SizedBox(width: 6),
                       Text(
                         '· Mihon only',
-                        style: AppTextStyles.caption
-                            .copyWith(color: AppColors.textQuaternary),
+                        style: AppTextStyles.sourceMeta.copyWith(
+                          color: context.textQuaternaryColor,
+                        ),
                       ),
                     ],
                   ],
@@ -519,50 +629,41 @@ class _ExtensionTile extends StatelessWidget {
   }
 }
 
-class _ExtensionIcon extends StatelessWidget {
-  const _ExtensionIcon({required this.iconUrl, required this.name});
+// ── Language badge ────────────────────────────────────────────────────────────
 
-  final String iconUrl;
-  final String name;
+class _LanguageBadge extends StatelessWidget {
+  const _LanguageBadge({required this.lang});
 
-  @override
-  Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(12),
-      child: SizedBox(
-        width: 46,
-        height: 46,
-        child: CachedNetworkImage(
-          imageUrl: iconUrl,
-          fit: BoxFit.cover,
-          errorWidget: (_, __, ___) => _LetterIcon(name: name),
-          placeholder: (_, __) => _LetterIcon(name: name),
-        ),
-      ),
-    );
-  }
-}
-
-class _LetterIcon extends StatelessWidget {
-  const _LetterIcon({required this.name});
-  final String name;
+  final String lang;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: AppColors.accent.withOpacity(0.18),
+      height: 16,
+      padding: const EdgeInsets.symmetric(horizontal: 6),
+      decoration: BoxDecoration(
+        color: const Color(0x00000000), // transparent
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+        border: Border.all(
+          color: context.accentLineColor,
+          width: AppRadius.hairline,
+        ),
+      ),
       alignment: Alignment.center,
       child: Text(
-        name.isNotEmpty ? name[0].toUpperCase() : '?',
-        style: const TextStyle(
-          color: AppColors.accent,
-          fontSize: 20,
+        lang.toUpperCase(),
+        style: TextStyle(
+          fontSize: 10,
           fontWeight: FontWeight.w700,
+          color: context.accentColor,
+          height: 1.0,
         ),
       ),
     );
   }
 }
+
+// ── Action button ─────────────────────────────────────────────────────────────
 
 class _ActionButton extends StatelessWidget {
   const _ActionButton({required this.action, this.onTap});
@@ -575,33 +676,48 @@ class _ActionButton extends StatelessWidget {
     return switch (action) {
       _ExtensionAction.install => _Chip(
           label: 'Get',
-          color: AppColors.accent,
           onTap: onTap,
+          backgroundColor: context.accentSubtleColor,
+          borderColor: context.accentLineColor,
+          textColor: context.accentColor,
         ),
       _ExtensionAction.uninstall => _Chip(
           label: 'Remove',
-          color: AppColors.unread,
           onTap: onTap,
+          backgroundColor: context.unreadColor.withValues(alpha: 0.12),
+          borderColor: context.unreadColor.withValues(alpha: 0.35),
+          textColor: context.unreadColor,
         ),
       _ExtensionAction.update => _Chip(
           label: 'Update',
-          color: AppColors.warning,
           onTap: onTap,
+          backgroundColor: context.surfaceElevatedColor,
+          borderColor: context.borderStrongColor,
+          textColor: context.textPrimaryColor,
         ),
       _ExtensionAction.unavailable => Text(
           'Unavailable',
-          style: AppTextStyles.caption
-              .copyWith(color: AppColors.textQuaternary),
+          style: AppTextStyles.caption.copyWith(
+            color: context.textQuaternaryColor,
+          ),
         ),
     };
   }
 }
 
 class _Chip extends StatelessWidget {
-  const _Chip({required this.label, required this.color, this.onTap});
+  const _Chip({
+    required this.label,
+    required this.backgroundColor,
+    required this.borderColor,
+    required this.textColor,
+    this.onTap,
+  });
 
   final String label;
-  final Color color;
+  final Color backgroundColor;
+  final Color borderColor;
+  final Color textColor;
   final VoidCallback? onTap;
 
   @override
@@ -609,23 +725,29 @@ class _Chip extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.12),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: color.withOpacity(0.35), width: 0.5),
+          color: backgroundColor,
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          border: Border.all(
+            color: borderColor,
+            width: AppRadius.hairline,
+          ),
         ),
         child: Text(
           label,
-          style: AppTextStyles.caption.copyWith(
-            color: color,
-            fontWeight: FontWeight.w700,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: textColor,
           ),
         ),
       ),
     );
   }
 }
+
+// ── NSFW badge ────────────────────────────────────────────────────────────────
 
 class _Badge extends StatelessWidget {
   const _Badge({required this.label, required this.color});
@@ -638,7 +760,7 @@ class _Badge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
+        color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(5),
       ),
       child: Text(
@@ -653,6 +775,8 @@ class _Badge extends StatelessWidget {
   }
 }
 
+// ── Section header ────────────────────────────────────────────────────────────
+
 class _SectionHeader extends StatelessWidget {
   const _SectionHeader({required this.label, this.subtitle});
 
@@ -666,14 +790,20 @@ class _SectionHeader extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: AppTextStyles.sectionTitle),
+          Text(
+            label,
+            style: AppTextStyles.sectionTitle.copyWith(
+              color: context.textPrimaryColor,
+            ),
+          ),
           if (subtitle != null)
             Padding(
               padding: const EdgeInsets.only(top: 3),
               child: Text(
                 subtitle!,
-                style: AppTextStyles.caption
-                    .copyWith(color: AppColors.textTertiary),
+                style: AppTextStyles.caption.copyWith(
+                  color: context.textTertiaryColor,
+                ),
               ),
             ),
         ],
@@ -681,6 +811,8 @@ class _SectionHeader extends StatelessWidget {
     );
   }
 }
+
+// ── Search bar ────────────────────────────────────────────────────────────────
 
 class _SearchBar extends StatefulWidget {
   const _SearchBar({required this.onChanged});
@@ -704,36 +836,53 @@ class _SearchBarState extends State<_SearchBar> {
     return Container(
       height: 44,
       decoration: BoxDecoration(
-        color: context.surfaceElevatedColor.withOpacity(0.7),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: context.borderStrongColor, width: 0.5),
+        color: context.surfaceElevatedColor.withValues(alpha: 0.7),
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(
+          color: context.borderStrongColor,
+          width: AppRadius.hairline,
+        ),
       ),
       child: Row(
         children: [
           const SizedBox(width: 12),
-          const Icon(CupertinoIcons.search, size: 15, color: AppColors.textTertiary),
+          Icon(
+            CupertinoIcons.search,
+            size: 15,
+            color: context.textTertiaryColor,
+          ),
           const SizedBox(width: 8),
           Expanded(
             child: CupertinoTextField(
               controller: _ctrl,
               placeholder: 'Search extensions...',
-              placeholderStyle: AppTextStyles.bodySmall
-                  .copyWith(color: AppColors.textQuaternary),
-              style: AppTextStyles.bodySmall,
+              placeholderStyle: AppTextStyles.bodySmall.copyWith(
+                color: context.textQuaternaryColor,
+              ),
+              style: AppTextStyles.bodySmall.copyWith(
+                color: context.textPrimaryColor,
+              ),
               decoration: null,
-              onChanged: widget.onChanged,
+              onChanged: (v) {
+                setState(() {}); // rebuild to show/hide clear button
+                widget.onChanged(v);
+              },
             ),
           ),
           if (_ctrl.text.isNotEmpty)
             GestureDetector(
               onTap: () {
                 _ctrl.clear();
+                setState(() {});
                 widget.onChanged('');
               },
-              child: const Padding(
-                padding: EdgeInsets.only(right: 10),
-                child: Icon(CupertinoIcons.xmark_circle_fill,
-                    size: 15, color: AppColors.textTertiary),
+              child: Padding(
+                padding: const EdgeInsets.only(right: 10),
+                child: Icon(
+                  CupertinoIcons.xmark_circle_fill,
+                  size: 15,
+                  color: context.textTertiaryColor,
+                ),
               ),
             ),
         ],

@@ -5,16 +5,21 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/providers/settings_provider.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../shared/widgets/app_glass.dart';
 
 /// Top + bottom chrome bars revealed by a tap on the reader canvas.
+///
+/// [visible] drives the 200ms opacity + 8px translate animation:
+/// the top bar slides -8px (up) when hidden; the bottom bar slides +8px (down).
 class ReaderChrome extends StatelessWidget {
   const ReaderChrome({
     super.key,
     required this.chapterTitle,
     required this.currentPage,
     required this.totalPages,
+    required this.visible,
     required this.onClose,
     required this.onSettings,
     required this.onSeek,
@@ -23,6 +28,7 @@ class ReaderChrome extends StatelessWidget {
   final String chapterTitle;
   final int currentPage;
   final int totalPages;
+  final bool visible;
   final VoidCallback onClose;
   final VoidCallback onSettings;
   final ValueChanged<int> onSeek;
@@ -33,12 +39,14 @@ class ReaderChrome extends StatelessWidget {
       children: [
         _TopBar(
           chapterTitle: chapterTitle,
+          visible: visible,
           onClose: onClose,
           onSettings: onSettings,
         ),
         _BottomBar(
           currentPage: currentPage,
           totalPages: totalPages,
+          visible: visible,
           onSeek: onSeek,
         ),
       ],
@@ -49,11 +57,13 @@ class ReaderChrome extends StatelessWidget {
 class _TopBar extends ConsumerWidget {
   const _TopBar({
     required this.chapterTitle,
+    required this.visible,
     required this.onClose,
     required this.onSettings,
   });
 
   final String chapterTitle;
+  final bool visible;
   final VoidCallback onClose;
   final VoidCallback onSettings;
 
@@ -102,36 +112,53 @@ class _TopBar extends ConsumerWidget {
       ),
     );
 
+    final bar = liquid
+        ? AppGlass(borderRadius: 0, blur: 26, sheen: false, child: content)
+        : ClipRect(
+            child: BackdropFilter(
+              // Spec: blur-26
+              filter: ImageFilter.blur(sigmaX: 26, sigmaY: 26),
+              child: DecoratedBox(
+                decoration: const BoxDecoration(
+                  // Spec: gradient white@10 → black@45
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Color(0x1AFFFFFF), // white 10%
+                      Color(0x73000000), // black 45%
+                    ],
+                  ),
+                  border: Border(
+                    bottom: BorderSide(
+                      // hairline per spec
+                      color: Color(0x24FFFFFF), // white ~14%
+                      width: AppRadius.hairline,
+                    ),
+                  ),
+                ),
+                child: content,
+              ),
+            ),
+          );
+
+    // 200ms opacity + 8px upward translate when hiding (spec).
     return Positioned(
       top: 0,
       left: 0,
       right: 0,
-      child: liquid
-          ? AppGlass(borderRadius: 0, blur: 30, sheen: false, child: content)
-          : ClipRect(
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        CupertinoColors.white.withOpacity(0.12),
-                        const Color(0x55000000),
-                      ],
-                    ),
-                    border: Border(
-                      bottom: BorderSide(
-                        color: CupertinoColors.white.withOpacity(0.14),
-                        width: 0.5,
-                      ),
-                    ),
-                  ),
-                  child: content,
-                ),
-              ),
-            ),
+      child: AnimatedOpacity(
+        opacity: visible ? 1.0 : 0.0,
+        duration: const Duration(milliseconds: 200),
+        child: TweenAnimationBuilder<double>(
+          tween: Tween<double>(end: visible ? 0.0 : -8.0),
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOut,
+          builder: (_, dy, child) =>
+              Transform.translate(offset: Offset(0, dy), child: child),
+          child: bar,
+        ),
+      ),
     );
   }
 }
@@ -140,11 +167,13 @@ class _BottomBar extends ConsumerWidget {
   const _BottomBar({
     required this.currentPage,
     required this.totalPages,
+    required this.visible,
     required this.onSeek,
   });
 
   final int currentPage;
   final int totalPages;
+  final bool visible;
   final ValueChanged<int> onSeek;
 
   @override
@@ -171,7 +200,7 @@ class _BottomBar extends ConsumerWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('1', style: AppTextStyles.caption),
+              const Text('1', style: AppTextStyles.caption),
               Text(
                 totalPages > 0
                     ? 'Page ${currentPage + 1} of $totalPages'
@@ -188,36 +217,51 @@ class _BottomBar extends ConsumerWidget {
       ),
     );
 
+    final bar = liquid
+        ? AppGlass(borderRadius: 0, blur: 26, sheen: false, child: content)
+        : ClipRect(
+            child: BackdropFilter(
+              // Spec: blur-26 (matches top bar)
+              filter: ImageFilter.blur(sigmaX: 26, sigmaY: 26),
+              child: DecoratedBox(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.bottomCenter,
+                    end: Alignment.topCenter,
+                    colors: [
+                      Color(0x1AFFFFFF), // white 10%
+                      Color(0x73000000), // black 45%
+                    ],
+                  ),
+                  border: Border(
+                    top: BorderSide(
+                      color: Color(0x24FFFFFF), // white ~14%
+                      width: AppRadius.hairline,
+                    ),
+                  ),
+                ),
+                child: content,
+              ),
+            ),
+          );
+
+    // 200ms opacity + 8px downward translate when hiding (spec).
     return Positioned(
       bottom: 0,
       left: 0,
       right: 0,
-      child: liquid
-          ? AppGlass(borderRadius: 0, blur: 30, sheen: false, child: content)
-          : ClipRect(
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.bottomCenter,
-                      end: Alignment.topCenter,
-                      colors: [
-                        CupertinoColors.white.withOpacity(0.12),
-                        const Color(0x55000000),
-                      ],
-                    ),
-                    border: Border(
-                      top: BorderSide(
-                        color: CupertinoColors.white.withOpacity(0.14),
-                        width: 0.5,
-                      ),
-                    ),
-                  ),
-                  child: content,
-                ),
-              ),
-            ),
+      child: AnimatedOpacity(
+        opacity: visible ? 1.0 : 0.0,
+        duration: const Duration(milliseconds: 200),
+        child: TweenAnimationBuilder<double>(
+          tween: Tween<double>(end: visible ? 0.0 : 8.0),
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOut,
+          builder: (_, dy, child) =>
+              Transform.translate(offset: Offset(0, dy), child: child),
+          child: bar,
+        ),
+      ),
     );
   }
 }
@@ -277,11 +321,11 @@ class _ScrubberState extends State<_Scrubber> {
               clipBehavior: Clip.none,
               alignment: Alignment.centerLeft,
               children: [
-                // Track
+                // Track — 4px, white@22% per spec
                 Container(
                   height: 4,
                   decoration: BoxDecoration(
-                    color: AppColors.surfaceElevated,
+                    color: const Color(0x38FFFFFF), // white 22%
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
