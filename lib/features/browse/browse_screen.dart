@@ -34,6 +34,16 @@ final _sourceGradients = <String, LinearGradient>{
     end: Alignment.bottomRight,
     colors: [Color(0xFF8E0E00), Color(0xFF1F1C18)],
   ),
+  'readcomiconline_en': const LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xFFE52D27), Color(0xFFB31217)],
+  ),
+  'comicextra_en': const LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xFF2027E5), Color(0xFF12B3A6)],
+  ),
 };
 
 LinearGradient _gradientFor(MangaSource source) =>
