@@ -50,10 +50,10 @@ abstract final class AppElevation {
     BoxShadow(color: Color(0x66000000), blurRadius: 48, offset: Offset(0, 20)),
     BoxShadow(color: Color(0x3D000000), blurRadius: 12, offset: Offset(0, 4)),
   ];
-  /// Floating nav bar — soft dark drop + faint Cobalt bloom.
+  /// Floating nav bar — soft dark drop + faint Coral bloom.
   static const float = [
     BoxShadow(color: Color(0x6B000000), blurRadius: 40, spreadRadius: -4, offset: Offset(0, 16)),
-    BoxShadow(color: Color(0x1A4E7BFF), blurRadius: 18, offset: Offset(0, 6)),
+    BoxShadow(color: Color(0x1AFF6A5C), blurRadius: 18, offset: Offset(0, 6)),
   ];
 
   // Light — shallower & cooler
@@ -64,7 +64,7 @@ abstract final class AppElevation {
   ];
   static const floatLight = [
     BoxShadow(color: Color(0x24141828), blurRadius: 40, spreadRadius: -4, offset: Offset(0, 16)),
-    BoxShadow(color: Color(0x142E5BE6), blurRadius: 18, offset: Offset(0, 6)),
+    BoxShadow(color: Color(0x14DC4633), blurRadius: 18, offset: Offset(0, 6)),
   ];
 }
 

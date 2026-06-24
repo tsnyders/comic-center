@@ -165,7 +165,7 @@ class _LibraryFilterSheetState extends ConsumerState<LibraryFilterSheet> {
                 'Apply Filters',
                 style: TextStyle(
                   fontWeight: FontWeight.w600,
-                  color: CupertinoColors.white,
+                  color: AppColors.textOnAccent,
                 ),
               ),
             ),
@@ -243,7 +243,7 @@ class _FilterChipState extends State<_FilterChip> {
           widget.label,
           style: AppTextStyles.bodySmall.copyWith(
             color: widget.selected
-                ? CupertinoColors.white
+                ? AppColors.textOnAccent
                 : context.textSecondaryColor,
             fontWeight:
                 widget.selected ? FontWeight.w600 : FontWeight.w400,

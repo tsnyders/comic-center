@@ -47,9 +47,9 @@ class ChangelogScreen extends ConsumerWidget {
                   Expanded(
                     child: Text(
                       'What\'s New',
-                      style: AppTextStyles.sectionTitle.copyWith(
+                      style: AppTextStyles.hero.copyWith(
                         fontSize: 22,
-                        fontWeight: FontWeight.w800,
+                        color: context.textPrimaryColor,
                       ),
                     ),
                   ),
@@ -290,13 +290,13 @@ class _ReleaseCardState extends State<_ReleaseCard> {
                             const Icon(
                               CupertinoIcons.arrow_down_to_line,
                               size: 14,
-                              color: CupertinoColors.white,
+                              color: AppColors.textOnAccent,
                             ),
                             const SizedBox(width: 8),
                             const Text(
                               'Download APK',
                               style: TextStyle(
-                                color: CupertinoColors.white,
+                                color: AppColors.textOnAccent,
                                 fontSize: 13,
                                 fontWeight: FontWeight.w600,
                               ),

@@ -734,7 +734,7 @@ class _FilterPill extends StatelessWidget {
             fontSize: 12.5,
             fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
             color: selected
-                ? CupertinoColors.white
+                ? AppColors.textOnAccent
                 : context.textSecondaryColor,
           ),
         ),
@@ -840,13 +840,26 @@ class _ActionRow extends ConsumerWidget {
             onPressed: chs.isEmpty ? null : () => _continueReading(context, chs),
             child: chapters.isLoading
                 ? const CupertinoActivityIndicator()
-                : Text(
-                    started ? '▶  Continue Reading' : '▶  Start Reading',
-                    style: AppTextStyles.buttonPrimary.copyWith(
-                      color: chs.isEmpty
-                          ? context.textTertiaryColor
-                          : CupertinoColors.white,
-                    ),
+                : Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        CupertinoIcons.play_arrow_solid,
+                        size: 16,
+                        color: chs.isEmpty
+                            ? context.textTertiaryColor
+                            : AppColors.textOnAccent,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        started ? 'Continue Reading' : 'Start Reading',
+                        style: AppTextStyles.buttonPrimary.copyWith(
+                          color: chs.isEmpty
+                              ? context.textTertiaryColor
+                              : AppColors.textOnAccent,
+                        ),
+                      ),
+                    ],
                   ),
           ),
         ),
@@ -1009,7 +1022,7 @@ class _CategorySheetState extends ConsumerState<_CategorySheet> {
                     cat,
                     style: AppTextStyles.bodySmall.copyWith(
                       color: isSelected
-                          ? CupertinoColors.white
+                          ? AppColors.textOnAccent
                           : context.textSecondaryColor,
                       fontWeight: isSelected
                           ? FontWeight.w600
@@ -1035,7 +1048,7 @@ class _CategorySheetState extends ConsumerState<_CategorySheet> {
               child: Text(
                 'Save',
                 style: AppTextStyles.buttonPrimary.copyWith(
-                  color: CupertinoColors.white,
+                  color: AppColors.textOnAccent,
                 ),
               ),
             ),

@@ -97,7 +97,7 @@ class _CategoryManagementScreenState
                     child: const Text(
                       'Add',
                       style: TextStyle(
-                        color: CupertinoColors.white,
+                        color: AppColors.textOnAccent,
                         fontWeight: FontWeight.w600,
                         fontSize: 14,
                       ),

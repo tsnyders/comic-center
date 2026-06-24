@@ -2,12 +2,16 @@ import 'package:flutter/cupertino.dart';
 import 'app_colors.dart';
 
 /// ============================================================================
-/// Comic Center — AppTextStyles  ("Ink & Glass" redesign)
+/// Comic Center — AppTextStyles  ("Content-First" redesign)
 ///
-/// Renders in SF Pro (the Cupertino system face). Large text carries tight
-/// negative tracking; captions open up slightly. Sizes/weights are unchanged
-/// from the baseline where they already worked — the redesign adds a `hero`
-/// step + `overline`, and standardises tracking.
+/// Two-typeface system: **Sora** (a variable display face, bundled) carries the
+/// wordmark, hero, section, nav, card, and button text — the "designed" layer.
+/// Body, captions, labels, and metadata stay on **SF Pro** (the Cupertino
+/// system face) for native legibility at small sizes.
+///
+/// Sora is registered once as a variable font; each display style drives its
+/// weight via `fontVariations: [FontVariation('wght', …)]` (kept in sync with
+/// `fontWeight` so non-variable fallbacks still read correctly).
 ///
 /// Most styles bake a sensible DARK-mode default color so legacy call sites
 /// keep their look; redesigned screens override per-mode with
@@ -15,25 +19,33 @@ import 'app_colors.dart';
 /// `AppColorsX`). The few always-accent styles bake the accent.
 /// ============================================================================
 abstract final class AppTextStyles {
+  /// The bundled variable display family (see pubspec `fonts:`).
+  static const display = 'Sora';
+
   // ── Display ──────────────────────────────────────────────────────────
   static const displayTitle = TextStyle(
+    fontFamily: display, fontVariations: [FontVariation('wght', 800)],
     fontSize: 44, fontWeight: FontWeight.w800, letterSpacing: -1.5, height: 1.0,
   );
   static const displayTitleAccent = TextStyle(
+    fontFamily: display, fontVariations: [FontVariation('wght', 800)],
     fontSize: 44, fontWeight: FontWeight.w800, letterSpacing: -1.5, height: 1.0,
     color: AppColors.accent,
   );
 
   /// A mid-weight hero step for shelf headers ("Continue Reading").
   static const hero = TextStyle(
+    fontFamily: display, fontVariations: [FontVariation('wght', 800)],
     fontSize: 34, fontWeight: FontWeight.w800, letterSpacing: -0.8, height: 1.05,
   );
 
   // ── Navigation / sections ────────────────────────────────────────────
   static const navTitle = TextStyle(
+    fontFamily: display, fontVariations: [FontVariation('wght', 600)],
     fontSize: 17, fontWeight: FontWeight.w600, letterSpacing: -0.2,
   );
   static const sectionTitle = TextStyle(
+    fontFamily: display, fontVariations: [FontVariation('wght', 700)],
     fontSize: 19, fontWeight: FontWeight.w700, letterSpacing: -0.3,
   );
 
@@ -64,12 +76,14 @@ abstract final class AppTextStyles {
   );
   /// Uppercase section overline ("184 CHAPTERS", "APPEARANCE").
   static const overline = TextStyle(
+    fontFamily: display, fontVariations: [FontVariation('wght', 600)],
     fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 0.5,
     color: AppColors.textTertiary,
   );
 
   // ── Cards ────────────────────────────────────────────────────────────
   static const cardTitle = TextStyle(
+    fontFamily: display, fontVariations: [FontVariation('wght', 600)],
     fontSize: 13, fontWeight: FontWeight.w600, letterSpacing: -0.1, height: 1.3,
     color: AppColors.textPrimary,
   );
@@ -80,11 +94,13 @@ abstract final class AppTextStyles {
 
   // ── Buttons ──────────────────────────────────────────────────────────
   static const buttonPrimary = TextStyle(
+    fontFamily: display, fontVariations: [FontVariation('wght', 600)],
     fontSize: 15, fontWeight: FontWeight.w600, letterSpacing: -0.1,
   );
 
   // ── Detail sheet ─────────────────────────────────────────────────────
   static const sheetTitle = TextStyle(
+    fontFamily: display, fontVariations: [FontVariation('wght', 700)],
     fontSize: 22, fontWeight: FontWeight.w700, letterSpacing: -0.5,
   );
   static const sheetAuthor = TextStyle(

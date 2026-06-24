@@ -88,7 +88,7 @@ class _ChipState extends State<_Chip> {
           widget.label,
           style: AppTextStyles.labelMedium.copyWith(
             color: widget.isActive
-                ? CupertinoColors.white
+                ? AppColors.textOnAccent
                 : context.textSecondaryColor,
             fontWeight:
                 widget.isActive ? FontWeight.w600 : FontWeight.w400,

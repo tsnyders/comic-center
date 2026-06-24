@@ -75,3 +75,11 @@ flutter:
   assets:
     - assets/images/
     - assets/icons/
+
+  # Sora — display typeface for the wordmark, hero, and section titles.
+  # Body text stays on the Cupertino system face (SF Pro). Variable weight
+  # axis is driven per-style via FontVariation('wght', …) in AppTextStyles.
+  fonts:
+    - family: Sora
+      fonts:
+        - asset: assets/fonts/Sora.ttf

@@ -335,6 +335,10 @@ class _TabButtonState extends State<_TabButton>
           AnimatedDefaultTextStyle(
             duration: AppMotion.base,
             style: TextStyle(
+              fontFamily: AppTextStyles.display,
+              fontVariations: [
+                FontVariation('wght', widget.isActive ? 600 : 400),
+              ],
               fontSize: 10,
               fontWeight:
                   widget.isActive ? FontWeight.w600 : FontWeight.w400,

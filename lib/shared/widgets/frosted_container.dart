@@ -10,7 +10,7 @@ class FrostedContainer extends StatelessWidget {
     super.key,
     required this.child,
     this.blurStrength = 20.0,
-    this.backgroundColor = const Color(0x70141418),
+    this.backgroundColor = const Color(0x70151417),
     this.borderRadius,
     this.border,
     this.padding,

@@ -1,61 +1,72 @@
 import 'package:flutter/cupertino.dart';
 
 /// ============================================================================
-/// Comic Center — AppColors  ("Ink & Glass" redesign)
+/// Comic Center — AppColors  ("Content-First" redesign)
 ///
-/// A near-monochrome surface system with ONE confident accent (Cobalt) and
-/// crisp hairlines. Every surface/text/border token is defined for both modes;
-/// glass tints additionally vary by theme (see [AppGlassSpec]).
+/// A monochrome ink surface system with ONE warm accent (Coral). The chrome
+/// stays neutral on purpose — colour comes from the cover art itself — and a
+/// single coral accent marks intent (continue, active, follow, unread).
+/// Every surface/text/border token is defined for both modes; glass tints
+/// additionally vary by theme (see [AppGlassSpec]).
 ///
-/// Accent rationale: the old #0A84FF iOS blue leans cyan and reads "default".
-/// Cobalt is a deeper, faintly indigo-leaning blue — more characterful, still
-/// unmistakably "blue/link", and tuned per mode so accent-as-text passes
-/// WCAG AA in both (the bright 500 on dark, the deeper 700 on white).
+/// Accent rationale: Coral (#FF6A5C) is warm, distinctive, and unmistakably
+/// "act here" without competing with the colourful covers it sits beside. It
+/// pairs with a DARK warm foreground on fills (white-on-coral fails contrast,
+/// ink-on-coral clears ~7:1); light mode steps the accent deeper for legibility.
 /// ============================================================================
 abstract final class AppColors {
-  // ── Cobalt accent ramp ────────────────────────────────────────────────
-  static const cobalt300 = Color(0xFF8AA6FF);
-  static const cobalt400 = Color(0xFF6E8FFF); // dark hover
-  static const cobalt500 = Color(0xFF4E7BFF); // DARK accent
-  static const cobalt600 = Color(0xFF3A63F0); // dark press / light hover
-  static const cobalt700 = Color(0xFF2E5BE6); // LIGHT accent (AA on white)
-  static const cobalt800 = Color(0xFF2348C4); // light press
+  // ── Coral accent ramp ─────────────────────────────────────────────────
+  static const coral300 = Color(0xFFFFA99E);
+  static const coral400 = Color(0xFFFF8B7C); // dark hover
+  static const coral500 = Color(0xFFFF6A5C); // DARK accent
+  static const coral600 = Color(0xFFF0533F); // dark press / light hover
+  static const coral700 = Color(0xFFDC4633); // LIGHT accent
+  static const coral800 = Color(0xFFBE3A29); // light press
 
-  // ── Dark mode ─────────────────────────────────────────────────────────
-  static const background       = Color(0xFF0A0A0F);
-  static const surface          = Color(0xFF131318);
-  static const surfaceElevated  = Color(0xFF1C1C24);
-  static const surfaceSunken    = Color(0xFF08080C);
+  // ── Back-compat aliases (call sites still referencing the old ramp) ────
+  static const cobalt300 = coral300;
+  static const cobalt400 = coral400;
+  static const cobalt500 = coral500;
+  static const cobalt600 = coral600;
+  static const cobalt700 = coral700;
+  static const cobalt800 = coral800;
+
+  // ── Dark mode (neutral-warm ink) ──────────────────────────────────────
+  static const background       = Color(0xFF0B0B0D);
+  static const surface          = Color(0xFF151417);
+  static const surfaceElevated  = Color(0xFF1F1E22);
+  static const surfaceSunken    = Color(0xFF08080A);
 
   static const border        = Color(0x14FFFFFF); // 8%
   static const borderStrong  = Color(0x29FFFFFF); // 16%
 
-  static const accent        = cobalt500;
-  static const accentHover   = cobalt400;
-  static const accentPress   = cobalt600;
-  static const accentSubtle  = Color(0x294E7BFF); // 16%
-  static const accentLine    = Color(0x734E7BFF); // 45%
+  static const accent        = coral500;
+  static const accentHover   = coral400;
+  static const accentPress   = coral600;
+  static const accentSubtle  = Color(0x29FF6A5C); // 16%
+  static const accentLine    = Color(0x73FF6A5C); // 45%
 
   static const textPrimary    = Color(0xFAFFFFFF); // 98%
   static const textSecondary  = Color(0x9EFFFFFF); // 62%
   static const textTertiary   = Color(0x5CFFFFFF); // 36%
   static const textQuaternary = Color(0x29FFFFFF); // 16%
-  static const textOnAccent   = Color(0xFFFFFFFF);
+  /// Foreground on coral fills — a deep warm ink (ink-on-coral ≈ 7:1).
+  static const textOnAccent   = Color(0xFF2A0B07);
 
-  // ── Light mode ────────────────────────────────────────────────────────
-  static const lightBackground      = Color(0xFFF4F4F8);
+  // ── Light mode (warm paper) ───────────────────────────────────────────
+  static const lightBackground      = Color(0xFFF6F4F2);
   static const lightSurface         = Color(0xFFFFFFFF);
-  static const lightSurfaceElevated = Color(0xFFECECF1);
-  static const lightSurfaceSunken   = Color(0xFFE6E6EC);
+  static const lightSurfaceElevated = Color(0xFFEEEBE7);
+  static const lightSurfaceSunken   = Color(0xFFE9E5E1);
 
   static const lightBorder       = Color(0x14000000); // 8%
   static const lightBorderStrong = Color(0x24000000); // 14%
 
-  static const lightAccent       = cobalt700;
-  static const lightAccentHover  = cobalt600;
-  static const lightAccentPress  = cobalt800;
-  static const lightAccentSubtle = Color(0x1F2E5BE6); // 12%
-  static const lightAccentLine   = Color(0x522E5BE6); // 32%
+  static const lightAccent       = coral700;
+  static const lightAccentHover  = coral600;
+  static const lightAccentPress  = coral800;
+  static const lightAccentSubtle = Color(0x1FDC4633); // 12%
+  static const lightAccentLine   = Color(0x52DC4633); // 32%
 
   static const lightTextPrimary    = Color(0xEB000000); // 92%
   static const lightTextSecondary  = Color(0x8F000000); // 56%
@@ -75,15 +86,15 @@ abstract final class AppColors {
   static const readerSepia      = Color(0xFFF4ECD8);
 
   // ── Ambient backdrop seeds (give the blur something to chew on) ───────
-  static const ambientDark  = [Color(0xFF0D1322), Color(0xFF0A0A0F)];
-  static const ambientLight = [Color(0xFFEAEEFB), Color(0xFFF4F4F8)];
+  static const ambientDark  = [Color(0xFF18100F), Color(0xFF0B0B0D)];
+  static const ambientLight = [Color(0xFFFBF0EE), Color(0xFFF6F4F2)];
 
   // ── Hero protection gradient (cover → background) ─────────────────────
   static const heroGradientDark = [
-    Color(0x33000000), Color(0xCC0A0A0F), background,
+    Color(0x33000000), Color(0xCC0B0B0D), background,
   ];
   static const heroGradientLight = [
-    Color(0x22000000), Color(0x88F4F4F8), lightBackground,
+    Color(0x22000000), Color(0x88F6F4F2), lightBackground,
   ];
 
   // ── Source-accent gradient seeds (Browse featured cards / avatars) ────
@@ -96,7 +107,7 @@ abstract final class AppColors {
   // Retained so existing screens keep compiling during/after the migration.
   static const heroGradientColors = heroGradientDark;
   static const ambientGradient = ambientDark;
-  static const tabBarBackground = Color(0xEB131318);
+  static const tabBarBackground = Color(0xEB151417);
 }
 
 /// Context-aware resolvers — return the correct value for the active mode.
@@ -143,5 +154,5 @@ extension AppColorsX on BuildContext {
 
   // Back-compat: floating tab bar tint.
   Color get tabBarColor =>
-      isDark ? AppColors.tabBarBackground : const Color(0xEBF9F9F9);
+      isDark ? AppColors.tabBarBackground : const Color(0xEBF6F4F2);
 }

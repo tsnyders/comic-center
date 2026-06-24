@@ -456,8 +456,8 @@ class _AmbientBackground extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final seedColor = context.isDark
-        ? const Color(0x26667EEA)
-        : const Color(0x1A667EEA);
+        ? const Color(0x24FF6A5C)
+        : const Color(0x14DC4633);
     final baseColor = context.backgroundColor;
 
     return Container(

@@ -83,12 +83,10 @@ class _TopBar extends ConsumerWidget {
         children: [
           GestureDetector(
             onTap: onClose,
-            child: const Text(
-              '✕',
-              style: TextStyle(
-                color: CupertinoColors.white,
-                fontSize: 20,
-              ),
+            child: const Icon(
+              CupertinoIcons.xmark,
+              color: CupertinoColors.white,
+              size: 20,
             ),
           ),
           Expanded(

@@ -26,10 +26,9 @@ class DownloadsScreen extends ConsumerWidget {
             child: Padding(
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
               child: Text('Downloads',
-                  style: AppTextStyles.sectionTitle.copyWith(
+                  style: AppTextStyles.hero.copyWith(
                     fontSize: 26,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.5,
+                    color: context.textPrimaryColor,
                   )),
             ),
           ),
