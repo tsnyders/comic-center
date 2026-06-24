@@ -132,6 +132,9 @@ jobs:
       - name: Flutter pub get
         run: flutter pub get
 
+      - name: Generate iOS platform files
+        run: flutter create --platforms=ios --org com.comiccenter .
+
       - name: Build iOS (no codesign)
         run: flutter build ios --release --no-codesign
 
