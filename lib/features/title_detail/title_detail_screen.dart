@@ -1,7 +1,6 @@
 import 'dart:ui';
 
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/material.dart' show DraggableScrollableSheet;
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -14,7 +13,9 @@ import '../../core/providers/source_registry_provider.dart';
 import '../../core/providers/library_provider.dart';
 import '../../core/providers/settings_provider.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../../shared/widgets/app_glass.dart';
 import '../../shared/widgets/cover_image.dart';
 import '../library/widgets/manga_card.dart' show mangaCoverHeroTag;
 import '../reader/reader_screen.dart';
@@ -55,7 +56,7 @@ class TitleDetailScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return CupertinoPageScaffold(
-      backgroundColor: CupertinoTheme.of(context).scaffoldBackgroundColor,
+      backgroundColor: context.backgroundColor,
       child: Stack(
         children: [
           // Full-bleed hero
@@ -65,16 +66,19 @@ class TitleDetailScreen extends ConsumerWidget {
           SafeArea(
             bottom: false,
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.gutter,
+                vertical: AppSpacing.x4,
+              ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   _NavButton(
                     onTap: () => Navigator.of(context).pop(),
-                    child: const Text(
+                    child: Text(
                       '‹ Back',
                       style: TextStyle(
-                        color: AppColors.accent,
+                        color: context.accentColor,
                         fontSize: 16,
                         fontWeight: FontWeight.w500,
                       ),
@@ -114,43 +118,51 @@ class _DetailHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final dark = context.isDark;
+    final heroGradient = dark
+        ? AppColors.heroGradientDark
+        : AppColors.heroGradientLight;
+
     return SizedBox.expand(
       child: Stack(
         fit: StackFit.expand,
         children: [
-          // Blurred cover
-          CoverImage(url: manga.coverUrl),
-          // Dark overlay + fade to background at bottom
-          Container(
-            decoration: const BoxDecoration(
+          // Blurred, scaled cover fills the hero area
+          Transform.scale(
+            scale: 1.3,
+            child: ImageFiltered(
+              imageFilter: ImageFilter.blur(sigmaX: 34, sigmaY: 34),
+              child: CoverImage(url: manga.coverUrl),
+            ),
+          ),
+
+          // Gradient fade to background — brightness-aware
+          DecoratedBox(
+            decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: [
-                  Color(0x33000000),
-                  Color(0xCC0A0A0F),
-                  AppColors.background,
-                ],
-                stops: [0.0, 0.55, 0.85],
+                colors: heroGradient,
+                stops: const [0.0, 0.55, 0.86],
               ),
             ),
           ),
-          // Blur layer
-          BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
-            child: const SizedBox.expand(),
-          ),
-          // Vivid cover (top-right corner)
+
+          // Sharp cover chip — 104×156, top-right, e3 shadow
           Positioned(
             top: 80,
-            right: 20,
+            right: AppSpacing.gutter,
             child: Hero(
               tag: mangaCoverHeroTag(manga.id),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: SizedBox(
-                  width: 100,
-                  height: 150,
+              child: Container(
+                width: 104,
+                height: 156,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                  boxShadow: dark ? AppElevation.e3 : AppElevation.e3Light,
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(AppRadius.md),
                   child: CoverImage(url: manga.coverUrl),
                 ),
               ),
@@ -173,20 +185,11 @@ class _NavButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-            decoration: BoxDecoration(
-              color: const Color(0x80000000),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.borderStrong, width: 0.5),
-            ),
-            child: child,
-          ),
-        ),
+      child: AppGlass(
+        borderRadius: 14,
+        blur: 12,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+        child: child,
       ),
     );
   }
@@ -211,7 +214,7 @@ class _AddToLibraryButton extends ConsumerWidget {
       },
       child: Icon(
         inLibrary ? CupertinoIcons.bookmark_fill : CupertinoIcons.bookmark,
-        color: inLibrary ? AppColors.accent : AppColors.textPrimary,
+        color: inLibrary ? context.accentColor : context.textPrimaryColor,
         size: 18,
       ),
     );
@@ -262,30 +265,40 @@ class _DetailSheetState extends ConsumerState<_DetailSheet> {
     final chapters = ref.watch(chapterSyncProvider(manga.id));
 
     return ClipRRect(
-      borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      borderRadius: const BorderRadius.vertical(
+        top: Radius.circular(AppRadius.xl),
+      ),
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 40, sigmaY: 40),
         child: Container(
           decoration: BoxDecoration(
-            color: AppColors.surface.withOpacity(0.95),
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-            border: const Border(
-              top: BorderSide(color: AppColors.borderStrong, width: 0.5),
+            color: context.surfaceColor.withValues(alpha: 0.96),
+            borderRadius: const BorderRadius.vertical(
+              top: Radius.circular(AppRadius.xl),
+            ),
+            border: Border(
+              top: BorderSide(
+                color: context.borderStrongColor,
+                width: AppRadius.hairline,
+              ),
             ),
           ),
           child: CustomScrollView(
             controller: scrollController,
             physics: const BouncingScrollPhysics(),
             slivers: [
-              // Drag handle
+              // Drag handle — 36×4
               SliverToBoxAdapter(
                 child: Center(
                   child: Container(
-                    margin: const EdgeInsets.only(top: 12, bottom: 16),
+                    margin: const EdgeInsets.only(
+                      top: AppSpacing.x5,
+                      bottom: AppSpacing.x6,
+                    ),
                     width: 36,
                     height: 4,
                     decoration: BoxDecoration(
-                      color: AppColors.borderStrong,
+                      color: context.borderStrongColor,
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
@@ -311,12 +324,19 @@ class _DetailSheetState extends ConsumerState<_DetailSheet> {
               // Title + author
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.gutter,
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(liveManga.title, style: AppTextStyles.sheetTitle),
-                      const SizedBox(height: 4),
+                      Text(
+                        liveManga.title,
+                        style: AppTextStyles.sheetTitle.copyWith(
+                          color: context.textPrimaryColor,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.x2),
                       Text(
                         [
                           if (liveManga.author != null) liveManga.author!,
@@ -325,7 +345,9 @@ class _DetailSheetState extends ConsumerState<_DetailSheet> {
                           '·',
                           '${liveManga.chapterCount} ch',
                         ].join(' '),
-                        style: AppTextStyles.sheetAuthor,
+                        style: AppTextStyles.sheetAuthor.copyWith(
+                          color: context.textSecondaryColor,
+                        ),
                       ),
                     ],
                   ),
@@ -335,7 +357,9 @@ class _DetailSheetState extends ConsumerState<_DetailSheet> {
               // Genre chips
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.gutter, AppSpacing.x5, AppSpacing.gutter, 0,
+                  ),
                   child: Wrap(
                     spacing: 6,
                     runSpacing: 6,
@@ -349,7 +373,9 @@ class _DetailSheetState extends ConsumerState<_DetailSheet> {
               // Action buttons
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.gutter, AppSpacing.x6, AppSpacing.gutter, 0,
+                  ),
                   child: _ActionRow(
                     manga: manga,
                     chapters: chapters,
@@ -376,10 +402,15 @@ class _DetailSheetState extends ConsumerState<_DetailSheet> {
                   liveManga.description!.isNotEmpty)
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.gutter, AppSpacing.x6, AppSpacing.gutter, 0,
+                    ),
                     child: Text(
                       liveManga.description!,
-                      style: AppTextStyles.bodySmall.copyWith(height: 1.5),
+                      style: AppTextStyles.bodySmall.copyWith(
+                        height: 1.5,
+                        color: context.textSecondaryColor,
+                      ),
                       maxLines: 4,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -389,13 +420,16 @@ class _DetailSheetState extends ConsumerState<_DetailSheet> {
               // Chapters heading + filter / sort bar
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.gutter, AppSpacing.x7, AppSpacing.gutter, AppSpacing.x4,
+                  ),
                   child: Row(
                     children: [
                       Expanded(
                         child: Text(
                           '${liveManga.chapterCount} Chapters'.toUpperCase(),
-                          style: AppTextStyles.labelSmall.copyWith(
+                          style: AppTextStyles.overline.copyWith(
+                            color: context.textTertiaryColor,
                             letterSpacing: 0.5,
                           ),
                         ),
@@ -412,7 +446,9 @@ class _DetailSheetState extends ConsumerState<_DetailSheet> {
               // Filter pills
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.gutter, 0, AppSpacing.gutter, AppSpacing.x4,
+                  ),
                   child: Row(
                     children: [
                       _FilterPill(
@@ -421,14 +457,14 @@ class _DetailSheetState extends ConsumerState<_DetailSheet> {
                         onTap: () =>
                             setState(() => _filter = _ChapterFilter.all),
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: AppSpacing.x4),
                       _FilterPill(
                         label: 'Unread',
                         selected: _filter == _ChapterFilter.unread,
                         onTap: () =>
                             setState(() => _filter = _ChapterFilter.unread),
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: AppSpacing.x4),
                       _FilterPill(
                         label: 'Downloaded',
                         selected: _filter == _ChapterFilter.downloaded,
@@ -442,32 +478,41 @@ class _DetailSheetState extends ConsumerState<_DetailSheet> {
 
               // Chapter list
               chapters.when(
-                loading: () => SliverToBoxAdapter(
-                  child: const Padding(
+                loading: () => const SliverToBoxAdapter(
+                  child: Padding(
                     padding: EdgeInsets.symmetric(vertical: 32),
                     child: CupertinoActivityIndicator(),
                   ),
                 ),
                 error: (e, _) => SliverToBoxAdapter(
-                  child: Text(e.toString(), style: AppTextStyles.bodySmall),
+                  child: Text(
+                    e.toString(),
+                    style: AppTextStyles.bodySmall.copyWith(
+                      color: context.textSecondaryColor,
+                    ),
+                  ),
                 ),
                 data: (chs) {
                   final display = _applyFilterSort(chs);
                   if (display.isEmpty) {
-                    return const SliverToBoxAdapter(
+                    return SliverToBoxAdapter(
                       child: Padding(
-                        padding: EdgeInsets.symmetric(vertical: 32),
+                        padding: const EdgeInsets.symmetric(vertical: 32),
                         child: Center(
                           child: Text(
                             'No chapters match this filter.',
-                            style: AppTextStyles.bodySmall,
+                            style: AppTextStyles.bodySmall.copyWith(
+                              color: context.textSecondaryColor,
+                            ),
                           ),
                         ),
                       ),
                     );
                   }
                   return SliverPadding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.gutter,
+                    ),
                     sliver: SliverList.builder(
                       itemCount: display.length,
                       itemBuilder: (context, i) => ChapterListTile(
@@ -483,7 +528,9 @@ class _DetailSheetState extends ConsumerState<_DetailSheet> {
               ),
 
               SliverToBoxAdapter(
-                child: SizedBox(height: MediaQuery.of(context).padding.bottom + 32),
+                child: SizedBox(
+                  height: MediaQuery.of(context).padding.bottom + 32,
+                ),
               ),
             ],
           ),
@@ -610,6 +657,8 @@ class _DetailSheetState extends ConsumerState<_DetailSheet> {
       s.isEmpty ? s : '${s[0].toUpperCase()}${s.substring(1)}';
 }
 
+// ── Sort button ────────────────────────────────────────────────────────────
+
 class _SortButton extends StatelessWidget {
   const _SortButton({required this.ascending, required this.onTap});
   final bool ascending;
@@ -630,13 +679,13 @@ class _SortButton extends StatelessWidget {
                 ? CupertinoIcons.arrow_up
                 : CupertinoIcons.arrow_down,
             size: 13,
-            color: AppColors.accent,
+            color: context.accentColor,
           ),
           const SizedBox(width: 4),
           Text(
             ascending ? 'Oldest' : 'Newest',
-            style: AppTextStyles.labelSmall.copyWith(
-              color: AppColors.accent,
+            style: AppTextStyles.overline.copyWith(
+              color: context.accentColor,
               letterSpacing: 0,
             ),
           ),
@@ -645,6 +694,8 @@ class _SortButton extends StatelessWidget {
     );
   }
 }
+
+// ── Filter pill ────────────────────────────────────────────────────────────
 
 class _FilterPill extends StatelessWidget {
   const _FilterPill({
@@ -668,11 +719,13 @@ class _FilterPill extends StatelessWidget {
         duration: const Duration(milliseconds: 140),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
         decoration: BoxDecoration(
-          color: selected ? AppColors.accent : AppColors.surfaceElevated,
-          borderRadius: BorderRadius.circular(16),
+          color: selected ? context.accentColor : context.surfaceElevatedColor,
+          borderRadius: BorderRadius.circular(AppRadius.pill),
           border: Border.all(
-            color: selected ? AppColors.accent : AppColors.borderStrong,
-            width: 0.5,
+            color: selected
+                ? context.accentColor
+                : context.borderStrongColor,
+            width: AppRadius.hairline,
           ),
         ),
         child: Text(
@@ -680,14 +733,17 @@ class _FilterPill extends StatelessWidget {
           style: TextStyle(
             fontSize: 12.5,
             fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-            color:
-                selected ? CupertinoColors.white : AppColors.textSecondary,
+            color: selected
+                ? CupertinoColors.white
+                : context.textSecondaryColor,
           ),
         ),
       ),
     );
   }
 }
+
+// ── Genre chip ─────────────────────────────────────────────────────────────
 
 class _GenreChip extends StatelessWidget {
   const _GenreChip({required this.label});
@@ -698,14 +754,24 @@ class _GenreChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: AppColors.surfaceElevated,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppColors.border, width: 0.5),
+        color: context.surfaceElevatedColor,
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+        border: Border.all(
+          color: context.borderStrongColor,
+          width: AppRadius.hairline,
+        ),
       ),
-      child: Text(label, style: AppTextStyles.labelSmall.copyWith(color: AppColors.textSecondary)),
+      child: Text(
+        label,
+        style: AppTextStyles.labelSmall.copyWith(
+          color: context.textSecondaryColor,
+        ),
+      ),
     );
   }
 }
+
+// ── Action row ─────────────────────────────────────────────────────────────
 
 class _ActionRow extends ConsumerWidget {
   const _ActionRow({
@@ -720,14 +786,19 @@ class _ActionRow extends ConsumerWidget {
   final VoidCallback onShowDownloadSheet;
   final VoidCallback onManageCategories;
 
+  bool _hasStarted(List<ChapterEntry> chs) =>
+      chs.any((c) => c.isRead || c.lastPageRead > 0);
+
   void _continueReading(BuildContext context, List<ChapterEntry> chs) {
     if (chs.isEmpty) return;
     HapticFeedback.selectionClick();
-    // chs is sorted descending (latest first). Reading order is ascending.
-    // Find the first unread chapter in ascending order (i.e., last unread from
-    // the end of chs).
-    final targetIdx = chs.lastIndexWhere((c) => !c.isRead);
-    final index = targetIdx >= 0 ? targetIdx : 0;
+    // chs is sorted descending (latest/highest chapter first).
+    // "Continue": open the highest-numbered chapter the user has touched.
+    // "Start":    open the first chapter (lowest number = last in desc list).
+    final started = _hasStarted(chs);
+    final rawIdx =
+        started ? chs.indexWhere((c) => c.isRead || c.lastPageRead > 0) : -1;
+    final index = rawIdx >= 0 ? rawIdx : chs.length - 1;
     final target = chs[index];
     final summaries = chs
         .map((c) => ReaderChapterSummary(
@@ -756,65 +827,76 @@ class _ActionRow extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final chs = chapters.valueOrNull ?? [];
+    final started = _hasStarted(chs);
+    final dark = context.isDark;
     return Row(
       children: [
+        // Primary CTA — full-width accent button
         Expanded(
           child: CupertinoButton(
             padding: const EdgeInsets.symmetric(vertical: 13),
-            color: chs.isEmpty ? AppColors.surfaceElevated : AppColors.accent,
-            borderRadius: BorderRadius.circular(14),
+            color: chs.isEmpty ? context.surfaceElevatedColor : context.accentColor,
+            borderRadius: BorderRadius.circular(AppRadius.md),
             onPressed: chs.isEmpty ? null : () => _continueReading(context, chs),
             child: chapters.isLoading
                 ? const CupertinoActivityIndicator()
                 : Text(
-                    '▶  Continue Reading',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
+                    started ? '▶  Continue Reading' : '▶  Start Reading',
+                    style: AppTextStyles.buttonPrimary.copyWith(
                       color: chs.isEmpty
-                          ? AppColors.textTertiary
+                          ? context.textTertiaryColor
                           : CupertinoColors.white,
                     ),
                   ),
           ),
         ),
-        const SizedBox(width: 10),
+        const SizedBox(width: AppSpacing.x5),
+        // Download icon button — 48px rounded
         GestureDetector(
           onTap: chs.isEmpty ? null : onShowDownloadSheet,
           child: Container(
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: AppColors.surfaceElevated,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AppColors.borderStrong, width: 0.5),
+              color: context.surfaceElevatedColor,
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              border: Border.all(
+                color: context.borderStrongColor,
+                width: AppRadius.hairline,
+              ),
+              boxShadow: dark ? AppElevation.e1 : AppElevation.e2Light,
             ),
             child: Center(
               child: Icon(
                 CupertinoIcons.arrow_down_circle,
                 color: chs.isEmpty
-                    ? AppColors.textQuaternary
-                    : AppColors.textSecondary,
+                    ? context.textQuaternaryColor
+                    : context.textSecondaryColor,
                 size: 20,
               ),
             ),
           ),
         ),
-        const SizedBox(width: 10),
+        const SizedBox(width: AppSpacing.x5),
+        // Categories icon button — 48px rounded
         GestureDetector(
           onTap: onManageCategories,
           child: Container(
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: AppColors.surfaceElevated,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AppColors.borderStrong, width: 0.5),
+              color: context.surfaceElevatedColor,
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              border: Border.all(
+                color: context.borderStrongColor,
+                width: AppRadius.hairline,
+              ),
+              boxShadow: dark ? AppElevation.e1 : AppElevation.e2Light,
             ),
-            child: const Center(
+            child: Center(
               child: Icon(
                 CupertinoIcons.folder_badge_plus,
-                color: AppColors.textSecondary,
+                color: context.textSecondaryColor,
                 size: 20,
               ),
             ),
@@ -852,15 +934,23 @@ class _CategorySheetState extends ConsumerState<_CategorySheet> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
-        color: Color(0xFF1C1C24),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      decoration: BoxDecoration(
+        color: context.surfaceColor,
+        borderRadius: const BorderRadius.vertical(
+          top: Radius.circular(AppRadius.xl),
+        ),
+        border: Border(
+          top: BorderSide(
+            color: context.borderStrongColor,
+            width: AppRadius.hairline,
+          ),
+        ),
       ),
       padding: EdgeInsets.only(
-        top: 12,
-        left: 20,
-        right: 20,
-        bottom: MediaQuery.of(context).padding.bottom + 20,
+        top: AppSpacing.x5,
+        left: AppSpacing.gutter,
+        right: AppSpacing.gutter,
+        bottom: MediaQuery.of(context).padding.bottom + AppSpacing.gutter,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -870,18 +960,23 @@ class _CategorySheetState extends ConsumerState<_CategorySheet> {
             child: Container(
               width: 36,
               height: 4,
-              margin: const EdgeInsets.only(bottom: 16),
+              margin: const EdgeInsets.only(bottom: AppSpacing.x6),
               decoration: BoxDecoration(
-                color: AppColors.borderStrong,
+                color: context.borderStrongColor,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
           ),
-          Text('Add to Category', style: AppTextStyles.sectionTitle),
-          const SizedBox(height: 16),
+          Text(
+            'Add to Category',
+            style: AppTextStyles.sectionTitle.copyWith(
+              color: context.textPrimaryColor,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.x6),
           Wrap(
-            spacing: 8,
-            runSpacing: 8,
+            spacing: AppSpacing.x4,
+            runSpacing: AppSpacing.x4,
             children: widget.allCategories.map((cat) {
               final isSelected = _selected.contains(cat);
               return GestureDetector(
@@ -895,15 +990,19 @@ class _CategorySheetState extends ConsumerState<_CategorySheet> {
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 140),
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 14, vertical: 7),
+                    horizontal: 14,
+                    vertical: 7,
+                  ),
                   decoration: BoxDecoration(
-                    color: isSelected ? AppColors.accent : AppColors.surface,
-                    borderRadius: BorderRadius.circular(20),
+                    color: isSelected
+                        ? context.accentColor
+                        : context.surfaceElevatedColor,
+                    borderRadius: BorderRadius.circular(AppRadius.pill),
                     border: Border.all(
                       color: isSelected
-                          ? AppColors.accent
-                          : AppColors.borderStrong,
-                      width: 0.5,
+                          ? context.accentColor
+                          : context.borderStrongColor,
+                      width: AppRadius.hairline,
                     ),
                   ),
                   child: Text(
@@ -911,7 +1010,7 @@ class _CategorySheetState extends ConsumerState<_CategorySheet> {
                     style: AppTextStyles.bodySmall.copyWith(
                       color: isSelected
                           ? CupertinoColors.white
-                          : AppColors.textSecondary,
+                          : context.textSecondaryColor,
                       fontWeight: isSelected
                           ? FontWeight.w600
                           : FontWeight.w400,
@@ -921,21 +1020,23 @@ class _CategorySheetState extends ConsumerState<_CategorySheet> {
               );
             }).toList(),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: AppSpacing.gutter),
           SizedBox(
             width: double.infinity,
             child: CupertinoButton(
-              color: AppColors.accent,
-              borderRadius: BorderRadius.circular(14),
+              color: context.accentColor,
+              borderRadius: BorderRadius.circular(AppRadius.md),
               onPressed: () async {
                 await ref
                     .read(libraryNotifierProvider.notifier)
                     .updateCategories(widget.manga.id, _selected);
                 if (context.mounted) Navigator.of(context).pop();
               },
-              child: const Text(
+              child: Text(
                 'Save',
-                style: TextStyle(fontWeight: FontWeight.w600),
+                style: AppTextStyles.buttonPrimary.copyWith(
+                  color: CupertinoColors.white,
+                ),
               ),
             ),
           ),

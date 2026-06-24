@@ -10,6 +10,7 @@ import '../../core/services/backup_service.dart';
 import '../../core/services/google_drive_service.dart';
 import '../../core/services/update_service.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../library/category_management_screen.dart';
 import 'backup_restore_screen.dart';
@@ -38,27 +39,32 @@ class SettingsScreen extends ConsumerWidget {
     final bottomPadding = MediaQuery.of(context).padding.bottom;
     final dlLocation    = ref.watch(downloadLocationProvider);
     final brightness    = ref.watch(brightnessProvider);
+    final glassTheme    = ref.watch(glassThemeProvider);
     final direction     = ref.watch(readingDirectionProvider);
     final scale         = ref.watch(pageScaleModeProvider);
     final background    = ref.watch(readerBackgroundProvider);
     final driveAccount  = ref.watch(googleDriveProvider);
 
     return CupertinoPageScaffold(
-      backgroundColor: CupertinoTheme.of(context).scaffoldBackgroundColor,
+      backgroundColor: context.backgroundColor,
       child: CustomScrollView(
         physics: const BouncingScrollPhysics(),
         slivers: [
-          SliverToBoxAdapter(child: SizedBox(height: topPadding + 8)),
+          SliverToBoxAdapter(child: SizedBox(height: topPadding + AppSpacing.x4)),
 
+          // ── Page title ──────────────────────────────────────────────────
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.gutter, 0, AppSpacing.gutter, AppSpacing.x8,
+              ),
               child: Text(
                 'Settings',
                 style: AppTextStyles.sectionTitle.copyWith(
                   fontSize: 26,
                   fontWeight: FontWeight.w800,
                   letterSpacing: -0.5,
+                  color: context.textPrimaryColor,
                 ),
               ),
             ),
@@ -67,14 +73,33 @@ class SettingsScreen extends ConsumerWidget {
           // ── Appearance ───────────────────────────────────────────────
           _buildSection(context, 'Appearance', [
             _SettingRow(
+              icon: CupertinoIcons.sparkles,
+              iconBgColor: _IColor.purple,
+              label: 'Theme',
+              trailing: _SegmentedPicker<GlassTheme>(
+                value: glassTheme,
+                items: const [
+                  (GlassTheme.frosty, 'Frosty'),
+                  (GlassTheme.liquid, 'Liquid'),
+                ],
+                onChanged: (g) =>
+                    ref.read(glassThemeProvider.notifier).state = g,
+              ),
+            ),
+            _SettingRow(
               icon: CupertinoIcons.moon_stars,
               iconBgColor: _IColor.indigo,
-              label: 'Theme',
-              trailing: _ThemePicker(
-                brightness: brightness,
+              label: 'Theme Mode',
+              trailing: _SegmentedPicker<Brightness>(
+                value: brightness,
+                items: const [
+                  (Brightness.dark, 'Dark'),
+                  (Brightness.light, 'Light'),
+                ],
                 onChanged: (b) =>
                     ref.read(brightnessProvider.notifier).state = b,
               ),
+              isLast: true,
             ),
           ]),
 
@@ -95,7 +120,12 @@ class SettingsScreen extends ConsumerWidget {
               icon: CupertinoIcons.repeat,
               iconBgColor: _IColor.green,
               label: 'Auto-Update',
-              trailing: CupertinoSwitch(value: true, onChanged: (_) {}),
+              trailing: CupertinoSwitch(
+                value: true,
+                activeTrackColor: context.downloadedColor,
+                onChanged: (_) {},
+              ),
+              isLast: true,
             ),
           ]),
 
@@ -145,6 +175,7 @@ class SettingsScreen extends ConsumerWidget {
                 onChanged: (v) =>
                     ref.read(readerBackgroundProvider.notifier).state = v,
               ),
+              isLast: true,
             ),
           ]),
 
@@ -154,11 +185,16 @@ class SettingsScreen extends ConsumerWidget {
               icon: CupertinoIcons.folder_badge_plus,
               iconBgColor: _IColor.yellow,
               label: 'Storage Location',
-              trailing: _LocationPicker(
+              trailing: _SegmentedPicker<DownloadLocation>(
                 value: dlLocation,
+                items: const [
+                  (DownloadLocation.local, 'Local'),
+                  (DownloadLocation.googleDrive, 'Drive'),
+                ],
                 onChanged: (loc) =>
                     ref.read(downloadLocationProvider.notifier).state = loc,
               ),
+              isLast: dlLocation != DownloadLocation.googleDrive,
             ),
             if (dlLocation == DownloadLocation.googleDrive)
               _SettingRow(
@@ -171,16 +207,18 @@ class SettingsScreen extends ConsumerWidget {
                 onTap: () => driveAccount != null
                     ? _signOutFromDrive(context, ref)
                     : _linkGoogleDrive(context, ref),
+                isLast: true,
               ),
           ]),
 
           // ── Extensions ───────────────────────────────────────────────
           _buildSection(context, 'Extensions', [
-            _SettingRow(
+            const _SettingRow(
               icon: CupertinoIcons.link,
               iconBgColor: _IColor.orange,
               label: 'Repository URL',
-              trailing: const _Chevron(),
+              trailing: _Chevron(),
+              isLast: true,
             ),
           ]),
 
@@ -203,6 +241,7 @@ class SettingsScreen extends ConsumerWidget {
                   builder: (_) => const BackupRestoreScreen(),
                 ),
               ),
+              isLast: driveAccount == null,
             ),
             if (driveAccount != null) ...[
               _SettingRow(
@@ -222,6 +261,7 @@ class SettingsScreen extends ConsumerWidget {
                     builder: (_) => const DriveRestoreScreen(),
                   ),
                 ),
+                isLast: true,
               ),
             ],
             if (driveAccount == null)
@@ -231,6 +271,7 @@ class SettingsScreen extends ConsumerWidget {
                 label: 'Connect Google Drive',
                 trailing: const _Chevron(),
                 onTap: () => _linkGoogleDrive(context, ref),
+                isLast: true,
               ),
           ]),
 
@@ -240,9 +281,11 @@ class SettingsScreen extends ConsumerWidget {
               icon: CupertinoIcons.info,
               iconBgColor: _IColor.gray,
               label: 'Version',
-              trailing: const Text(
+              trailing: Text(
                 '1.0.0',
-                style: TextStyle(color: AppColors.textTertiary, fontSize: 14),
+                style: AppTextStyles.caption.copyWith(
+                  color: context.textTertiaryColor,
+                ),
               ),
             ),
             _SettingRow(
@@ -262,6 +305,7 @@ class SettingsScreen extends ConsumerWidget {
               label: 'Check for Updates',
               trailing: const _Chevron(),
               onTap: () => _checkForUpdates(context),
+              isLast: true,
             ),
           ]),
 
@@ -271,26 +315,38 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildSection(BuildContext context, String title, List<Widget> rows) {
+  static Widget _buildSection(
+      BuildContext context, String title, List<Widget> rows) {
     return SliverToBoxAdapter(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.gutter, 0, AppSpacing.gutter, AppSpacing.x7,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
-              padding: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.only(
+                left: AppSpacing.x2,
+                bottom: AppSpacing.x4,
+              ),
               child: Text(
                 title.toUpperCase(),
-                style: AppTextStyles.labelSmall.copyWith(letterSpacing: 0.5),
+                style: AppTextStyles.overline.copyWith(
+                  color: context.textTertiaryColor,
+                ),
               ),
             ),
             Container(
               decoration: BoxDecoration(
-                color: context.surfaceElevatedColor.withOpacity(0.6),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: context.borderColor, width: 0.5),
+                color: context.surfaceElevatedColor.withValues(alpha: 0.6),
+                borderRadius: BorderRadius.circular(AppRadius.lg),
+                border: Border.all(
+                  color: context.borderColor,
+                  width: AppRadius.hairline,
+                ),
               ),
+              clipBehavior: Clip.antiAlias,
               child: Column(children: rows),
             ),
           ],
@@ -523,7 +579,7 @@ class SettingsScreen extends ConsumerWidget {
   }
 }
 
-// ── Generic segmented picker ──────────────────────────────────────────────
+// ── Generic segmented picker ─────────────────────────────────────────────
 
 class _SegmentedPicker<T> extends StatelessWidget {
   const _SegmentedPicker({
@@ -542,7 +598,7 @@ class _SegmentedPicker<T> extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         for (var i = 0; i < items.length; i++) ...[
-          if (i > 0) const SizedBox(width: 4),
+          if (i > 0) const SizedBox(width: AppSpacing.x3),
           _Pill(
             label: items[i].$2,
             selected: value == items[i].$1,
@@ -554,61 +610,7 @@ class _SegmentedPicker<T> extends StatelessWidget {
   }
 }
 
-// ── Theme / brightness picker ─────────────────────────────────────────────
-
-class _ThemePicker extends StatelessWidget {
-  const _ThemePicker({required this.brightness, required this.onChanged});
-  final Brightness brightness;
-  final ValueChanged<Brightness> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        _Pill(
-          label: 'Dark',
-          selected: brightness == Brightness.dark,
-          onTap: () => onChanged(Brightness.dark),
-        ),
-        const SizedBox(width: 6),
-        _Pill(
-          label: 'Light',
-          selected: brightness == Brightness.light,
-          onTap: () => onChanged(Brightness.light),
-        ),
-      ],
-    );
-  }
-}
-
-// ── Storage location picker ───────────────────────────────────────────────
-
-class _LocationPicker extends StatelessWidget {
-  const _LocationPicker({required this.value, required this.onChanged});
-  final DownloadLocation value;
-  final ValueChanged<DownloadLocation> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        _Pill(
-          label: 'Local',
-          selected: value == DownloadLocation.local,
-          onTap: () => onChanged(DownloadLocation.local),
-        ),
-        const SizedBox(width: 6),
-        _Pill(
-          label: 'Drive',
-          selected: value == DownloadLocation.googleDrive,
-          onTap: () => onChanged(DownloadLocation.googleDrive),
-        ),
-      ],
-    );
-  }
-}
+// ── Pill segment button ───────────────────────────────────────────────────
 
 class _Pill extends StatelessWidget {
   const _Pill({
@@ -616,29 +618,35 @@ class _Pill extends StatelessWidget {
     required this.selected,
     required this.onTap,
   });
+
   final String label;
   final bool selected;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
+    final accent = context.accentColor;
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        duration: AppMotion.fast,
+        curve: AppMotion.standard,
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.x5,
+          vertical: AppSpacing.x2 + 1,
+        ),
         decoration: BoxDecoration(
-          color: selected ? AppColors.accent : context.surfaceColor,
-          borderRadius: BorderRadius.circular(10),
+          color: selected ? accent : context.surfaceColor,
+          borderRadius: BorderRadius.circular(AppRadius.sm),
           border: Border.all(
-            color: selected ? AppColors.accent : context.borderStrongColor,
-            width: 0.5,
+            color: selected ? accent : context.borderStrongColor,
+            width: AppRadius.hairline,
           ),
         ),
         child: Text(
           label,
           style: TextStyle(
-            color: selected ? CupertinoColors.white : AppColors.textSecondary,
+            color: selected ? CupertinoColors.white : context.textSecondaryColor,
             fontSize: 11,
             fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
           ),
@@ -653,18 +661,24 @@ class _Pill extends StatelessWidget {
 class _DriveStatusBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    final warning = context.warningColor;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.x5,
+        vertical: AppSpacing.x2,
+      ),
       decoration: BoxDecoration(
-        color: AppColors.warning.withOpacity(0.15),
-        borderRadius: BorderRadius.circular(8),
+        color: warning.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(AppRadius.sm),
         border: Border.all(
-            color: AppColors.warning.withOpacity(0.3), width: 0.5),
+          color: warning.withValues(alpha: 0.3),
+          width: AppRadius.hairline,
+        ),
       ),
       child: Text(
         'Not Connected',
         style: AppTextStyles.caption.copyWith(
-          color: AppColors.warning,
+          color: warning,
           fontWeight: FontWeight.w600,
         ),
       ),
@@ -684,18 +698,18 @@ class _DriveConnectedBadge extends StatelessWidget {
         Container(
           width: 8,
           height: 8,
-          decoration: const BoxDecoration(
-            color: AppColors.downloaded,
+          decoration: BoxDecoration(
+            color: context.downloadedColor,
             shape: BoxShape.circle,
           ),
         ),
-        const SizedBox(width: 6),
+        const SizedBox(width: AppSpacing.x3),
         ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 160),
           child: Text(
             email,
             style: AppTextStyles.caption.copyWith(
-              color: AppColors.textSecondary,
+              color: context.textSecondaryColor,
             ),
             overflow: TextOverflow.ellipsis,
           ),
@@ -705,7 +719,7 @@ class _DriveConnectedBadge extends StatelessWidget {
   }
 }
 
-// ── Shared row widgets ────────────────────────────────────────────────────
+// ── Setting row ───────────────────────────────────────────────────────────
 
 class _SettingRow extends StatelessWidget {
   const _SettingRow({
@@ -714,6 +728,7 @@ class _SettingRow extends StatelessWidget {
     required this.label,
     required this.trailing,
     this.onTap,
+    this.isLast = false,
   });
 
   final IconData icon;
@@ -722,19 +737,32 @@ class _SettingRow extends StatelessWidget {
   final Widget trailing;
   final VoidCallback? onTap;
 
+  /// When true the bottom divider is omitted (last row in a group).
+  final bool isLast;
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          border: Border(
-              bottom: BorderSide(color: context.borderColor, width: 0.5)),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.x6,
+          vertical: AppSpacing.x5,
         ),
+        decoration: isLast
+            ? null
+            : BoxDecoration(
+                border: Border(
+                  bottom: BorderSide(
+                    color: context.borderColor,
+                    width: AppRadius.hairline,
+                  ),
+                ),
+              ),
         child: Row(
           children: [
+            // Icon tile
             Container(
               width: 30,
               height: 30,
@@ -745,7 +773,16 @@ class _SettingRow extends StatelessWidget {
               child: Icon(icon, size: 16, color: CupertinoColors.white),
             ),
             const SizedBox(width: 14),
-            Expanded(child: Text(label, style: AppTextStyles.bodyMedium)),
+            // Label
+            Expanded(
+              child: Text(
+                label,
+                style: AppTextStyles.bodyMedium.copyWith(
+                  color: context.textPrimaryColor,
+                ),
+              ),
+            ),
+            // Trailing control
             trailing,
           ],
         ),
@@ -754,18 +791,20 @@ class _SettingRow extends StatelessWidget {
   }
 }
 
+// ── Chevron ───────────────────────────────────────────────────────────────
+
 class _Chevron extends StatelessWidget {
   const _Chevron();
 
   @override
-  Widget build(BuildContext context) => const Icon(
+  Widget build(BuildContext context) => Icon(
         CupertinoIcons.chevron_right,
         size: 14,
-        color: AppColors.textTertiary,
+        color: context.textTertiaryColor,
       );
 }
 
-// ── Update dialog ─────────────────────────────────────────────────────────────
+// ── Update dialog ─────────────────────────────────────────────────────────
 
 class _UpdateDialog extends StatefulWidget {
   const _UpdateDialog({required this.release});

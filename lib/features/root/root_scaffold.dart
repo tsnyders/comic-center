@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,7 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/services/update_service.dart';
 import '../../core/services/whats_new_service.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../../shared/widgets/app_glass.dart';
 import '../browse/browse_screen.dart';
 import '../downloads/downloads_screen.dart';
 import '../library/library_screen.dart';
@@ -60,33 +60,27 @@ class _RootScaffoldState extends ConsumerState<RootScaffold> {
   @override
   Widget build(BuildContext context) {
     final bottomPadding = MediaQuery.of(context).padding.bottom;
+    final isDark = context.isDark;
 
     return CupertinoPageScaffold(
-      backgroundColor: CupertinoTheme.of(context).scaffoldBackgroundColor,
+      backgroundColor: context.backgroundColor,
       child: Stack(
         fit: StackFit.expand,
         children: [
-          // Ambient gradient — gives BackdropFilter something colorful to blur.
-          Builder(builder: (ctx) {
-            final isDark =
-                CupertinoTheme.of(ctx).brightness == Brightness.dark;
-            return DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: RadialGradient(
-                  center: const Alignment(0.0, -0.4),
-                  radius: 1.4,
-                  colors: isDark
-                      ? const [Color(0xFF0D1B3E), Color(0xFF0A0A0F)]
-                      : [
-                          const Color(0xFF3B82F6).withOpacity(0.10),
-                          const Color(0xFFF2F2F7),
-                        ],
-                ),
+          // ── Ambient backdrop — gives BackdropFilter something to refract ──
+          DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: RadialGradient(
+                center: const Alignment(0.0, -0.4),
+                radius: 1.4,
+                colors: isDark
+                    ? AppColors.ambientDark
+                    : AppColors.ambientLight,
               ),
-            );
-          }),
+            ),
+          ),
 
-          // ── Tab content ───────────────────────────────────────────────
+          // ── Tab content ───────────────────────────────────────────────────
           IndexedStack(
             index: _selectedIndex,
             children: const [
@@ -97,11 +91,11 @@ class _RootScaffoldState extends ConsumerState<RootScaffold> {
             ],
           ),
 
-          // ── Floating glass navigation bar ─────────────────────────────
+          // ── Floating glass navigation bar ─────────────────────────────────
           Positioned(
-            bottom: bottomPadding + 12,
-            left: 20,
-            right: 20,
+            bottom: bottomPadding + AppSpacing.x5,
+            left: AppSpacing.x7,
+            right: AppSpacing.x7,
             child: _GlassNavBar(
               selectedIndex: _selectedIndex,
               onTap: _onTap,
@@ -113,9 +107,9 @@ class _RootScaffoldState extends ConsumerState<RootScaffold> {
   }
 }
 
-// ── Glass navigation bar ──────────────────────────────────────────────────
+// ── Glass navigation bar ──────────────────────────────────────────────────────
 
-class _GlassNavBar extends StatefulWidget {
+class _GlassNavBar extends ConsumerStatefulWidget {
   const _GlassNavBar({
     required this.selectedIndex,
     required this.onTap,
@@ -125,10 +119,10 @@ class _GlassNavBar extends StatefulWidget {
   final ValueChanged<int> onTap;
 
   @override
-  State<_GlassNavBar> createState() => _GlassNavBarState();
+  ConsumerState<_GlassNavBar> createState() => _GlassNavBarState();
 }
 
-class _GlassNavBarState extends State<_GlassNavBar>
+class _GlassNavBarState extends ConsumerState<_GlassNavBar>
     with TickerProviderStateMixin {
   late final AnimationController _indicatorCtrl;
   late Animation<double> _indicatorPos;
@@ -146,13 +140,13 @@ class _GlassNavBarState extends State<_GlassNavBar>
     super.initState();
     _indicatorCtrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 380),
+      duration: AppMotion.slow,
     );
     _indicatorPos = Tween<double>(
       begin: widget.selectedIndex.toDouble(),
       end: widget.selectedIndex.toDouble(),
     ).animate(
-      CurvedAnimation(parent: _indicatorCtrl, curve: Curves.easeOutCubic),
+      CurvedAnimation(parent: _indicatorCtrl, curve: AppMotion.easeOut),
     );
   }
 
@@ -164,7 +158,7 @@ class _GlassNavBarState extends State<_GlassNavBar>
         begin: _prevIndex.toDouble(),
         end: widget.selectedIndex.toDouble(),
       ).animate(
-        CurvedAnimation(parent: _indicatorCtrl, curve: Curves.easeOutCubic),
+        CurvedAnimation(parent: _indicatorCtrl, curve: AppMotion.easeOut),
       );
       _indicatorCtrl.forward(from: 0);
       _prevIndex = widget.selectedIndex;
@@ -177,127 +171,86 @@ class _GlassNavBarState extends State<_GlassNavBar>
     super.dispose();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final isDark = CupertinoTheme.of(context).brightness == Brightness.dark;
+  Widget _barContent(BuildContext context) {
+    return SizedBox(
+      height: 64,
+      child: Stack(
+        children: [
+          // ── Animated pill indicator ────────────────────────────────────
+          AnimatedBuilder(
+            animation: _indicatorPos,
+            builder: (ctx, __) {
+              final barWidth = MediaQuery.of(ctx).size.width
+                  - AppSpacing.x7 * 2   // L/R inset (20 + 20)
+                  - AppSpacing.x4 * 2;  // inner horizontal padding (8 + 8)
+              final tabWidth = barWidth / _tabs.length;
+              final pillLeft =
+                  _indicatorPos.value * tabWidth + AppSpacing.x4;
 
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(28),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF000000).withOpacity(isDark ? 0.45 : 0.15),
-            blurRadius: 40,
-            spreadRadius: -4,
-            offset: const Offset(0, 12),
+              return Positioned(
+                top: AppSpacing.x4,
+                bottom: AppSpacing.x4,
+                left: pillLeft,
+                width: tabWidth,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: ctx.accentSubtleColor,
+                    borderRadius: BorderRadius.circular(AppRadius.pill),
+                    border: Border.all(
+                      color: ctx.accentLineColor,
+                      width: AppRadius.hairline,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: ctx.accentSubtleColor,
+                        blurRadius: 14,
+                        spreadRadius: 0,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
           ),
-          BoxShadow(
-            color: AppColors.accent.withOpacity(0.10),
-            blurRadius: 30,
-            offset: const Offset(0, 6),
+
+          // ── Tab icons + labels ─────────────────────────────────────────
+          Row(
+            children: List.generate(_tabs.length, (i) {
+              final isActive = i == widget.selectedIndex;
+              return Expanded(
+                child: _TabButton(
+                  tab: _tabs[i],
+                  isActive: isActive,
+                  onTap: () => widget.onTap(i),
+                ),
+              );
+            }),
           ),
         ],
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(28),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 40, sigmaY: 40),
-          child: Container(
-            height: 64,
-            decoration: BoxDecoration(
-              color: (isDark
-                      ? const Color(0xFF16162A)
-                      : const Color(0xFFF0F0FA))
-                  .withOpacity(isDark ? 0.82 : 0.72),
-              borderRadius: BorderRadius.circular(28),
-              border: Border.all(
-                color: (isDark
-                        ? const Color(0xFFFFFFFF)
-                        : const Color(0xFF000000))
-                    .withOpacity(isDark ? 0.18 : 0.10),
-                width: 0.75,
-              ),
-            ),
-            child: Stack(
-              children: [
-                // Specular highlight on top edge
-                Positioned(
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  height: 28,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      borderRadius: const BorderRadius.vertical(
-                        top: Radius.circular(28),
-                      ),
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          const Color(0xFFFFFFFF)
-                              .withOpacity(isDark ? 0.14 : 0.50),
-                          const Color(0x00FFFFFF),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
+    );
+  }
 
-                // Animated pill indicator
-                AnimatedBuilder(
-                  animation: _indicatorPos,
-                  builder: (_, __) {
-                    return Positioned(
-                      top: 8,
-                      bottom: 8,
-                      left: _indicatorPos.value / _tabs.length *
-                                  (MediaQuery.of(context).size.width - 40 - 16) +
-                              8,
-                      width: (MediaQuery.of(context).size.width - 40 - 16) /
-                          _tabs.length,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: AppColors.accent.withOpacity(0.25),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: AppColors.accent.withOpacity(0.50),
-                            width: 0.75,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppColors.accent.withOpacity(0.20),
-                              blurRadius: 12,
-                              spreadRadius: -2,
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
+  @override
+  Widget build(BuildContext context) {
+    final isDark = context.isDark;
+    final shadows = isDark ? AppElevation.float : AppElevation.floatLight;
 
-                // Tab icons + labels
-                Row(
-                  children: List.generate(_tabs.length, (i) {
-                    final isActive = i == widget.selectedIndex;
-                    return Expanded(
-                      child: _TabButton(
-                        tab: _tabs[i],
-                        isActive: isActive,
-                        onTap: () => widget.onTap(i),
-                      ),
-                    );
-                  }),
-                ),
-              ],
-            ),
-          ),
-        ),
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        boxShadow: shadows,
+      ),
+      child: AppGlass(
+        borderRadius: AppRadius.lg,
+        child: _barContent(context),
       ),
     );
   }
 }
+
+// ── Tab button ────────────────────────────────────────────────────────────────
 
 class _TabButton extends StatefulWidget {
   const _TabButton({
@@ -324,11 +277,12 @@ class _TabButtonState extends State<_TabButton>
     super.initState();
     _scaleCtrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 220),
+      duration: AppMotion.base,
       value: widget.isActive ? 1.0 : 0.0,
     );
-    _scale = Tween<double>(begin: 0.85, end: 1.12).animate(
-      CurvedAnimation(parent: _scaleCtrl, curve: Curves.easeOutBack),
+    // Active: scale 1.06; inactive: scale 1.0
+    _scale = Tween<double>(begin: 1.0, end: 1.06).animate(
+      CurvedAnimation(parent: _scaleCtrl, curve: AppMotion.spring),
     );
   }
 
@@ -352,6 +306,9 @@ class _TabButtonState extends State<_TabButton>
 
   @override
   Widget build(BuildContext context) {
+    final accentColor = context.accentColor;
+    final inactiveColor = context.textTertiaryColor;
+
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: widget.onTap,
@@ -364,22 +321,24 @@ class _TabButtonState extends State<_TabButton>
               scale: _scale.value,
               child: child,
             ),
-            child: Icon(
-              widget.isActive ? widget.tab.activeIcon : widget.tab.icon,
-              size: 22,
-              color: widget.isActive ? AppColors.accent : AppColors.textTertiary,
+            child: AnimatedSwitcher(
+              duration: AppMotion.base,
+              child: Icon(
+                widget.isActive ? widget.tab.activeIcon : widget.tab.icon,
+                key: ValueKey<bool>(widget.isActive),
+                size: 21,
+                color: widget.isActive ? accentColor : inactiveColor,
+              ),
             ),
           ),
           const SizedBox(height: 3),
           AnimatedDefaultTextStyle(
-            duration: const Duration(milliseconds: 200),
+            duration: AppMotion.base,
             style: TextStyle(
               fontSize: 10,
               fontWeight:
                   widget.isActive ? FontWeight.w600 : FontWeight.w400,
-              color: widget.isActive
-                  ? AppColors.accent
-                  : AppColors.textTertiary,
+              color: widget.isActive ? accentColor : inactiveColor,
             ),
             child: Text(widget.tab.label),
           ),
@@ -388,6 +347,8 @@ class _TabButtonState extends State<_TabButton>
     );
   }
 }
+
+// ── Tab data ──────────────────────────────────────────────────────────────────
 
 class _TabItem {
   const _TabItem({
@@ -450,7 +411,7 @@ class _WhatsNewDialog extends StatelessWidget {
               style: AppTextStyles.bodySmall,
             )
           else
-            Text(
+            const Text(
               'Bug fixes and improvements.',
               style: AppTextStyles.bodySmall,
             ),

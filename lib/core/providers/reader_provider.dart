@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../extensions/source_interface.dart';
+import 'preferences_provider.dart';
 import 'source_registry_provider.dart';
 
 // ── Chapter pages ─────────────────────────────────────────────────────────────
@@ -38,14 +38,26 @@ enum ReadingDirection { ltr, rtl, vertical }
 enum PageScaleMode    { fitWidth, fitHeight, original }
 enum ReaderBackground { black, white, sepia }
 
-final readingDirectionProvider =
-    StateProvider<ReadingDirection>((_) => ReadingDirection.ltr);
+final readingDirectionProvider = StateProvider<ReadingDirection>((ref) {
+  final prefs = ref.watch(sharedPreferencesProvider);
+  ref.listenSelf((_, next) => prefs.setInt('reader.direction', next.index));
+  return readEnumPref(prefs, 'reader.direction', ReadingDirection.values,
+      ReadingDirection.ltr);
+});
 
-final pageScaleModeProvider =
-    StateProvider<PageScaleMode>((_) => PageScaleMode.fitWidth);
+final pageScaleModeProvider = StateProvider<PageScaleMode>((ref) {
+  final prefs = ref.watch(sharedPreferencesProvider);
+  ref.listenSelf((_, next) => prefs.setInt('reader.pageScale', next.index));
+  return readEnumPref(
+      prefs, 'reader.pageScale', PageScaleMode.values, PageScaleMode.fitWidth);
+});
 
-final readerBackgroundProvider =
-    StateProvider<ReaderBackground>((_) => ReaderBackground.black);
+final readerBackgroundProvider = StateProvider<ReaderBackground>((ref) {
+  final prefs = ref.watch(sharedPreferencesProvider);
+  ref.listenSelf((_, next) => prefs.setInt('reader.background', next.index));
+  return readEnumPref(prefs, 'reader.background', ReaderBackground.values,
+      ReaderBackground.black);
+});
 
 // ── Reader UI state ───────────────────────────────────────────────────────────
 

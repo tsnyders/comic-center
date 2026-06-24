@@ -63,6 +63,23 @@ final extensionIndexProvider = FutureProvider<List<ExtensionEntry>>((ref) async 
       .where((e) => e.lang == 'en' || e.lang == 'all')
       .toList();
 
+  // Ensure every built-in native source is installable, even if the upstream
+  // keiyoushi index doesn't list it (e.g. western-comic aggregators).
+  final presentSourceIds = {
+    for (final e in entries)
+      if (e.yomiSourceId != null) e.yomiSourceId,
+  };
+  for (final b in ExtensionFactory.builtInExtensions) {
+    if (presentSourceIds.contains(b.sourceId)) continue;
+    entries.add(ExtensionEntry(
+      name: b.name,
+      pkg: b.pkg,
+      lang: b.lang,
+      version: '1.0.0',
+      isNsfw: b.isNsfw,
+    ));
+  }
+
   // Natively supported extensions float to the top.
   entries.sort((a, b) {
     if (a.isNativelySupported != b.isNativelySupported) {

@@ -4,7 +4,7 @@ publish_to: 'none'
 version: 1.0.0+3
 
 environment:
-  sdk: '>=3.3.0 <4.0.0'
+  sdk: '>=3.6.2 <4.0.0'
 
 dependencies:
   flutter:
@@ -47,6 +47,12 @@ dependencies:
 
   # App version info (for update comparison)
   package_info_plus: ^8.0.0
+
+  # Liquid glass UI theme (real-time refraction lenses)
+  liquid_glass_easy: ^3.0.0
+
+  # Persisted settings (theme, reader prefs, etc.)
+  shared_preferences: ^2.2.0
 
   # Icons
   cupertino_icons: ^1.0.6

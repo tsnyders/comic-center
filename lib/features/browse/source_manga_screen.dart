@@ -6,6 +6,7 @@ import '../../core/providers/browse_provider.dart';
 import '../../core/providers/database_provider.dart';
 import '../../core/providers/source_registry_provider.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../shared/widgets/cover_image.dart';
 import '../title_detail/title_detail_screen.dart';
@@ -149,7 +150,12 @@ class _SourceMangaScreenState extends ConsumerState<SourceMangaScreen> {
       return CupertinoPageScaffold(
         backgroundColor: CupertinoTheme.of(context).scaffoldBackgroundColor,
         child: Center(
-          child: Text('Source not found', style: AppTextStyles.bodyMedium),
+          child: Text(
+            'Source not found',
+            style: AppTextStyles.bodyMedium.copyWith(
+              color: context.textPrimaryColor,
+            ),
+          ),
         ),
       );
     }
@@ -173,13 +179,12 @@ class _SourceMangaScreenState extends ConsumerState<SourceMangaScreen> {
               child: Row(
                 children: [
                   CupertinoButton(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding: EdgeInsets.zero,
                     onPressed: () => Navigator.of(context).pop(),
-                    child: const Text(
+                    child: Text(
                       '‹ Browse',
                       style: TextStyle(
-                        color: AppColors.accent,
+                        color: context.accentColor,
                         fontSize: 16,
                         fontWeight: FontWeight.w500,
                       ),
@@ -188,8 +193,11 @@ class _SourceMangaScreenState extends ConsumerState<SourceMangaScreen> {
                   Expanded(
                     child: Text(
                       source.name,
-                      style: AppTextStyles.sectionTitle
-                          .copyWith(fontSize: 17, fontWeight: FontWeight.w600),
+                      style: AppTextStyles.sectionTitle.copyWith(
+                        color: context.textPrimaryColor,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w600,
+                      ),
                       textAlign: TextAlign.center,
                     ),
                   ),
@@ -201,7 +209,7 @@ class _SourceMangaScreenState extends ConsumerState<SourceMangaScreen> {
                       _searchActive
                           ? CupertinoIcons.xmark_circle_fill
                           : CupertinoIcons.search,
-                      color: AppColors.accent,
+                      color: context.accentColor,
                       size: 20,
                     ),
                   ),
@@ -210,9 +218,9 @@ class _SourceMangaScreenState extends ConsumerState<SourceMangaScreen> {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 8, vertical: 8),
                       onPressed: () => _showSortSheet(context),
-                      child: const Icon(
+                      child: Icon(
                         CupertinoIcons.slider_horizontal_3,
-                        color: AppColors.accent,
+                        color: context.accentColor,
                         size: 20,
                       ),
                     ),
@@ -284,7 +292,9 @@ class _SourceMangaScreenState extends ConsumerState<SourceMangaScreen> {
                   padding: const EdgeInsets.all(24),
                   child: Text(
                     'Failed to load: $e',
-                    style: AppTextStyles.bodySmall,
+                    style: AppTextStyles.bodySmall.copyWith(
+                      color: context.textSecondaryColor,
+                    ),
                     textAlign: TextAlign.center,
                   ),
                 ),
@@ -296,7 +306,9 @@ class _SourceMangaScreenState extends ConsumerState<SourceMangaScreen> {
                     child: Center(
                       child: Text(
                         'No results',
-                        style: AppTextStyles.bodyMedium,
+                        style: AppTextStyles.bodyMedium.copyWith(
+                          color: context.textSecondaryColor,
+                        ),
                       ),
                     ),
                   )
@@ -347,21 +359,26 @@ class _ModeTab extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
+        duration: AppMotion.fast,
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 7),
         decoration: BoxDecoration(
-          color: selected ? AppColors.accent : AppColors.surfaceElevated,
-          borderRadius: BorderRadius.circular(20),
+          color: selected
+              ? context.accentColor
+              : context.surfaceElevatedColor.withValues(alpha: 0.7),
+          borderRadius: BorderRadius.circular(AppRadius.pill),
           border: selected
               ? null
-              : Border.all(color: AppColors.border, width: 0.5),
+              : Border.all(
+                  color: context.borderColor,
+                  width: AppRadius.hairline,
+                ),
         ),
         child: Text(
           label,
           style: AppTextStyles.labelMedium.copyWith(
             color: selected
                 ? CupertinoColors.white
-                : AppColors.textSecondary,
+                : context.textSecondaryColor,
             fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
           ),
         ),
@@ -392,7 +409,7 @@ class _MangaCard extends StatelessWidget {
         children: [
           Expanded(
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(AppRadius.cover),
               child: SizedBox.expand(
                 child: CoverImage(url: coverUrl),
               ),
@@ -403,7 +420,7 @@ class _MangaCard extends StatelessWidget {
             title,
             style: AppTextStyles.bodySmall.copyWith(
               fontWeight: FontWeight.w500,
-              color: AppColors.textPrimary,
+              color: context.textPrimaryColor,
             ),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,

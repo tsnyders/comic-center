@@ -276,9 +276,11 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
               else
                 _buildPagedView(context, pages, direction, background, chromeVisible),
 
-              // ── Always-visible 2pt progress line ─────────────────────────
+              // ── Always-visible 2px progress line — pinned at the very top ──
+              // Sits at top:0 (above the safe-area notch) so it is always
+              // visible regardless of chrome state, per spec.
               Positioned(
-                top: MediaQuery.of(context).padding.top,
+                top: 0,
                 left: 0,
                 right: 0,
                 height: 2,
@@ -289,21 +291,20 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                 ),
               ),
 
-              // ── Tap-to-reveal chrome ──────────────────────────────────────
+              // ── Tap-to-reveal chrome (200ms opacity + 8px translate) ───────
+              // Top bar slides -8px (upward) when hiding; bottom bar +8px.
+              // The translate is applied per-bar inside ReaderChrome.
               Positioned.fill(
-                child: AnimatedOpacity(
-                  opacity: chromeVisible ? 1.0 : 0.0,
-                  duration: const Duration(milliseconds: 200),
-                  child: IgnorePointer(
-                    ignoring: !chromeVisible,
-                    child: ReaderChrome(
-                      chapterTitle: widget.chapterTitle,
-                      currentPage: readerState.currentPage,
-                      totalPages: readerState.totalPages,
-                      onClose: () => Navigator.of(context).pop(),
-                      onSettings: () => _showSettings(context),
-                      onSeek: _onSeek,
-                    ),
+                child: IgnorePointer(
+                  ignoring: !chromeVisible,
+                  child: ReaderChrome(
+                    chapterTitle: widget.chapterTitle,
+                    currentPage: readerState.currentPage,
+                    totalPages: readerState.totalPages,
+                    visible: chromeVisible,
+                    onClose: () => Navigator.of(context).pop(),
+                    onSettings: () => _showSettings(context),
+                    onSeek: _onSeek,
                   ),
                 ),
               ),
@@ -751,11 +752,11 @@ class _NextChapterButton extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
-      child: LiquidGlass(
+      child: const LiquidGlass(
         borderRadius: 26,
         blur: 22,
-        padding: const EdgeInsets.all(13),
-        child: const Icon(
+        padding: EdgeInsets.all(13),
+        child: Icon(
           CupertinoIcons.chevron_right_2,
           color: CupertinoColors.white,
           size: 22,
@@ -784,7 +785,8 @@ class _NextChapterFooter extends StatelessWidget {
           color: AppColors.surfaceElevated,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-              color: AppColors.accent.withOpacity(0.35), width: 0.5),
+              color: const Color(0x594E7BFF), // AppColors.accent at 35% opacity
+              width: 0.5),
         ),
         child: Row(
           children: [
