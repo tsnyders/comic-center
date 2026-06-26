@@ -24,20 +24,34 @@ class DownloadsScreen extends ConsumerWidget {
           SliverToBoxAdapter(child: SizedBox(height: topPadding + 8)),
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-              child: Text('Downloads',
-                  style: AppTextStyles.hero.copyWith(
-                    fontSize: 26,
-                    color: context.textPrimaryColor,
-                  )),
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 18),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('MANAGE',
+                      style: AppTextStyles.metaMono.copyWith(
+                        color: context.accentColor,
+                        letterSpacing: 2.5,
+                      )),
+                  const SizedBox(height: 6),
+                  Text('Downloads',
+                      style: AppTextStyles.displayM.copyWith(
+                        color: context.textPrimaryColor,
+                      )),
+                ],
+              ),
             ),
           ),
 
           // Active queue
-          const SliverToBoxAdapter(
+          SliverToBoxAdapter(
             child: Padding(
-              padding: EdgeInsets.fromLTRB(20, 0, 20, 10),
-              child: Text('Queue', style: AppTextStyles.sectionTitle),
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+              child: Text('QUEUE',
+                  style: AppTextStyles.metaMono.copyWith(
+                    color: context.textTertiaryColor,
+                    letterSpacing: 2.0,
+                  )),
             ),
           ),
           queue.when(
@@ -58,10 +72,14 @@ class DownloadsScreen extends ConsumerWidget {
           ),
 
           // History
-          const SliverToBoxAdapter(
+          SliverToBoxAdapter(
             child: Padding(
-              padding: EdgeInsets.fromLTRB(20, 24, 20, 10),
-              child: Text('Completed', style: AppTextStyles.sectionTitle),
+              padding: const EdgeInsets.fromLTRB(20, 24, 20, 12),
+              child: Text('COMPLETED',
+                  style: AppTextStyles.metaMono.copyWith(
+                    color: context.textTertiaryColor,
+                    letterSpacing: 2.0,
+                  )),
             ),
           ),
           history.when(

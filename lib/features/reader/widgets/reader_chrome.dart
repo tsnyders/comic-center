@@ -174,22 +174,16 @@ class _BottomBar extends StatelessWidget {
             total: totalPages,
             onSeek: onSeek,
           ),
-          const SizedBox(height: 6),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text('1', style: AppTextStyles.caption),
-              Text(
-                totalPages > 0
-                    ? 'Page ${currentPage + 1} of $totalPages'
-                    : 'Loading...',
-                style: AppTextStyles.caption,
+          const SizedBox(height: 10),
+          Center(
+            child: Text(
+              totalPages > 0
+                  ? 'PAGE ${currentPage + 1} / $totalPages'
+                  : 'LOADING…',
+              style: AppTextStyles.metaMono.copyWith(
+                color: const Color(0xCCF3F0E9),
               ),
-              Text(
-                totalPages > 0 ? '$totalPages' : '--',
-                style: AppTextStyles.caption,
-              ),
-            ],
+            ),
           ),
         ],
       ),
@@ -309,11 +303,14 @@ class _ScrubberState extends State<_Scrubber> {
                   child: Container(
                     width: 20,
                     height: 20,
-                    decoration: const BoxDecoration(
-                      color: CupertinoColors.white,
+                    decoration: BoxDecoration(
+                      color: AppColors.accent,
                       shape: BoxShape.circle,
                       boxShadow: [
-                        BoxShadow(color: Color(0x40000000), blurRadius: 6),
+                        BoxShadow(
+                          color: AppColors.accent.withValues(alpha: 0.5),
+                          blurRadius: 12,
+                        ),
                       ],
                     ),
                   ),

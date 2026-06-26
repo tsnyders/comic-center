@@ -12,6 +12,7 @@ import '../../core/providers/download_provider.dart';
 import '../../core/providers/source_registry_provider.dart';
 import '../../core/providers/library_provider.dart';
 import '../../core/providers/settings_provider.dart';
+import '../../core/providers/cover_palette_provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text_styles.dart';
@@ -112,16 +113,20 @@ class TitleDetailScreen extends ConsumerWidget {
 
 // ── Hero ───────────────────────────────────────────────────────────────────
 
-class _DetailHero extends StatelessWidget {
+class _DetailHero extends ConsumerWidget {
   const _DetailHero({required this.manga});
   final MangaEntry manga;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final dark = context.isDark;
     final heroGradient = dark
         ? AppColors.heroGradientDark
         : AppColors.heroGradientLight;
+    // LUMEN: ambient colour pulled from this cover's own palette.
+    final artColor =
+        ref.watch(coverPaletteProvider(manga.coverUrl ?? '')).valueOrNull
+            ?? context.accentColor;
 
     return SizedBox.expand(
       child: Stack(
@@ -133,6 +138,25 @@ class _DetailHero extends StatelessWidget {
             child: ImageFiltered(
               imageFilter: ImageFilter.blur(sigmaX: 34, sigmaY: 34),
               child: CoverImage(url: manga.coverUrl),
+            ),
+          ),
+
+          // Art ambient wash — top glow tinted by the cover's dominant colour
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 550),
+            child: DecoratedBox(
+              key: ValueKey(artColor),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    artColor.withValues(alpha: 0.50),
+                    artColor.withValues(alpha: 0.0),
+                  ],
+                  stops: const [0.0, 0.62],
+                ),
+              ),
             ),
           ),
 
@@ -330,20 +354,20 @@ class _DetailSheetState extends ConsumerState<_DetailSheet> {
                     children: [
                       Text(
                         liveManga.title,
-                        style: AppTextStyles.sheetTitle.copyWith(
+                        style: AppTextStyles.displayM.copyWith(
                           color: context.textPrimaryColor,
                         ),
                       ),
-                      const SizedBox(height: AppSpacing.x2),
+                      const SizedBox(height: AppSpacing.x4),
                       Text(
                         [
-                          if (liveManga.author != null) liveManga.author!,
-                          '·',
+                          if (liveManga.author != null &&
+                              liveManga.author!.isNotEmpty)
+                            liveManga.author!,
                           _capitalise(liveManga.status),
-                          '·',
-                          '${liveManga.chapterCount} ch',
-                        ].join(' '),
-                        style: AppTextStyles.sheetAuthor.copyWith(
+                          '${liveManga.chapterCount} CH',
+                        ].join('   ·   '),
+                        style: AppTextStyles.metaMono.copyWith(
                           color: context.textSecondaryColor,
                         ),
                       ),
@@ -749,18 +773,17 @@ class _GenreChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: context.surfaceElevatedColor,
-        borderRadius: BorderRadius.circular(AppRadius.sm),
+        borderRadius: BorderRadius.circular(AppRadius.pill),
         border: Border.all(
           color: context.borderStrongColor,
           width: AppRadius.hairline,
         ),
       ),
       child: Text(
-        label,
-        style: AppTextStyles.labelSmall.copyWith(
+        label.toUpperCase(),
+        style: AppTextStyles.metaMonoSm.copyWith(
           color: context.textSecondaryColor,
         ),
       ),
@@ -826,6 +849,10 @@ class _ActionRow extends ConsumerWidget {
     final chs = chapters.valueOrNull ?? [];
     final started = _hasStarted(chs);
     final dark = context.isDark;
+    // Primary CTA is tinted by the cover's own palette ("let art decide").
+    final art = ref.watch(coverPaletteProvider(manga.coverUrl ?? ''))
+            .valueOrNull ??
+        context.accentColor;
     return Row(
       children: [
         // Primary CTA — full-width accent button
@@ -835,15 +862,13 @@ class _ActionRow extends ConsumerWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(vertical: 15),
               decoration: BoxDecoration(
-                color: chs.isEmpty
-                    ? context.surfaceElevatedColor
-                    : context.accentColor,
+                color: chs.isEmpty ? context.surfaceElevatedColor : art,
                 borderRadius: BorderRadius.circular(AppRadius.pill),
                 boxShadow: chs.isEmpty
                     ? null
                     : [
                         BoxShadow(
-                          color: context.accentColor.withValues(alpha: 0.32),
+                          color: art.withValues(alpha: 0.32),
                           blurRadius: 18,
                           offset: const Offset(0, 8),
                         ),
