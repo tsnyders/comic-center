@@ -12,6 +12,7 @@ import '../../core/providers/download_provider.dart';
 import '../../core/providers/source_registry_provider.dart';
 import '../../core/providers/library_provider.dart';
 import '../../core/providers/settings_provider.dart';
+import '../../core/providers/cover_palette_provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text_styles.dart';
@@ -112,16 +113,20 @@ class TitleDetailScreen extends ConsumerWidget {
 
 // ── Hero ───────────────────────────────────────────────────────────────────
 
-class _DetailHero extends StatelessWidget {
+class _DetailHero extends ConsumerWidget {
   const _DetailHero({required this.manga});
   final MangaEntry manga;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final dark = context.isDark;
     final heroGradient = dark
         ? AppColors.heroGradientDark
         : AppColors.heroGradientLight;
+    // LUMEN: ambient colour pulled from this cover's own palette.
+    final artColor =
+        ref.watch(coverPaletteProvider(manga.coverUrl ?? '')).valueOrNull
+            ?? context.accentColor;
 
     return SizedBox.expand(
       child: Stack(
@@ -133,6 +138,25 @@ class _DetailHero extends StatelessWidget {
             child: ImageFiltered(
               imageFilter: ImageFilter.blur(sigmaX: 34, sigmaY: 34),
               child: CoverImage(url: manga.coverUrl),
+            ),
+          ),
+
+          // Art ambient wash — top glow tinted by the cover's dominant colour
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 550),
+            child: DecoratedBox(
+              key: ValueKey(artColor),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    artColor.withValues(alpha: 0.50),
+                    artColor.withValues(alpha: 0.0),
+                  ],
+                  stops: const [0.0, 0.62],
+                ),
+              ),
             ),
           ),
 
