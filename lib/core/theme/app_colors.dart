@@ -1,105 +1,141 @@
 import 'package:flutter/cupertino.dart';
 
 /// ============================================================================
-/// Comic Center — AppColors  ("Ink & Glass" redesign)
+/// Comic Center — AppColors  ("LUMEN" design system)
 ///
-/// A near-monochrome surface system with ONE confident accent (Cobalt) and
-/// crisp hairlines. Every surface/text/border token is defined for both modes;
-/// glass tints additionally vary by theme (see [AppGlassSpec]).
+/// PHILOSOPHY: A cinematic ink canvas where the cover art is the hero. Surfaces
+/// are deep, near-black, layered with soft depth. Text is a warm ivory. The
+/// brand "signal" is a restrained periwinkle IRIS — but the live accent is
+/// pulled dynamically from each cover (see CoverPaletteProvider); `accent` here
+/// is the iris fallback used before/until a palette resolves.
 ///
-/// Accent rationale: the old #0A84FF iOS blue leans cyan and reads "default".
-/// Cobalt is a deeper, faintly indigo-leaning blue — more characterful, still
-/// unmistakably "blue/link", and tuned per mode so accent-as-text passes
-/// WCAG AA in both (the bright 500 on dark, the deeper 700 on white).
+/// TOKEN RULES:
+///   • Screens MUST use context.xxxColor extensions — never raw constants.
+///   • For art-driven accent, prefer the per-cover palette over `accentColor`.
 /// ============================================================================
 abstract final class AppColors {
-  // ── Cobalt accent ramp ────────────────────────────────────────────────
-  static const cobalt300 = Color(0xFF8AA6FF);
-  static const cobalt400 = Color(0xFF6E8FFF); // dark hover
-  static const cobalt500 = Color(0xFF4E7BFF); // DARK accent
-  static const cobalt600 = Color(0xFF3A63F0); // dark press / light hover
-  static const cobalt700 = Color(0xFF2E5BE6); // LIGHT accent (AA on white)
-  static const cobalt800 = Color(0xFF2348C4); // light press
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Iris signal ramp (names kept as `coral*` for call-site compatibility)
+  // ─────────────────────────────────────────────────────────────────────────────
+  static const coral200 = Color(0xFFD6D7FF);
+  static const coral300 = Color(0xFFB9BAFF);
+  static const coral400 = Color(0xFFA0A2FF);  // dark hover / glow
+  static const coral500 = Color(0xFF8B8DFF);  // DARK signal (iris)
+  static const coral600 = Color(0xFF7375F0);  // dark press
+  static const coral700 = Color(0xFF5D5FE0);  // LIGHT signal (iris on paper)
+  static const coral800 = Color(0xFF4A4CC8);  // light press
 
-  // ── Dark mode ─────────────────────────────────────────────────────────
-  static const background       = Color(0xFF0A0A0F);
-  static const surface          = Color(0xFF131318);
-  static const surfaceElevated  = Color(0xFF1C1C24);
-  static const surfaceSunken    = Color(0xFF08080C);
+  // Back-compat aliases
+  static const cobalt300 = coral300;
+  static const cobalt400 = coral400;
+  static const cobalt500 = coral500;
+  static const cobalt600 = coral600;
+  static const cobalt700 = coral700;
+  static const cobalt800 = coral800;
 
-  static const border        = Color(0x14FFFFFF); // 8%
-  static const borderStrong  = Color(0x29FFFFFF); // 16%
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Dark mode — Ink (the primary LUMEN experience)
+  // ─────────────────────────────────────────────────────────────────────────────
+  static const background      = Color(0xFF0A0A0D);  // ink canvas
+  static const surface         = Color(0xFF121217);  // elevated +1
+  static const surfaceElevated = Color(0xFF1A1A21);  // cards, sheets
+  static const surfaceBright   = Color(0xFF23232C);  // spotlight / featured
+  static const surfaceSunken   = Color(0xFF050507);  // inputs, insets
 
-  static const accent        = cobalt500;
-  static const accentHover   = cobalt400;
-  static const accentPress   = cobalt600;
-  static const accentSubtle  = Color(0x294E7BFF); // 16%
-  static const accentLine    = Color(0x734E7BFF); // 45%
+  // Border ramp — ivory hairlines
+  static const border        = Color(0x0DF3F0E9);  //  ~5%
+  static const borderSubtle  = Color(0x14F3F0E9);  //  ~8%
+  static const borderStrong  = Color(0x24F3F0E9);  // ~14%
+  static const borderBright  = Color(0x33F3F0E9);  // 20%
 
-  static const textPrimary    = Color(0xFAFFFFFF); // 98%
-  static const textSecondary  = Color(0x9EFFFFFF); // 62%
-  static const textTertiary   = Color(0x5CFFFFFF); // 36%
-  static const textQuaternary = Color(0x29FFFFFF); // 16%
-  static const textOnAccent   = Color(0xFFFFFFFF);
+  // Accent (iris fallback)
+  static const accent        = coral500;
+  static const accentHover   = coral400;
+  static const accentPress   = coral600;
+  static const accentSubtle  = Color(0x238B8DFF);  // iris ~14%
+  static const accentLine    = Color(0x4D8B8DFF);  // iris 30%
+  static const accentBorder  = Color(0x338B8DFF);  // iris 20%
 
-  // ── Light mode ────────────────────────────────────────────────────────
-  static const lightBackground      = Color(0xFFF4F4F8);
-  static const lightSurface         = Color(0xFFFFFFFF);
-  static const lightSurfaceElevated = Color(0xFFECECF1);
-  static const lightSurfaceSunken   = Color(0xFFE6E6EC);
+  // Text — warm ivory
+  static const textPrimary    = Color(0xF5F3F0E9);  // ~96%
+  static const textSecondary  = Color(0x9EF3F0E9);  // ~62%
+  static const textTertiary   = Color(0x5EF3F0E9);  // ~37%
+  static const textQuaternary = Color(0x28F3F0E9);  // ~16%
+  static const textOnAccent   = Color(0xFF15102E);  // deep indigo ink on iris
 
-  static const lightBorder       = Color(0x14000000); // 8%
-  static const lightBorderStrong = Color(0x24000000); // 14%
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Light mode — Paper (warm, optional companion to Ink)
+  // ─────────────────────────────────────────────────────────────────────────────
+  static const lightBackground      = Color(0xFFF3F0E9);
+  static const lightSurface         = Color(0xFFFBF9F4);
+  static const lightSurfaceElevated = Color(0xFFFFFFFF);
+  static const lightSurfaceSunken   = Color(0xFFE9E5DC);
+  static const lightBorder          = Color(0x12151019);  //  ~7% ink
+  static const lightBorderStrong    = Color(0x24151019);  // ~14% ink
 
-  static const lightAccent       = cobalt700;
-  static const lightAccentHover  = cobalt600;
-  static const lightAccentPress  = cobalt800;
-  static const lightAccentSubtle = Color(0x1F2E5BE6); // 12%
-  static const lightAccentLine   = Color(0x522E5BE6); // 32%
+  static const lightAccent       = coral700;
+  static const lightAccentHover  = coral600;
+  static const lightAccentPress  = coral800;
+  static const lightAccentSubtle = Color(0x1A5D5FE0);  // 10%
+  static const lightAccentLine   = Color(0x4D5D5FE0);  // 30%
 
-  static const lightTextPrimary    = Color(0xEB000000); // 92%
-  static const lightTextSecondary  = Color(0x8F000000); // 56%
-  static const lightTextTertiary   = Color(0x57000000); // 34%
-  static const lightTextQuaternary = Color(0x24000000); // 14%
+  static const lightTextPrimary    = Color(0xF2151019);  // deep ink
+  static const lightTextSecondary  = Color(0x99151019);  // ~60%
+  static const lightTextTertiary   = Color(0x5C151019);  // ~36%
+  static const lightTextQuaternary = Color(0x28151019);  // ~16%
 
-  // ── Semantic status (mode-tuned for contrast) ─────────────────────────
-  static const unread          = Color(0xFFFF453A);
-  static const downloaded      = Color(0xFF2FBF71);
-  static const warning         = Color(0xFFF5C518);
-  static const lightUnread     = Color(0xFFE5392E);
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Semantic status
+  // ─────────────────────────────────────────────────────────────────────────────
+  static const unread          = Color(0xFF8B8DFF);  // iris (matches signal)
+  static const downloaded      = Color(0xFF4AD07F);
+  static const warning         = Color(0xFFF5C75E);
+  static const info            = Color(0xFF64D2FF);
+  static const lightUnread     = Color(0xFF5D5FE0);
   static const lightDownloaded = Color(0xFF1F9D58);
   static const lightWarning    = Color(0xFFC99700);
+  static const lightInfo       = Color(0xFF2563EB);
 
-  // ── Reader ────────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Reader modes
+  // ─────────────────────────────────────────────────────────────────────────────
   static const readerBackground = Color(0xFF000000);
+  static const readerDim        = Color(0xFF0A0A0A);
   static const readerSepia      = Color(0xFFF4ECD8);
 
-  // ── Ambient backdrop seeds (give the blur something to chew on) ───────
-  static const ambientDark  = [Color(0xFF0D1322), Color(0xFF0A0A0F)];
-  static const ambientLight = [Color(0xFFEAEEFB), Color(0xFFF4F4F8)];
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Ambient backdrop seeds (hero gradient backgrounds) — iris-tinted ink
+  // ─────────────────────────────────────────────────────────────────────────────
+  static const ambientDark  = [Color(0xFF1A1A33), Color(0xFF0A0A0D)];
+  static const ambientLight = [Color(0xFFEAEAFF), Color(0xFFF3F0E9)];
 
-  // ── Hero protection gradient (cover → background) ─────────────────────
   static const heroGradientDark = [
-    Color(0x33000000), Color(0xCC0A0A0F), background,
+    Color(0x00000000), Color(0xCC0A0A0D), background,
   ];
   static const heroGradientLight = [
-    Color(0x22000000), Color(0x88F4F4F8), lightBackground,
+    Color(0x00000000), Color(0x88F3F0E9), lightBackground,
   ];
 
-  // ── Source-accent gradient seeds (Browse featured cards / avatars) ────
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Source-accent gradients (Browse feature cards, source avatars)
+  // ─────────────────────────────────────────────────────────────────────────────
   static const gradEmber  = [Color(0xFFFF6A3D), Color(0xFFC0264E)];
-  static const gradViolet = [Color(0xFF6E62F0), Color(0xFF3B2FA6)];
-  static const gradTeal   = [Color(0xFF18B6C9), Color(0xFF0E6E8C)];
-  static const gradRose   = [Color(0xFFFF5C8A), Color(0xFFB0265E)];
+  static const gradViolet = [Color(0xFF8B8DFF), Color(0xFF4C1D95)];
+  static const gradAzure  = [Color(0xFF60A5FA), Color(0xFF1D4ED8)];
+  static const gradTeal   = [Color(0xFF2DD4BF), Color(0xFF0E7490)];
+  static const gradRose   = [Color(0xFFF472B6), Color(0xFF9D174D)];
+  static const gradGold   = [Color(0xFFFBBF24), Color(0xFF92400E)];
 
-  // ── Back-compat aliases (pre-redesign call sites) ─────────────────────
-  // Retained so existing screens keep compiling during/after the migration.
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Back-compat aliases
+  // ─────────────────────────────────────────────────────────────────────────────
   static const heroGradientColors = heroGradientDark;
-  static const ambientGradient = ambientDark;
-  static const tabBarBackground = Color(0xEB131318);
+  static const ambientGradient    = ambientDark;
+  static const tabBarBackground   = Color(0xF2121217);
+  static const surfaceSunkenLegacy = Color(0xFF050507);
 }
 
-/// Context-aware resolvers — return the correct value for the active mode.
+/// Context-aware token resolvers — the ONLY API screens should call.
 extension AppColorsX on BuildContext {
   bool get isDark =>
       CupertinoTheme.brightnessOf(this) == Brightness.dark;
@@ -115,6 +151,8 @@ extension AppColorsX on BuildContext {
 
   Color get borderColor =>
       isDark ? AppColors.border : AppColors.lightBorder;
+  Color get borderSubtleColor =>
+      isDark ? AppColors.borderSubtle : AppColors.lightBorder;
   Color get borderStrongColor =>
       isDark ? AppColors.borderStrong : AppColors.lightBorderStrong;
 
@@ -140,8 +178,10 @@ extension AppColorsX on BuildContext {
       isDark ? AppColors.downloaded : AppColors.lightDownloaded;
   Color get warningColor =>
       isDark ? AppColors.warning : AppColors.lightWarning;
+  Color get infoColor =>
+      isDark ? AppColors.info : AppColors.lightInfo;
 
-  // Back-compat: floating tab bar tint.
+  // Back-compat
   Color get tabBarColor =>
-      isDark ? AppColors.tabBarBackground : const Color(0xEBF9F9F9);
+      isDark ? AppColors.tabBarBackground : const Color(0xEBFBF9F4);
 }

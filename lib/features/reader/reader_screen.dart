@@ -615,7 +615,7 @@ class _OptionRow<T> extends StatelessWidget {
               opt.$2,
               style: TextStyle(
                 fontSize: 13,
-                color: selected ? CupertinoColors.white : AppColors.textSecondary,
+                color: selected ? AppColors.textOnAccent : AppColors.textSecondary,
                 fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
               ),
             ),
@@ -785,7 +785,7 @@ class _NextChapterFooter extends StatelessWidget {
           color: AppColors.surfaceElevated,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-              color: const Color(0x594E7BFF), // AppColors.accent at 35% opacity
+              color: const Color(0x40FF6F61), // AppColors.accent, faint
               width: 0.5),
         ),
         child: Row(

@@ -17,17 +17,23 @@ import 'backup_restore_screen.dart';
 import 'changelog_screen.dart';
 import 'drive_restore_screen.dart';
 
-// ── Icon background colors (iOS Settings palette) ─────────────────────────
+// ── Icon chip colors ──────────────────────────────────────────────────────
+// Content-first redesign: the stock-iOS rainbow palette is replaced by a single
+// cohesive warm-graphite chip (white glyph on top), so Settings reads as one
+// considered surface rather than a row of system defaults. Semantic rows that
+// want to stand out use [AppColors.accent] (coral) directly at the call site.
+// Names are retained so existing call sites keep compiling.
 
 class _IColor {
-  static const indigo  = Color(0xFF5E5CE6);
-  static const orange  = Color(0xFFFF9F0A);
-  static const green   = Color(0xFF30D158);
-  static const blue    = Color(0xFF0A84FF);
-  static const purple  = Color(0xFFBF5AF2);
-  static const teal    = Color(0xFF32ADE6);
-  static const yellow  = Color(0xFFFFD60A);
-  static const gray    = Color(0xFF636366);
+  static const _ink = Color(0xFF55545B); // warm graphite
+  static const indigo  = _ink;
+  static const orange  = _ink;
+  static const green   = _ink;
+  static const blue    = _ink;
+  static const purple  = _ink;
+  static const teal    = _ink;
+  static const yellow  = _ink;
+  static const gray    = _ink;
 }
 
 class SettingsScreen extends ConsumerWidget {
@@ -39,7 +45,6 @@ class SettingsScreen extends ConsumerWidget {
     final bottomPadding = MediaQuery.of(context).padding.bottom;
     final dlLocation    = ref.watch(downloadLocationProvider);
     final brightness    = ref.watch(brightnessProvider);
-    final glassTheme    = ref.watch(glassThemeProvider);
     final direction     = ref.watch(readingDirectionProvider);
     final scale         = ref.watch(pageScaleModeProvider);
     final background    = ref.watch(readerBackgroundProvider);
@@ -60,10 +65,8 @@ class SettingsScreen extends ConsumerWidget {
               ),
               child: Text(
                 'Settings',
-                style: AppTextStyles.sectionTitle.copyWith(
+                style: AppTextStyles.hero.copyWith(
                   fontSize: 26,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.5,
                   color: context.textPrimaryColor,
                 ),
               ),
@@ -72,20 +75,6 @@ class SettingsScreen extends ConsumerWidget {
 
           // ── Appearance ───────────────────────────────────────────────
           _buildSection(context, 'Appearance', [
-            _SettingRow(
-              icon: CupertinoIcons.sparkles,
-              iconBgColor: _IColor.purple,
-              label: 'Theme',
-              trailing: _SegmentedPicker<GlassTheme>(
-                value: glassTheme,
-                items: const [
-                  (GlassTheme.frosty, 'Frosty'),
-                  (GlassTheme.liquid, 'Liquid'),
-                ],
-                onChanged: (g) =>
-                    ref.read(glassThemeProvider.notifier).state = g,
-              ),
-            ),
             _SettingRow(
               icon: CupertinoIcons.moon_stars,
               iconBgColor: _IColor.indigo,
@@ -646,7 +635,7 @@ class _Pill extends StatelessWidget {
         child: Text(
           label,
           style: TextStyle(
-            color: selected ? CupertinoColors.white : context.textSecondaryColor,
+            color: selected ? AppColors.textOnAccent : context.textSecondaryColor,
             fontSize: 11,
             fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
           ),

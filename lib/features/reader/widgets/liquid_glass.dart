@@ -1,36 +1,43 @@
 import 'package:flutter/cupertino.dart';
 
-import '../../../shared/widgets/app_glass.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_spacing.dart';
 
-/// Backwards-compatible wrapper kept for the reader's floating next/back
-/// buttons. It now delegates to [AppGlass] so these surfaces follow the
-/// app-wide frosty/liquid theme toggle instead of being frosty-only.
+/// Solid dark surface — replaces the previous liquid-glass floating button
+/// container in the reader. The blur/tint parameters are accepted for API
+/// compatibility but blur is ignored. The solid dark surface keeps reader
+/// button clusters legible against any comic page background.
 class LiquidGlass extends StatelessWidget {
   const LiquidGlass({
     super.key,
     required this.child,
     this.borderRadius = 22,
-    this.blur = 26,
+    this.blur = 26,       // ignored — kept for API compatibility
     this.padding,
-    this.tint = const Color(0x40000000),
+    this.tint = const Color(0xB3000000),
   });
 
   final Widget child;
   final double borderRadius;
   final double blur;
   final EdgeInsetsGeometry? padding;
-
-  /// Base colour mixed under the glass to keep light content legible.
   final Color tint;
 
   @override
   Widget build(BuildContext context) {
-    return AppGlass(
-      borderRadius: borderRadius,
-      blur: blur,
-      padding: padding,
-      tint: tint,
-      child: child,
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: tint,
+        borderRadius: BorderRadius.circular(borderRadius),
+        border: Border.all(
+          color: AppColors.borderSubtle,
+          width: AppRadius.hairline,
+        ),
+        boxShadow: AppElevation.e3,
+      ),
+      child: padding != null
+          ? Padding(padding: padding!, child: child)
+          : child,
     );
   }
 }

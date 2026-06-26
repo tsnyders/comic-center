@@ -46,7 +46,7 @@ class _SourceRowState extends State<SourceRow> {
   Widget build(BuildContext context) {
     final effectiveGradient = widget.gradient ??
         const LinearGradient(
-          colors: [Color(0xFF667EEA), Color(0xFF764BA2)],
+          colors: AppColors.gradEmber,
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         );

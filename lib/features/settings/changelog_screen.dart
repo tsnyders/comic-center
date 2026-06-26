@@ -47,9 +47,9 @@ class ChangelogScreen extends ConsumerWidget {
                   Expanded(
                     child: Text(
                       'What\'s New',
-                      style: AppTextStyles.sectionTitle.copyWith(
+                      style: AppTextStyles.hero.copyWith(
                         fontSize: 22,
-                        fontWeight: FontWeight.w800,
+                        color: context.textPrimaryColor,
                       ),
                     ),
                   ),
@@ -73,9 +73,7 @@ class ChangelogScreen extends ConsumerWidget {
             ),
             error: (e, _) => SliverFillRemaining(
               child: _ErrorView(
-                message: e is UpdateCheckException
-                    ? e.message
-                    : e.toString(),
+                message: e is UpdateCheckException ? e.message : e.toString(),
                 onRetry: () => ref.invalidate(_changelogProvider),
               ),
             ),
@@ -99,7 +97,7 @@ class ChangelogScreen extends ConsumerWidget {
                           ),
                         ),
                         const SizedBox(height: 8),
-                        Text(
+                        const Text(
                           'Check back after the first release.',
                           style: AppTextStyles.bodySmall,
                         ),
@@ -149,8 +147,18 @@ class _ReleaseCardState extends State<_ReleaseCard> {
   String _formatDate(DateTime? dt) {
     if (dt == null) return '';
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec'
     ];
     return '${months[dt.month - 1]} ${dt.day}, ${dt.year}';
   }
@@ -162,7 +170,7 @@ class _ReleaseCardState extends State<_ReleaseCard> {
 
     return Container(
       decoration: BoxDecoration(
-        color: context.surfaceElevatedColor.withOpacity(0.55),
+        color: context.surfaceElevatedColor.withValues(alpha: 0.55),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: context.borderColor, width: 0.5),
       ),
@@ -179,13 +187,13 @@ class _ReleaseCardState extends State<_ReleaseCard> {
                 children: [
                   // Version badge
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: AppColors.accent.withOpacity(0.15),
+                      color: AppColors.accent.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
-                        color: AppColors.accent.withOpacity(0.35),
+                        color: AppColors.accent.withValues(alpha: 0.35),
                         width: 0.5,
                       ),
                     ),
@@ -203,7 +211,7 @@ class _ReleaseCardState extends State<_ReleaseCard> {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: AppColors.warning.withOpacity(0.15),
+                        color: AppColors.warning.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
@@ -219,8 +227,7 @@ class _ReleaseCardState extends State<_ReleaseCard> {
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      release.name.isNotEmpty &&
-                              release.name != release.tag
+                      release.name.isNotEmpty && release.name != release.tag
                           ? release.name
                           : '',
                       style: AppTextStyles.bodySmall.copyWith(
@@ -284,19 +291,19 @@ class _ReleaseCardState extends State<_ReleaseCard> {
                           color: AppColors.accent,
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: Row(
+                        child: const Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(
+                            Icon(
                               CupertinoIcons.arrow_down_to_line,
                               size: 14,
-                              color: CupertinoColors.white,
+                              color: AppColors.textOnAccent,
                             ),
-                            const SizedBox(width: 8),
-                            const Text(
+                            SizedBox(width: 8),
+                            Text(
                               'Download APK',
                               style: TextStyle(
-                                color: CupertinoColors.white,
+                                color: AppColors.textOnAccent,
                                 fontSize: 13,
                                 fontWeight: FontWeight.w600,
                               ),
@@ -399,7 +406,7 @@ class _ReleaseBody extends StatelessWidget {
                 child: Container(
                   width: 4,
                   height: 4,
-                  decoration: BoxDecoration(
+                  decoration: const BoxDecoration(
                     color: AppColors.accent,
                     shape: BoxShape.circle,
                   ),
@@ -533,13 +540,13 @@ class _ErrorView extends StatelessWidget {
             GestureDetector(
               onTap: onRetry,
               child: Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 20, vertical: 10),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                 decoration: BoxDecoration(
-                  color: AppColors.accent.withOpacity(0.12),
+                  color: AppColors.accent.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: AppColors.accent.withOpacity(0.35),
+                    color: AppColors.accent.withValues(alpha: 0.35),
                     width: 0.5,
                   ),
                 ),

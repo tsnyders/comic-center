@@ -377,7 +377,7 @@ class _ModeTab extends StatelessWidget {
           label,
           style: AppTextStyles.labelMedium.copyWith(
             color: selected
-                ? CupertinoColors.white
+                ? AppColors.textOnAccent
                 : context.textSecondaryColor,
             fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
           ),

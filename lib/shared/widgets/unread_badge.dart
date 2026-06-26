@@ -15,7 +15,7 @@ class UnreadBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
       decoration: BoxDecoration(
-        color: AppColors.unread.withOpacity(0.9),
+        color: AppColors.unread.withValues(alpha: 0.9),
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: AppColors.textQuaternary, width: 0.5),
       ),

@@ -26,18 +26,17 @@ class DownloadsScreen extends ConsumerWidget {
             child: Padding(
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
               child: Text('Downloads',
-                  style: AppTextStyles.sectionTitle.copyWith(
+                  style: AppTextStyles.hero.copyWith(
                     fontSize: 26,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.5,
+                    color: context.textPrimaryColor,
                   )),
             ),
           ),
 
           // Active queue
-          SliverToBoxAdapter(
+          const SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+              padding: EdgeInsets.fromLTRB(20, 0, 20, 10),
               child: Text('Queue', style: AppTextStyles.sectionTitle),
             ),
           ),
@@ -47,7 +46,8 @@ class DownloadsScreen extends ConsumerWidget {
             ),
             error: (e, _) => SliverToBoxAdapter(child: Text(e.toString())),
             data: (items) => items.isEmpty
-                ? SliverToBoxAdapter(child: _EmptySection(message: 'No active downloads'))
+                ? const SliverToBoxAdapter(
+                    child: _EmptySection(message: 'No active downloads'))
                 : SliverPadding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     sliver: SliverList.builder(
@@ -58,9 +58,9 @@ class DownloadsScreen extends ConsumerWidget {
           ),
 
           // History
-          SliverToBoxAdapter(
+          const SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 24, 20, 10),
+              padding: EdgeInsets.fromLTRB(20, 24, 20, 10),
               child: Text('Completed', style: AppTextStyles.sectionTitle),
             ),
           ),
@@ -70,7 +70,8 @@ class DownloadsScreen extends ConsumerWidget {
             ),
             error: (e, _) => SliverToBoxAdapter(child: Text(e.toString())),
             data: (items) => items.isEmpty
-                ? SliverToBoxAdapter(child: _EmptySection(message: 'No completed downloads'))
+                ? const SliverToBoxAdapter(
+                    child: _EmptySection(message: 'No completed downloads'))
                 : SliverPadding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     sliver: SliverList.builder(
@@ -103,7 +104,7 @@ class _DownloadTile extends ConsumerWidget {
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: context.surfaceElevatedColor.withOpacity(0.6),
+        color: context.surfaceElevatedColor.withValues(alpha: 0.6),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: context.borderColor, width: 0.5),
       ),
@@ -194,9 +195,9 @@ class _ActionChip extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.12),
+          color: color.withValues(alpha: 0.12),
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: color.withOpacity(0.3), width: 0.5),
+          border: Border.all(color: color.withValues(alpha: 0.3), width: 0.5),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -232,12 +233,13 @@ class _StatusBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.15),
+        color: color.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.3), width: 0.5),
+        border: Border.all(color: color.withValues(alpha: 0.3), width: 0.5),
       ),
       child: Text(label,
-          style: AppTextStyles.caption.copyWith(color: color, fontWeight: FontWeight.w600)),
+          style: AppTextStyles.caption
+              .copyWith(color: color, fontWeight: FontWeight.w600)),
     );
   }
 }

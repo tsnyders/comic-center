@@ -107,10 +107,9 @@ class _RepositoryScreenState extends ConsumerState<RepositoryScreen> {
                   const SizedBox(width: 8),
                   Text(
                     'Extension Repository',
-                    style: AppTextStyles.sectionTitle.copyWith(
+                    style: AppTextStyles.hero.copyWith(
                       color: context.textPrimaryColor,
                       fontSize: 22,
-                      fontWeight: FontWeight.w800,
                     ),
                   ),
                 ],

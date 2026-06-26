@@ -28,10 +28,17 @@ class _DriveRestoreScreenState extends ConsumerState<DriveRestoreScreen> {
     setState(() => _loading = true);
     try {
       final bs = await GoogleDriveService.listBackups();
-      if (mounted) setState(() { _backups = bs; _loading = false; });
+      if (mounted)
+        setState(() {
+          _backups = bs;
+          _loading = false;
+        });
     } catch (e) {
       if (mounted) {
-        setState(() { _backups = []; _loading = false; });
+        setState(() {
+          _backups = [];
+          _loading = false;
+        });
         _showError(e.toString());
       }
     }
@@ -93,10 +100,10 @@ class _DriveRestoreScreenState extends ConsumerState<DriveRestoreScreen> {
                     ),
                   ),
                 ),
-                Align(
+                const Align(
                   alignment: Alignment.bottomCenter,
                   child: Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
+                    padding: EdgeInsets.only(bottom: 12),
                     child: Text(
                       'Restore from Drive',
                       style: AppTextStyles.sectionTitle,
@@ -127,7 +134,7 @@ class _DriveRestoreScreenState extends ConsumerState<DriveRestoreScreen> {
                               ),
                             ),
                             const SizedBox(height: 6),
-                            Text(
+                            const Text(
                               'Backup to Drive first from Settings.',
                               style: AppTextStyles.bodySmall,
                               textAlign: TextAlign.center,
@@ -136,8 +143,8 @@ class _DriveRestoreScreenState extends ConsumerState<DriveRestoreScreen> {
                         ),
                       )
                     : ListView.builder(
-                        padding: EdgeInsets.fromLTRB(
-                            20, 8, 20, bottomPadding + 20),
+                        padding:
+                            EdgeInsets.fromLTRB(20, 8, 20, bottomPadding + 20),
                         itemCount: _backups!.length,
                         itemBuilder: (_, i) => _DriveTile(
                           backup: _backups![i],
@@ -231,7 +238,7 @@ class _DriveTile extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: AppColors.surfaceElevated.withOpacity(0.6),
+          color: AppColors.surfaceElevated.withValues(alpha: 0.6),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: AppColors.border, width: 0.5),
         ),

@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,13 +7,23 @@ import '../../core/providers/library_provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../../shared/widgets/cover_image.dart';
 import '../../shared/widgets/empty_state.dart';
+import '../../shared/widgets/unread_badge.dart';
 import '../title_detail/title_detail_screen.dart';
 import 'library_filter_sheet.dart';
 import 'widgets/category_chips.dart';
 import 'widgets/continue_reading_shelf.dart';
-import 'widgets/manga_card.dart';
+import 'widgets/manga_card.dart' show mangaCoverHeroTag;
 
+/// ============================================================================
+/// Library — "Discovery Feed" structure
+///
+/// Greeting header + search → a wide Continue-reading hero card → a horizontal
+/// "Jump back in" shelf → category chips → the library as a vertical list of
+/// rich rows (cover · title · author · chapter · unread). Replaces the old
+/// big-title + uniform-grid layout.
+/// ============================================================================
 class LibraryScreen extends ConsumerStatefulWidget {
   const LibraryScreen({super.key});
 
@@ -26,197 +34,151 @@ class LibraryScreen extends ConsumerStatefulWidget {
 class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   final _scrollController = ScrollController();
   final _searchController = TextEditingController();
-  late final _scrollOffset = ValueNotifier<double>(0);
-  bool _searchActive = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _scrollController.addListener(() {
-      _scrollOffset.value =
-          _scrollController.offset.clamp(0.0, double.infinity);
-    });
-  }
 
   @override
   void dispose() {
     _scrollController.dispose();
     _searchController.dispose();
-    _scrollOffset.dispose();
     super.dispose();
+  }
+
+  String get _greeting {
+    final h = DateTime.now().hour;
+    if (h < 12) return 'Good morning';
+    if (h < 18) return 'Good afternoon';
+    return 'Good evening';
   }
 
   @override
   Widget build(BuildContext context) {
     final topPadding = MediaQuery.of(context).padding.top;
     final library = ref.watch(filteredLibraryProvider);
+    final continueItems = ref.watch(continueReadingProvider);
 
     return CupertinoPageScaffold(
       backgroundColor: context.backgroundColor,
       child: Stack(
         children: [
-          // Ambient radial glow — mode-aware
-          Positioned.fill(
-            child: _AmbientBackground(),
-          ),
-
-          // Scrollable content
+          Positioned.fill(child: _AmbientBackground()),
           CustomScrollView(
             controller: _scrollController,
             physics: const BouncingScrollPhysics(),
             slivers: [
-              // Spacer for the frosted top bar
-              SliverToBoxAdapter(
-                child: SizedBox(height: topPadding + 64),
-              ),
+              SliverToBoxAdapter(child: SizedBox(height: topPadding + 12)),
 
-              // "My / Library" display title
+              // Greeting header
+              SliverToBoxAdapter(child: _GreetingHeader(greeting: _greeting)),
+
+              // Search field
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.gutter,
-                    AppSpacing.x4,
-                    AppSpacing.gutter,
-                    AppSpacing.x6,
+                    AppSpacing.gutter, 4, AppSpacing.gutter, AppSpacing.x6,
                   ),
-                  child: RichText(
-                    text: TextSpan(
-                      children: [
-                        TextSpan(
-                          text: 'My\n',
-                          style: AppTextStyles.displayTitle.copyWith(
-                            color: context.textPrimaryColor,
-                          ),
-                        ),
-                        TextSpan(
-                          text: 'Library',
-                          style: AppTextStyles.displayTitleAccent.copyWith(
-                            color: context.accentColor,
-                          ),
-                        ),
-                      ],
+                  child: _SearchField(
+                    controller: _searchController,
+                    onChanged: (q) =>
+                        ref.read(librarySearchProvider.notifier).state = q,
+                    onFilterTap: () => showCupertinoModalPopup<void>(
+                      context: context,
+                      builder: (_) => const LibraryFilterSheet(),
                     ),
                   ),
                 ),
               ),
 
-              // Continue reading shelf (recently read titles)
+              // Continue-reading hero (top in-progress title)
+              if (continueItems.isNotEmpty)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.gutter, 0, AppSpacing.gutter, AppSpacing.x7,
+                    ),
+                    child: _ContinueHero(
+                      manga: continueItems.first,
+                      onTap: () => _openDetail(continueItems.first),
+                    ),
+                  ),
+                ),
+
+              // "Jump back in" horizontal shelf (the rest of the recents)
+              if (continueItems.length > 1)
+                SliverToBoxAdapter(
+                  child: ContinueReadingShelf(onOpen: _openDetail),
+                ),
+
+              // Category chips
+              const SliverToBoxAdapter(child: CategoryChips()),
+              const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.x6)),
+
+              // Section header for the list
               SliverToBoxAdapter(
-                child: ContinueReadingShelf(
-                  onOpen: _openDetail,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.gutter, 0, AppSpacing.gutter, AppSpacing.x5,
+                  ),
+                  child: Text(
+                    'Your collection',
+                    style: AppTextStyles.sectionTitle.copyWith(
+                      color: context.textPrimaryColor,
+                    ),
+                  ),
                 ),
               ),
 
-              // Category filter chips
-              const SliverToBoxAdapter(
-                child: CategoryChips(),
-              ),
-
-              const SliverToBoxAdapter(child: SizedBox(height: 16)),
-
-              // Manga grid
+              // Library as a list of rows
               library.when(
-                loading: () => _buildShimmerGrid(),
+                loading: () => _buildShimmer(),
                 error: (e, _) => _ErrorView(message: e.toString()),
                 data: (mangas) => mangas.isEmpty
                     ? _EmptyLibraryView()
-                    : _buildGrid(mangas),
+                    : _buildList(mangas),
               ),
 
-              // Bottom safe area + tab bar clearance
               SliverToBoxAdapter(
                 child: SizedBox(
-                  height: MediaQuery.of(context).padding.bottom + 90,
+                  height: MediaQuery.of(context).padding.bottom + 96,
                 ),
               ),
             ],
-          ),
-
-          // Frosted top bar (always on top)
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: _FrostedTopBar(
-              scrollOffset: _scrollOffset,
-              searchActive: _searchActive,
-              searchController: _searchController,
-              columns: ref.watch(libraryGridColumnsProvider),
-              onSearchTap: () => setState(() => _searchActive = true),
-              onSearchChanged: (q) =>
-                  ref.read(librarySearchProvider.notifier).state = q,
-              onSearchClose: () {
-                setState(() => _searchActive = false);
-                _searchController.clear();
-                ref.read(librarySearchProvider.notifier).state = '';
-              },
-              onFilterTap: () => showCupertinoModalPopup<void>(
-                context: context,
-                builder: (_) => const LibraryFilterSheet(),
-              ),
-              onToggleColumns: () {
-                HapticFeedback.selectionClick();
-                final current = ref.read(libraryGridColumnsProvider);
-                ref.read(libraryGridColumnsProvider.notifier).state =
-                    current == 2 ? 3 : 2;
-              },
-            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildGrid(List<MangaEntry> mangas) {
-    final columns = ref.watch(libraryGridColumnsProvider);
+  Widget _buildList(List<MangaEntry> mangas) {
     return SliverPadding(
-      padding:
-          const EdgeInsets.symmetric(horizontal: AppSpacing.gutter),
-      sliver: SliverGrid(
-        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: columns,
-          childAspectRatio: 2 / 3,
-          crossAxisSpacing: columns == 2 ? AppSpacing.gridGap : 10,
-          mainAxisSpacing: columns == 2 ? AppSpacing.gridGap : 10,
-        ),
-        delegate: SliverChildBuilderDelegate(
-          (context, i) => MangaCard(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.gutter),
+      sliver: SliverList.separated(
+        itemCount: mangas.length,
+        separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.x5),
+        itemBuilder: (context, i) => _FadeSlideIn(
+          index: i,
+          child: _ComicRow(
             manga: mangas[i],
-            compact: columns == 3,
             onTap: () => _openDetail(mangas[i]),
             onLongPress: () => _showQuickActions(mangas[i]),
           ),
-          childCount: mangas.length,
         ),
       ),
     );
   }
 
-  Widget _buildShimmerGrid() {
-    final columns = ref.watch(libraryGridColumnsProvider);
+  Widget _buildShimmer() {
     return SliverPadding(
-      padding:
-          const EdgeInsets.symmetric(horizontal: AppSpacing.gutter),
-      sliver: SliverGrid(
-        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: columns,
-          childAspectRatio: 2 / 3,
-          crossAxisSpacing: columns == 2 ? AppSpacing.gridGap : 10,
-          mainAxisSpacing: columns == 2 ? AppSpacing.gridGap : 10,
-        ),
-        delegate: SliverChildBuilderDelegate(
-          (_, __) => _ShimmerCard(),
-          childCount: 6,
-        ),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.gutter),
+      sliver: SliverList.separated(
+        itemCount: 5,
+        separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.x5),
+        itemBuilder: (_, __) => const _RowShimmer(),
       ),
     );
   }
 
   void _openDetail(MangaEntry manga) {
     Navigator.of(context, rootNavigator: true).push(
-      CupertinoPageRoute(
-        builder: (_) => TitleDetailScreen(manga: manga),
-      ),
+      CupertinoPageRoute(builder: (_) => TitleDetailScreen(manga: manga)),
     );
   }
 
@@ -264,139 +226,56 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   }
 }
 
-// ── Frosted top bar ────────────────────────────────────────────────────────
+// ── Greeting header ─────────────────────────────────────────────────────────
 
-class _FrostedTopBar extends StatelessWidget {
-  const _FrostedTopBar({
-    required this.scrollOffset,
-    required this.searchActive,
-    required this.searchController,
-    required this.columns,
-    required this.onSearchTap,
-    required this.onSearchChanged,
-    required this.onSearchClose,
-    required this.onFilterTap,
-    required this.onToggleColumns,
-  });
-
-  final ValueNotifier<double> scrollOffset;
-  final bool searchActive;
-  final TextEditingController searchController;
-  final int columns;
-  final VoidCallback onSearchTap;
-  final ValueChanged<String> onSearchChanged;
-  final VoidCallback onSearchClose;
-  final VoidCallback onFilterTap;
-  final VoidCallback onToggleColumns;
+class _GreetingHeader extends StatelessWidget {
+  const _GreetingHeader({required this.greeting});
+  final String greeting;
 
   @override
   Widget build(BuildContext context) {
-    final topPadding = MediaQuery.of(context).padding.top;
-
-    return ValueListenableBuilder<double>(
-      valueListenable: scrollOffset,
-      builder: (context, offset, _) {
-        // Transparent until scrolled >8px, then ramp in blur+bg
-        final blurAlpha = ((offset - 8) / 32).clamp(0.0, 1.0);
-
-        return ClipRect(
-          child: BackdropFilter(
-            filter: ImageFilter.blur(
-              sigmaX: blurAlpha * 20,
-              sigmaY: blurAlpha * 20,
-            ),
-            child: Container(
-              color: context.backgroundColor.withValues(alpha: 0.72 * blurAlpha),
-              padding: EdgeInsets.only(
-                top: topPadding + 8,
-                left: AppSpacing.gutter,
-                right: AppSpacing.gutter,
-                bottom: 10,
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: searchActive
-                        ? CupertinoSearchTextField(
-                            controller: searchController,
-                            autofocus: true,
-                            onChanged: onSearchChanged,
-                            style: AppTextStyles.bodySmall.copyWith(
-                              color: context.textPrimaryColor,
-                            ),
-                          )
-                        : GestureDetector(
-                            onTap: onSearchTap,
-                            child: _SearchPill(),
-                          ),
-                  ),
-                  const SizedBox(width: 10),
-                  if (searchActive)
-                    CupertinoButton(
-                      padding: EdgeInsets.zero,
-                      minimumSize: const Size(38, 38),
-                      onPressed: onSearchClose,
-                      child: Text(
-                        'Cancel',
-                        style: TextStyle(
-                          color: context.accentColor,
-                          fontSize: 14,
-                        ),
-                      ),
-                    )
-                  else ...[
-                    // Grid density toggle — 38px circular surfaceElevated button
-                    _CircleIconButton(
-                      icon: columns == 2
-                          ? CupertinoIcons.square_grid_3x2
-                          : CupertinoIcons.square_grid_2x2,
-                      onTap: onToggleColumns,
-                    ),
-                    const SizedBox(width: 10),
-                    // Filter button
-                    _CircleIconButton(
-                      icon: CupertinoIcons.slider_horizontal_3,
-                      onTap: onFilterTap,
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
-
-// ── Search pill (h38, radius.pill, surfaceElevated@80%) ────────────────────
-
-class _SearchPill extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 38,
-      decoration: BoxDecoration(
-        color: context.surfaceElevatedColor.withValues(alpha: 0.80),
-        borderRadius: BorderRadius.circular(AppRadius.pill),
-        border: Border.all(
-          color: context.borderStrongColor,
-          width: AppRadius.hairline,
-        ),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.gutter, 0, AppSpacing.gutter, AppSpacing.x5,
       ),
       child: Row(
         children: [
-          const SizedBox(width: 12),
-          Icon(
-            CupertinoIcons.search,
-            size: 16,
-            color: context.textTertiaryColor,
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: context.accentSubtleColor,
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: context.accentLineColor,
+                width: AppRadius.hairline,
+              ),
+            ),
+            child: Icon(
+              CupertinoIcons.book_fill,
+              color: context.accentColor,
+              size: 20,
+            ),
           ),
-          const SizedBox(width: 8),
-          Text(
-            'Search library',
-            style: AppTextStyles.bodySmall.copyWith(
-              color: context.textTertiaryColor,
+          const SizedBox(width: AppSpacing.x5),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  greeting,
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: context.textTertiaryColor,
+                  ),
+                ),
+                const SizedBox(height: 1),
+                Text(
+                  'Your Library',
+                  style: AppTextStyles.hero.copyWith(
+                    color: context.textPrimaryColor,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -405,106 +284,303 @@ class _SearchPill extends StatelessWidget {
   }
 }
 
-// ── Circular icon button (top bar, 38px, surfaceElevated tone) ─────────────
+// ── Search field + filter ───────────────────────────────────────────────────
 
-class _CircleIconButton extends StatefulWidget {
-  const _CircleIconButton({required this.icon, required this.onTap});
-  final IconData icon;
+class _SearchField extends StatelessWidget {
+  const _SearchField({
+    required this.controller,
+    required this.onChanged,
+    required this.onFilterTap,
+  });
+
+  final TextEditingController controller;
+  final ValueChanged<String> onChanged;
+  final VoidCallback onFilterTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: Container(
+            height: 46,
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            decoration: BoxDecoration(
+              color: context.surfaceElevatedColor,
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              border: Border.all(
+                color: context.borderColor,
+                width: AppRadius.hairline,
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(CupertinoIcons.search,
+                    size: 18, color: context.textTertiaryColor),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: CupertinoTextField(
+                    controller: controller,
+                    onChanged: onChanged,
+                    placeholder: 'Search your library',
+                    placeholderStyle: AppTextStyles.bodyMedium.copyWith(
+                      color: context.textTertiaryColor,
+                    ),
+                    style: AppTextStyles.bodyMedium.copyWith(
+                      color: context.textPrimaryColor,
+                    ),
+                    decoration: const BoxDecoration(),
+                    padding: EdgeInsets.zero,
+                    cursorColor: context.accentColor,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(width: AppSpacing.x5),
+        GestureDetector(
+          onTap: onFilterTap,
+          child: Container(
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(
+              color: context.accentColor,
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              boxShadow: [
+                BoxShadow(
+                  color: context.accentColor.withValues(alpha: 0.3),
+                  blurRadius: 14,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+            ),
+            child: const Icon(CupertinoIcons.slider_horizontal_3,
+                size: 20, color: CupertinoColors.white),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ── Continue-reading hero card ──────────────────────────────────────────────
+
+class _ContinueHero extends StatefulWidget {
+  const _ContinueHero({required this.manga, required this.onTap});
+  final MangaEntry manga;
   final VoidCallback onTap;
 
   @override
-  State<_CircleIconButton> createState() => _CircleIconButtonState();
+  State<_ContinueHero> createState() => _ContinueHeroState();
 }
 
-class _CircleIconButtonState extends State<_CircleIconButton> {
+class _ContinueHeroState extends State<_ContinueHero> {
   bool _pressed = false;
 
   @override
   Widget build(BuildContext context) {
+    final manga = widget.manga;
+    final chapter = manga.lastReadChapterNumber?.toStringAsFixed(0);
     return GestureDetector(
       onTap: widget.onTap,
       onTapDown: (_) => setState(() => _pressed = true),
       onTapUp: (_) => setState(() => _pressed = false),
       onTapCancel: () => setState(() => _pressed = false),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 80),
-        width: 38,
-        height: 38,
-        decoration: BoxDecoration(
-          color: _pressed
-              ? context.surfaceElevatedColor
-              : context.surfaceElevatedColor.withValues(alpha: 0.80),
-          borderRadius: BorderRadius.circular(AppRadius.pill),
-          border: Border.all(
-            color: context.borderStrongColor,
-            width: AppRadius.hairline,
+      child: AnimatedScale(
+        scale: _pressed ? 0.97 : 1.0,
+        duration: AppMotion.fast,
+        curve: AppMotion.easeOut,
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: context.accentColor,
+            borderRadius: BorderRadius.circular(AppRadius.lg),
+            boxShadow: [
+              BoxShadow(
+                color: context.accentColor.withValues(alpha: 0.34),
+                blurRadius: 24,
+                offset: const Offset(0, 12),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(AppRadius.cover),
+                child: Hero(
+                  tag: mangaCoverHeroTag(manga.id),
+                  child: SizedBox(
+                    width: 60,
+                    height: 84,
+                    child: CoverImage(url: manga.coverUrl),
+                  ),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.x6),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'CONTINUE READING',
+                      style: TextStyle(
+                        fontFamily: AppTextStyles.display,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 1.0,
+                        color: Color(0xCCFFFFFF),
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      manga.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTextStyles.cardTitle.copyWith(
+                        fontSize: 17,
+                        color: CupertinoColors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      chapter != null ? 'Chapter $chapter' : 'Tap to start',
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: const Color(0xCCFFFFFF),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: AppSpacing.x4),
+              Container(
+                width: 44,
+                height: 44,
+                decoration: const BoxDecoration(
+                  color: CupertinoColors.white,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(CupertinoIcons.play_arrow_solid,
+                    color: context.accentColor, size: 20),
+              ),
+            ],
           ),
         ),
-        child: Icon(
-          widget.icon,
-          size: 16,
-          color: context.textSecondaryColor,
-        ),
       ),
     );
   }
 }
 
-// ── Ambient background ─────────────────────────────────────────────────────
+// ── Comic list row ──────────────────────────────────────────────────────────
 
-class _AmbientBackground extends StatelessWidget {
+class _ComicRow extends StatefulWidget {
+  const _ComicRow({
+    required this.manga,
+    required this.onTap,
+    required this.onLongPress,
+  });
+  final MangaEntry manga;
+  final VoidCallback onTap;
+  final VoidCallback onLongPress;
+
   @override
-  Widget build(BuildContext context) {
-    final seedColor = context.isDark
-        ? const Color(0x26667EEA)
-        : const Color(0x1A667EEA);
-    final baseColor = context.backgroundColor;
-
-    return Container(
-      decoration: BoxDecoration(
-        gradient: RadialGradient(
-          center: const Alignment(-0.4, -0.8),
-          radius: 1.2,
-          colors: [seedColor, baseColor],
-          stops: const [0.0, 0.6],
-        ),
-      ),
-    );
-  }
+  State<_ComicRow> createState() => _ComicRowState();
 }
 
-// ── Empty state ────────────────────────────────────────────────────────────
-
-class _EmptyLibraryView extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return const SliverFillRemaining(
-      hasScrollBody: false,
-      child: Center(
-        child: EmptyState(
-          icon: CupertinoIcons.book,
-          title: 'Your library is empty',
-          message: 'Browse sources to find manga and add them here.',
-        ),
-      ),
-    );
-  }
-}
-
-// ── Error view ─────────────────────────────────────────────────────────────
-
-class _ErrorView extends StatelessWidget {
-  const _ErrorView({required this.message});
-  final String message;
+class _ComicRowState extends State<_ComicRow> {
+  bool _pressed = false;
 
   @override
   Widget build(BuildContext context) {
-    return SliverFillRemaining(
-      child: Center(
-        child: Text(
-          message,
-          style: AppTextStyles.bodySmall.copyWith(
-            color: context.textSecondaryColor,
+    final manga = widget.manga;
+    final chapter = manga.lastReadChapterNumber?.toStringAsFixed(0);
+    final meta = chapter != null
+        ? 'Chapter $chapter'
+        : '${manga.chapterCount} chapters';
+    return GestureDetector(
+      onTap: widget.onTap,
+      onLongPress: widget.onLongPress,
+      onTapDown: (_) => setState(() => _pressed = true),
+      onTapUp: (_) => setState(() => _pressed = false),
+      onTapCancel: () => setState(() => _pressed = false),
+      child: AnimatedScale(
+        scale: _pressed ? 0.98 : 1.0,
+        duration: AppMotion.fast,
+        curve: AppMotion.easeOut,
+        child: Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: context.surfaceColor,
+            borderRadius: BorderRadius.circular(AppRadius.md),
+            border: Border.all(
+              color: context.borderColor,
+              width: AppRadius.hairline,
+            ),
+          ),
+          child: Row(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(AppRadius.cover),
+                child: Hero(
+                  tag: mangaCoverHeroTag(manga.id),
+                  child: SizedBox(
+                    width: 52,
+                    height: 72,
+                    child: CoverImage(url: manga.coverUrl),
+                  ),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.x6),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      manga.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTextStyles.cardTitle.copyWith(
+                        color: context.textPrimaryColor,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    if (manga.author != null && manga.author!.isNotEmpty) ...[
+                      Text(
+                        manga.author!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTextStyles.bodySmall.copyWith(
+                          color: context.textSecondaryColor,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                    ],
+                    Row(
+                      children: [
+                        Icon(CupertinoIcons.book,
+                            size: 12, color: context.textTertiaryColor),
+                        const SizedBox(width: 5),
+                        Text(
+                          meta,
+                          style: AppTextStyles.caption.copyWith(
+                            color: context.textTertiaryColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: AppSpacing.x4),
+              if (manga.unreadCount > 0)
+                Padding(
+                  padding: const EdgeInsets.only(right: 4),
+                  child: UnreadBadge(count: manga.unreadCount),
+                )
+              else
+                Icon(CupertinoIcons.chevron_right,
+                    size: 16, color: context.textQuaternaryColor),
+            ],
           ),
         ),
       ),
@@ -512,14 +588,15 @@ class _ErrorView extends StatelessWidget {
   }
 }
 
-// ── Shimmer card (1200ms ease in/out per spec) ─────────────────────────────
+// ── Row shimmer ─────────────────────────────────────────────────────────────
 
-class _ShimmerCard extends StatefulWidget {
+class _RowShimmer extends StatefulWidget {
+  const _RowShimmer();
   @override
-  State<_ShimmerCard> createState() => _ShimmerCardState();
+  State<_RowShimmer> createState() => _RowShimmerState();
 }
 
-class _ShimmerCardState extends State<_ShimmerCard>
+class _RowShimmerState extends State<_RowShimmer>
     with SingleTickerProviderStateMixin {
   late final AnimationController _ctrl;
   late final Animation<double> _anim;
@@ -544,24 +621,112 @@ class _ShimmerCardState extends State<_ShimmerCard>
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: _anim,
-      builder: (_, __) => Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(AppRadius.cover),
-          border: Border.all(
-            color: context.borderColor,
-            width: AppRadius.hairline,
+      builder: (_, __) {
+        final c = Color.lerp(
+            context.surfaceColor, context.surfaceElevatedColor, _anim.value)!;
+        return Container(
+          height: 92,
+          decoration: BoxDecoration(
+            color: c,
+            borderRadius: BorderRadius.circular(AppRadius.md),
+            border: Border.all(
+                color: context.borderColor, width: AppRadius.hairline),
           ),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              context.surfaceColor,
-              Color.lerp(
-                context.surfaceColor,
-                context.surfaceElevatedColor,
-                _anim.value,
-              )!,
-            ],
+        );
+      },
+    );
+  }
+}
+
+// ── Staggered entrance animation ────────────────────────────────────────────
+
+class _FadeSlideIn extends StatelessWidget {
+  const _FadeSlideIn({required this.index, required this.child});
+  final int index;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final clamped = index < 12 ? index : 11;
+    const total = 760.0;
+    final start = (clamped * 40) / total;
+    final end = (start + 320 / total).clamp(0.0, 1.0);
+    return TweenAnimationBuilder<double>(
+      tween: Tween<double>(begin: 0.0, end: 1.0),
+      duration: const Duration(milliseconds: 760),
+      curve: Interval(start, end, curve: AppMotion.easeOut),
+      builder: (context, t, child) => Opacity(
+        opacity: t.clamp(0.0, 1.0),
+        child: Transform.translate(
+          offset: Offset(0, (1 - t) * 16),
+          child: child,
+        ),
+      ),
+      child: child,
+    );
+  }
+}
+
+// ── Ambient background ──────────────────────────────────────────────────────
+
+class _AmbientBackground extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final seedColor = context.isDark
+        ? const Color(0x1AFF6F61)
+        : const Color(0x10E04A3C);
+    final baseColor = context.backgroundColor;
+    return Container(
+      decoration: BoxDecoration(
+        gradient: RadialGradient(
+          center: const Alignment(-0.4, -0.8),
+          radius: 1.2,
+          colors: [seedColor, baseColor],
+          stops: const [0.0, 0.6],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Empty state ─────────────────────────────────────────────────────────────
+
+class _EmptyLibraryView extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return const SliverToBoxAdapter(
+      child: Padding(
+        padding: EdgeInsets.symmetric(vertical: 48),
+        child: Center(
+          child: EmptyState(
+            icon: CupertinoIcons.book,
+            title: 'Your library is empty',
+            message: 'Browse sources to find manga and add them here.',
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Error view ──────────────────────────────────────────────────────────────
+
+class _ErrorView extends StatelessWidget {
+  const _ErrorView({required this.message});
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 24),
+        child: Center(
+          child: Text(
+            message,
+            textAlign: TextAlign.center,
+            style: AppTextStyles.bodySmall.copyWith(
+              color: context.textSecondaryColor,
+            ),
           ),
         ),
       ),

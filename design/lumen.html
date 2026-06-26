@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Yomi — LUMEN design system</title>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@300;400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.5.0/dist/tabler-icons.min.css">
+<style>
+  :root{
+    --ink:#0A0A0D; --s1:#121217; --s2:#1A1A21; --s3:#23232C;
+    --ivory:#F3F0E9; --t2:rgba(243,240,233,.62); --t3:rgba(243,240,233,.38);
+    --iris:#8B8DFF; --iris-dim:rgba(139,141,255,.16); --line:rgba(243,240,233,.09);
+    --sans:'Hanken Grotesk',sans-serif; --mono:'Space Mono',monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#050507;color:var(--ivory);font-family:var(--sans);padding:48px 24px 120px;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1180px;margin:0 auto}
+  .kick{font-family:var(--mono);font-size:12px;letter-spacing:3px;color:var(--iris);text-transform:uppercase;margin-bottom:14px}
+  h1{font-size:54px;font-weight:800;letter-spacing:-2px;line-height:.98;margin-bottom:16px}
+  h1 span{color:var(--t3)}
+  .lead{font-size:17px;color:var(--t2);max-width:620px;line-height:1.6;margin-bottom:54px}
+  .sct{font-family:var(--mono);font-size:11px;letter-spacing:2.5px;color:var(--t3);text-transform:uppercase;margin:64px 0 24px;padding-bottom:12px;border-bottom:1px solid var(--line)}
+  /* foundations */
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px}
+  .sw{border-radius:16px;height:96px;display:flex;flex-direction:column;justify-content:flex-end;padding:12px;border:1px solid var(--line)}
+  .sw b{font-size:13px;font-weight:600}.sw small{font-family:var(--mono);font-size:10px;color:var(--t3)}
+  .typ>div{margin-bottom:18px}
+  .scale{font-family:var(--mono);font-size:10px;color:var(--t3);letter-spacing:1px}
+  .tokrow{display:flex;gap:10px;flex-wrap:wrap}
+  .tok{font-family:var(--mono);font-size:12px;background:var(--s1);border:1px solid var(--line);border-radius:10px;padding:9px 13px;color:var(--t2)}
+  .tok b{color:var(--ivory)}
+  /* phones */
+  .screens{display:flex;gap:30px;flex-wrap:wrap;justify-content:center}
+  .ph{width:300px}
+  .pn{font-family:var(--mono);font-size:11px;color:var(--t3);text-align:center;margin-bottom:12px;letter-spacing:1px}
+  .fr{width:300px;height:620px;border-radius:38px;overflow:hidden;background:var(--ink);border:1px solid #26262e;position:relative;box-shadow:0 40px 90px rgba(0,0,0,.6)}
+  .cv{background-size:cover;background-position:center}
+  .nav{position:absolute;left:50%;transform:translateX(-50%);bottom:16px;display:flex;gap:4px;padding:6px;border-radius:999px;background:rgba(26,26,33,.72);backdrop-filter:blur(20px);border:1px solid var(--line)}
+  .nav i{width:42px;height:42px;display:flex;align-items:center;justify-content:center;border-radius:999px;font-size:21px;color:var(--t3)}
+  .nav i.on{background:var(--iris);color:#15102e}
+  .pill{display:inline-flex;align-items:center;gap:7px;font-weight:600;font-size:13px;padding:11px 20px;border-radius:999px}
+  .mlbl{font-family:var(--mono);font-size:10px;letter-spacing:1.5px;color:var(--t3);text-transform:uppercase}
+  .a1{background:linear-gradient(150deg,#3a2f63,#7a3f6b 60%,#c0563b)}
+  .a2{background:linear-gradient(150deg,#23304f,#16213a)}
+  .a3{background:linear-gradient(150deg,#5a2433,#7c1f2e)}
+  .a4{background:linear-gradient(150deg,#1f5a52,#0e3a3f)}
+  .a5{background:linear-gradient(150deg,#4a3a6b,#2a2350)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="kick">Yomi · design language</div>
+  <h1>LUMEN<span> — light in the dark.</span></h1>
+  <div class="lead">A cinematic, gallery-grade manga reader. The cover art is the hero; the interface is a quiet stage of deep ink, soft depth, and ambient light drawn from the artwork itself. Editorial typography sets the rhythm, a single periwinkle signal marks intent, and a mono voice handles the technical detail. Nothing competes with the story.</div>
+
+  <!-- FOUNDATIONS -->
+  <div class="sct">01 — Colour & surface</div>
+  <div class="grid">
+    <div class="sw" style="background:var(--ink)"><b>Canvas</b><small>#0A0A0D</small></div>
+    <div class="sw" style="background:var(--s1)"><b>Surface 1</b><small>#121217</small></div>
+    <div class="sw" style="background:var(--s2)"><b>Surface 2</b><small>#1A1A21</small></div>
+    <div class="sw" style="background:var(--s3)"><b>Surface 3</b><small>#23232C</small></div>
+    <div class="sw" style="background:var(--iris);color:#15102e"><b>Iris · signal</b><small>#8B8DFF</small></div>
+    <div class="sw" style="background:linear-gradient(150deg,#3a2f63,#c0563b);color:#fff"><b>Ambient</b><small>from cover</small></div>
+    <div class="sw" style="background:var(--ivory);color:#15102e"><b>Ivory · text</b><small>#F3F0E9</small></div>
+  </div>
+
+  <div class="sct">02 — Typography · Hanken Grotesk + Space Mono</div>
+  <div class="typ">
+    <div><div class="scale">DISPLAY · 800 · -2px</div><div style="font-size:46px;font-weight:800;letter-spacing:-1.5px">Solo Leveling</div></div>
+    <div><div class="scale">TITLE · 700 · -0.5px</div><div style="font-size:26px;font-weight:700;letter-spacing:-.5px">Continue reading</div></div>
+    <div><div class="scale">BODY · 400 · 1.6</div><div style="font-size:15px;color:var(--t2);max-width:520px;line-height:1.6">Hunters with magical powers must battle deadly monsters to protect humanity from certain annihilation.</div></div>
+    <div><div class="scale">MONO · metadata, numbers, labels</div><div style="font-family:var(--mono);font-size:13px;color:var(--iris)">CH 142 · ONGOING · 9.3★ · 27K READERS</div></div>
+  </div>
+
+  <div class="sct">03 — Tokens</div>
+  <div class="tokrow" style="margin-bottom:12px"><span class="tok">radius <b>0 / 8 / 16 / 28 / full</b></span><span class="tok">space <b>4·8·12·20·32·52</b> (golden rhythm)</span><span class="tok">elevation <b>ambient glow + soft drop</b></span></div>
+  <div class="tokrow"><span class="tok">motion <b>220ms standard</b></span><span class="tok"><b>420ms</b> hero / shared-element</span><span class="tok">curve <b>cubic(.2,.8,.2,1)</b></span><span class="tok">scroll <b>physics-based parallax</b></span></div>
+
+  <!-- SCREENS -->
+  <div class="sct">04 — Screens</div>
+  <div class="screens">
+
+    <!-- LIBRARY -->
+    <div class="ph"><div class="pn">LIBRARY</div>
+      <div class="fr">
+        <div class="cv a1" style="height:300px;position:relative">
+          <div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,10,13,.2) 0%,rgba(10,10,13,0) 30%,rgba(10,10,13,.96) 92%)"></div>
+          <div style="position:absolute;top:20px;left:20px;right:20px;display:flex;justify-content:space-between;align-items:center"><div style="font-family:var(--mono);font-size:11px;letter-spacing:2px;color:var(--ivory)">YOMI</div><i class="ti ti-search" style="font-size:21px"></i></div>
+          <div style="position:absolute;left:20px;right:20px;bottom:18px">
+            <div class="mlbl" style="color:var(--iris)">▸ Continue · Ch 142</div>
+            <div style="font-size:30px;font-weight:800;letter-spacing:-1px;margin:6px 0 2px">Solo Leveling</div>
+            <div style="font-family:var(--mono);font-size:11px;color:var(--t2)">64% · 12 MIN LEFT</div>
+            <div style="height:3px;background:rgba(243,240,233,.18);border-radius:2px;margin-top:12px"><div style="width:64%;height:100%;background:var(--iris);border-radius:2px"></div></div>
+          </div>
+        </div>
+        <div style="padding:20px 20px 0">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:14px"><div style="font-size:18px;font-weight:700;letter-spacing:-.3px">Your shelf</div><div class="mlbl">128 · ⌄</div></div>
+          <div style="display:flex;gap:12px">
+            <div style="flex:1"><div class="cv a2" style="height:120px;border-radius:14px"></div><div style="font-size:12px;font-weight:600;margin-top:8px">Omniscient</div><div style="font-family:var(--mono);font-size:9px;color:var(--iris);margin-top:1px">+12</div></div>
+            <div style="flex:1"><div class="cv a3" style="height:120px;border-radius:14px"></div><div style="font-size:12px;font-weight:600;margin-top:8px">Chainsaw</div><div style="font-family:var(--mono);font-size:9px;color:var(--t3);margin-top:1px">CH 155</div></div>
+            <div style="flex:1"><div class="cv a4" style="height:120px;border-radius:14px"></div><div style="font-size:12px;font-weight:600;margin-top:8px">Jujutsu</div><div style="font-family:var(--mono);font-size:9px;color:var(--iris);margin-top:1px">+3</div></div>
+          </div>
+        </div>
+        <div class="nav"><i class="ti ti-stack-2 on"></i><i class="ti ti-compass"></i><i class="ti ti-arrow-down-circle"></i><i class="ti ti-settings"></i></div>
+      </div>
+    </div>
+
+    <!-- BROWSE -->
+    <div class="ph"><div class="pn">BROWSE</div>
+      <div class="fr">
+        <div style="padding:24px 20px 0">
+          <div class="mlbl" style="color:var(--iris)">Discover</div>
+          <div style="font-size:30px;font-weight:800;letter-spacing:-1px;margin:4px 0 16px">Explore</div>
+          <div style="display:flex;align-items:center;gap:10px;background:var(--s1);border:1px solid var(--line);border-radius:999px;padding:12px 16px;margin-bottom:20px"><i class="ti ti-search" style="font-size:17px;color:var(--t3)"></i><span style="font-size:13px;color:var(--t3)">Search 40k titles…</span></div>
+        </div>
+        <div class="cv a5" style="height:160px;margin:0 20px;border-radius:20px;position:relative">
+          <div style="position:absolute;inset:0;border-radius:20px;background:linear-gradient(180deg,rgba(10,10,13,0) 40%,rgba(10,10,13,.9))"></div>
+          <div style="position:absolute;left:16px;bottom:14px"><div class="mlbl" style="color:var(--ivory)">Trending today</div><div style="font-size:20px;font-weight:700;margin-top:3px">The Beginning<br>After The End</div></div>
+          <div style="position:absolute;top:14px;right:14px;background:var(--iris);color:#15102e;font-family:var(--mono);font-size:10px;font-weight:700;padding:4px 9px;border-radius:8px">#1</div>
+        </div>
+        <div style="padding:18px 20px 0">
+          <div class="mlbl" style="margin-bottom:11px">Genres</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <span class="pill" style="background:var(--iris-dim);color:var(--iris);border:1px solid var(--iris)">Action</span>
+            <span class="pill" style="background:var(--s2);color:var(--t2)">Romance</span>
+            <span class="pill" style="background:var(--s2);color:var(--t2)">Fantasy</span>
+            <span class="pill" style="background:var(--s2);color:var(--t2)">Horror</span>
+          </div>
+        </div>
+        <div class="nav"><i class="ti ti-stack-2"></i><i class="ti ti-compass on"></i><i class="ti ti-arrow-down-circle"></i><i class="ti ti-settings"></i></div>
+      </div>
+    </div>
+
+    <!-- DETAIL -->
+    <div class="ph"><div class="pn">MANGA DETAIL</div>
+      <div class="fr">
+        <div class="cv a1" style="height:340px;position:relative">
+          <div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,10,13,.35),rgba(10,10,13,0) 35%,rgba(10,10,13,.98))"></div>
+          <div style="position:absolute;top:20px;left:20px"><i class="ti ti-chevron-left" style="font-size:23px"></i></div>
+          <div style="position:absolute;top:20px;right:20px;display:flex;gap:16px"><i class="ti ti-heart" style="font-size:21px"></i><i class="ti ti-dots" style="font-size:21px"></i></div>
+          <div style="position:absolute;left:20px;right:20px;bottom:20px">
+            <div style="font-size:34px;font-weight:800;letter-spacing:-1.2px;line-height:1">Solo<br>Leveling</div>
+            <div style="font-family:var(--mono);font-size:11px;color:var(--iris);margin-top:10px">CHUGONG · ONGOING · 9.3★</div>
+          </div>
+        </div>
+        <div style="padding:18px 20px 0">
+          <div style="font-size:14px;color:var(--t2);line-height:1.6;margin-bottom:18px">10 years ago, "the Gate" connected the real world with a parallel dimension of monsters…</div>
+          <div style="display:flex;gap:7px;margin-bottom:20px"><span class="pill" style="background:var(--s2);color:var(--t2);font-size:11px;padding:7px 14px">Action</span><span class="pill" style="background:var(--s2);color:var(--t2);font-size:11px;padding:7px 14px">Fantasy</span><span class="pill" style="background:var(--s2);color:var(--t2);font-size:11px;padding:7px 14px">Adventure</span></div>
+          <div style="display:flex;gap:12px"><div style="flex:1;text-align:center;background:var(--iris);color:#15102e;font-weight:700;font-size:14px;padding:15px;border-radius:16px">Resume Ch 142</div><div style="width:52px;height:52px;border-radius:16px;background:var(--s2);display:flex;align-items:center;justify-content:center"><i class="ti ti-download" style="font-size:21px"></i></div></div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:22px"><div style="font-size:16px;font-weight:700">Chapters</div><div class="mlbl">179 · newest ⌄</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- READER -->
+    <div class="ph"><div class="pn">READER</div>
+      <div class="fr" style="background:#000">
+        <div class="cv a1" style="position:absolute;inset:0;opacity:.92"></div>
+        <div style="position:absolute;top:0;left:0;right:0;padding:18px 20px;background:linear-gradient(180deg,rgba(0,0,0,.6),transparent);display:flex;justify-content:space-between;align-items:center"><i class="ti ti-chevron-left" style="font-size:22px"></i><div style="text-align:center"><div style="font-size:13px;font-weight:700">Chapter 142</div><div style="font-family:var(--mono);font-size:9px;color:var(--t2)">THE FINAL BATTLE</div></div><i class="ti ti-adjustments" style="font-size:20px"></i></div>
+        <div style="position:absolute;left:50%;transform:translateX(-50%);bottom:80px;font-family:var(--mono);font-size:11px;color:#fff;background:rgba(0,0,0,.55);backdrop-filter:blur(10px);padding:6px 14px;border-radius:999px">24 / 48</div>
+        <div style="position:absolute;left:20px;right:20px;bottom:24px">
+          <div style="height:3px;background:rgba(255,255,255,.22);border-radius:2px"><div style="width:50%;height:100%;background:var(--iris);border-radius:2px"></div></div>
+          <div style="display:flex;justify-content:space-between;margin-top:14px;color:#fff"><i class="ti ti-arrow-left" style="font-size:19px"></i><div style="display:flex;gap:24px"><i class="ti ti-list" style="font-size:19px"></i><i class="ti ti-bookmark" style="font-size:19px"></i></div><i class="ti ti-arrow-right" style="font-size:19px;color:var(--iris)"></i></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div class="ph"><div class="pn">SETTINGS</div>
+      <div class="fr">
+        <div style="padding:26px 20px 0">
+          <div class="mlbl" style="color:var(--iris)">Yomi</div>
+          <div style="font-size:30px;font-weight:800;letter-spacing:-1px;margin:4px 0 22px">Settings</div>
+          <div style="background:linear-gradient(150deg,var(--s2),var(--s1));border:1px solid var(--line);border-radius:20px;padding:18px;margin-bottom:16px">
+            <div class="mlbl">Appearance · live</div>
+            <div style="display:flex;gap:10px;margin-top:12px">
+              <div style="flex:1;height:60px;border-radius:12px;background:#0A0A0D;border:2px solid var(--iris);position:relative"><span style="position:absolute;bottom:6px;left:8px;font-family:var(--mono);font-size:9px;color:var(--iris)">INK</span></div>
+              <div style="flex:1;height:60px;border-radius:12px;background:#F3F0E9"><span style="position:absolute;font-family:var(--mono);font-size:9px;color:#15102e;margin:42px 0 0 8px">PAPER</span></div>
+              <div style="flex:1;height:60px;border-radius:12px;background:linear-gradient(150deg,#3a2f63,#c0563b)"></div>
+            </div>
+          </div>
+          <div style="border-radius:18px;overflow:hidden;border:1px solid var(--line)">
+            <div style="display:flex;align-items:center;gap:14px;padding:15px 16px;background:var(--s1);border-bottom:1px solid var(--line)"><i class="ti ti-book" style="font-size:20px;color:var(--iris)"></i><div style="flex:1;font-size:14px;font-weight:600">Reader</div><i class="ti ti-chevron-right" style="font-size:16px;color:var(--t3)"></i></div>
+            <div style="display:flex;align-items:center;gap:14px;padding:15px 16px;background:var(--s1);border-bottom:1px solid var(--line)"><i class="ti ti-cloud" style="font-size:20px;color:var(--iris)"></i><div style="flex:1;font-size:14px;font-weight:600">Backup & Sync</div><span style="font-family:var(--mono);font-size:9px;color:#4ad07f">● DRIVE</span></div>
+            <div style="display:flex;align-items:center;gap:14px;padding:15px 16px;background:var(--s1)"><i class="ti ti-puzzle" style="font-size:20px;color:var(--iris)"></i><div style="flex:1;font-size:14px;font-weight:600">Extensions</div><span style="font-family:var(--mono);font-size:9px;color:var(--t3)">7</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+</body>
+</html>

@@ -48,9 +48,6 @@ dependencies:
   # App version info (for update comparison)
   package_info_plus: ^8.0.0
 
-  # Liquid glass UI theme (real-time refraction lenses)
-  liquid_glass_easy: ^3.0.0
-
   # Persisted settings (theme, reader prefs, etc.)
   shared_preferences: ^2.2.0
 
@@ -75,3 +72,45 @@ flutter:
   assets:
     - assets/images/
     - assets/icons/
+
+  # "Obsidian" type system — three tiers:
+  #   Tier 1: Cormorant Garamond (variable) — editorial display / hero titles
+  #   Tier 2: Sora (variable) — UI chrome, labels, buttons, nav
+  #   Tier 3: system Roboto / SF Pro — body prose, captions (no declaration needed)
+  # Poppins retained for back-compat with any remaining call sites.
+  fonts:
+    # LUMEN design system:
+    #   HankenGrotesk (variable) — display + UI, weight via FontVariation('wght')
+    #   SpaceMono — metadata, numbers, technical labels
+    - family: HankenGrotesk
+      fonts:
+        - asset: assets/fonts/HankenGrotesk.ttf
+    - family: SpaceMono
+      fonts:
+        - asset: assets/fonts/SpaceMono-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/SpaceMono-Bold.ttf
+          weight: 700
+
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter.ttf
+
+    - family: CormorantGaramond
+      fonts:
+        - asset: assets/fonts/CormorantGaramond.ttf
+
+    - family: Sora
+      fonts:
+        - asset: assets/fonts/Sora.ttf
+
+    - family: Poppins
+      fonts:
+        - asset: assets/fonts/Poppins-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Poppins-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Poppins-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Poppins-Bold.ttf
+          weight: 700
