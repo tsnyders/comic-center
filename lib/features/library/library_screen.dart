@@ -9,6 +9,7 @@ import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../shared/widgets/cover_image.dart';
 import '../../shared/widgets/empty_state.dart';
+import '../../shared/widgets/lumen_page_route.dart';
 import '../../shared/widgets/unread_badge.dart';
 import '../title_detail/title_detail_screen.dart';
 import 'library_filter_sheet.dart';
@@ -172,7 +173,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
 
   void _openDetail(MangaEntry manga) {
     Navigator.of(context, rootNavigator: true).push(
-      CupertinoPageRoute(builder: (_) => TitleDetailScreen(manga: manga)),
+      LumenPageRoute(builder: (_) => TitleDetailScreen(manga: manga)),
     );
   }
 
