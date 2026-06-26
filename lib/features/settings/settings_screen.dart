@@ -61,14 +61,26 @@ class SettingsScreen extends ConsumerWidget {
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(
-                AppSpacing.gutter, 0, AppSpacing.gutter, AppSpacing.x8,
+                AppSpacing.gutter, AppSpacing.x2, AppSpacing.gutter, AppSpacing.x8,
               ),
-              child: Text(
-                'Settings',
-                style: AppTextStyles.hero.copyWith(
-                  fontSize: 26,
-                  color: context.textPrimaryColor,
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'YOMI',
+                    style: AppTextStyles.metaMono.copyWith(
+                      color: context.accentColor,
+                      letterSpacing: 3.0,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Settings',
+                    style: AppTextStyles.displayM.copyWith(
+                      color: context.textPrimaryColor,
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -321,8 +333,9 @@ class SettingsScreen extends ConsumerWidget {
               ),
               child: Text(
                 title.toUpperCase(),
-                style: AppTextStyles.overline.copyWith(
+                style: AppTextStyles.metaMono.copyWith(
                   color: context.textTertiaryColor,
+                  letterSpacing: 2.0,
                 ),
               ),
             ),
