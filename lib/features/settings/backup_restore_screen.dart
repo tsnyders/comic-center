@@ -29,11 +29,12 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
   Future<void> _load() async {
     setState(() => _loading = true);
     final bs = await BackupService.listBackups();
-    if (mounted)
+    if (mounted) {
       setState(() {
         _backups = bs;
         _loading = false;
       });
+    }
   }
 
   @override

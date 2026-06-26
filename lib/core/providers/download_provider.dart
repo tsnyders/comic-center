@@ -74,15 +74,17 @@ class DownloadManager extends AsyncNotifier<void> {
       if (exists != null &&
           (exists.status == DownloadStatus.pending ||
               exists.status == DownloadStatus.downloading ||
-              exists.status == DownloadStatus.completed)) return;
+              exists.status == DownloadStatus.completed)) {
+        return;
+      }
       final entry = DownloadEntry()
-        ..chapterId     = chapter.id
-        ..mangaId       = manga.id
-        ..mangaTitle    = manga.title
-        ..chapterTitle  = chapter.title
+        ..chapterId = chapter.id
+        ..mangaId = manga.id
+        ..mangaTitle = manga.title
+        ..chapterTitle = chapter.title
         ..chapterNumber = chapter.number ?? 0
-        ..status        = DownloadStatus.pending
-        ..queuedAt      = DateTime.now();
+        ..status = DownloadStatus.pending
+        ..queuedAt = DateTime.now();
       await isar.downloadEntrys.put(entry);
     });
     _processQueue();
@@ -118,8 +120,8 @@ class DownloadManager extends AsyncNotifier<void> {
       if (entry.status == DownloadStatus.paused ||
           entry.status == DownloadStatus.failed) {
         entry
-          ..status        = DownloadStatus.pending
-          ..errorMessage  = null;
+          ..status = DownloadStatus.pending
+          ..errorMessage = null;
         await isar.downloadEntrys.put(entry);
       }
     });
@@ -136,7 +138,7 @@ class DownloadManager extends AsyncNotifier<void> {
   void _processQueue() async {
     if (_isProcessing) return;
     _isProcessing = true;
-    final isar     = ref.read(isarProvider);
+    final isar = ref.read(isarProvider);
     final location = ref.read(downloadLocationProvider);
     try {
       while (true) {
@@ -163,14 +165,14 @@ class DownloadManager extends AsyncNotifier<void> {
     if (fresh == null || fresh.status != DownloadStatus.pending) return;
 
     await isar.writeTxn(() async {
-      entry.status    = DownloadStatus.downloading;
+      entry.status = DownloadStatus.downloading;
       entry.startedAt = DateTime.now();
       await isar.downloadEntrys.put(entry);
     });
 
     try {
       final chapter = await isar.chapterEntrys.get(entry.chapterId);
-      final manga   = await isar.mangaEntrys.get(entry.mangaId);
+      final manga = await isar.mangaEntrys.get(entry.mangaId);
       if (chapter == null || manga == null) {
         throw Exception('Chapter/manga missing from database');
       }
@@ -193,8 +195,9 @@ class DownloadManager extends AsyncNotifier<void> {
         );
       }
 
-      final docDir     = await getApplicationDocumentsDirectory();
-      final chapterDir = '${docDir.path}/downloads/${entry.mangaId}/${entry.chapterId}';
+      final docDir = await getApplicationDocumentsDirectory();
+      final chapterDir =
+          '${docDir.path}/downloads/${entry.mangaId}/${entry.chapterId}';
       await Directory(chapterDir).create(recursive: true);
 
       for (var i = 0; i < pageUrls.length; i++) {
@@ -218,26 +221,26 @@ class DownloadManager extends AsyncNotifier<void> {
 
       await isar.writeTxn(() async {
         entry
-          ..status       = DownloadStatus.completed
+          ..status = DownloadStatus.completed
           ..downloadPath = chapterDir
-          ..completedAt  = DateTime.now();
+          ..completedAt = DateTime.now();
         await isar.downloadEntrys.put(entry);
         final ch = await isar.chapterEntrys.get(entry.chapterId);
         if (ch != null) {
           ch
-            ..isDownloaded  = true
-            ..downloadPath  = chapterDir
-            ..pageCount     = pageUrls.length
-            ..downloadedAt  = DateTime.now();
+            ..isDownloaded = true
+            ..downloadPath = chapterDir
+            ..pageCount = pageUrls.length
+            ..downloadedAt = DateTime.now();
           await isar.chapterEntrys.put(ch);
         }
       });
     } catch (e) {
       await isar.writeTxn(() async {
         entry
-          ..status       = DownloadStatus.failed
+          ..status = DownloadStatus.failed
           ..errorMessage = e.toString()
-          ..retryCount   = entry.retryCount + 1;
+          ..retryCount = entry.retryCount + 1;
         await isar.downloadEntrys.put(entry);
       });
     }
@@ -245,9 +248,9 @@ class DownloadManager extends AsyncNotifier<void> {
 
   String _ext(String url) {
     final path = url.split('?').first.toLowerCase();
-    if (path.endsWith('.png'))  return '.png';
+    if (path.endsWith('.png')) return '.png';
     if (path.endsWith('.webp')) return '.webp';
-    if (path.endsWith('.gif'))  return '.gif';
+    if (path.endsWith('.gif')) return '.gif';
     return '.jpg';
   }
 }
