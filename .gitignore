@@ -119,3 +119,6 @@ app.*.symbols
 !/dev/ci/**/Gemfile.lock
 comic_center_linux_x64.zip
 .idea/
+
+/graphify-out
+/windows

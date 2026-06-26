@@ -31,7 +31,7 @@ Future<void> main(List<String> args) async {
         'Referer': 'https://demonicscans.org/',
         'User-Agent':
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
-            '(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                '(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Accept':
             'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
       },
@@ -51,7 +51,7 @@ Future<void> main(List<String> args) async {
   final doc = html_parser.parse(html);
 
   // 1. First 25 images
-  stdout.writeln('${_cyan}── IMAGES (first 25) ──$_reset');
+  stdout.writeln('$_cyan── IMAGES (first 25) ──$_reset');
   final imgs = doc.querySelectorAll('img');
   for (var i = 0; i < imgs.length && i < 25; i++) {
     final img = imgs[i];
@@ -70,7 +70,7 @@ Future<void> main(List<String> args) async {
   stdout.writeln('  $_dim(${imgs.length} total)$_reset\n');
 
   // 2. Anything chapter-shaped
-  stdout.writeln('${_cyan}── CHAPTER-SHAPED ELEMENTS ──$_reset');
+  stdout.writeln('$_cyan── CHAPTER-SHAPED ELEMENTS ──$_reset');
   final chapterCandidates = <dom.Element>{
     ...doc.querySelectorAll('[id*="chapter" i]'),
     ...doc.querySelectorAll('[class*="chapter" i]'),
@@ -96,8 +96,9 @@ Future<void> main(List<String> args) async {
   stdout.writeln('  $_dim(${chapterCandidates.length} candidates)$_reset\n');
 
   // 3. All element IDs (helps spot rename like "chapters-list" → "chapter-list")
-  stdout.writeln('${_cyan}── ELEMENT IDs ──$_reset');
-  final ids = doc.querySelectorAll('[id]')
+  stdout.writeln('$_cyan── ELEMENT IDs ──$_reset');
+  final ids = doc
+      .querySelectorAll('[id]')
       .map((e) => '${e.localName}#${e.id}')
       .toSet()
       .toList()
@@ -105,19 +106,19 @@ Future<void> main(List<String> args) async {
   stdout.writeln('  ${ids.join(', ')}\n');
 
   // 4. Check selectors (both old strict and new relaxed)
-  stdout.writeln('${_cyan}── SELECTOR PROBES ──$_reset');
+  stdout.writeln('$_cyan── SELECTOR PROBES ──$_reset');
   _probe(doc, 'h1.big-fat-titles');
-  _probe(doc, 'div#manga-page > img');   // OLD (strict direct-child)
-  _probe(doc, 'div#manga-page img');     // NEW (any descendant)
+  _probe(doc, 'div#manga-page > img'); // OLD (strict direct-child)
+  _probe(doc, 'div#manga-page img'); // NEW (any descendant)
   _probe(doc, 'div#manga-info-stats');
   _probe(doc, 'div#chapters-list > a.chplinks'); // OLD
-  _probe(doc, 'div#chapters-list a.chplinks');   // NEW
+  _probe(doc, 'div#chapters-list a.chplinks'); // NEW
   _probe(doc, 'div#chapters-list a');
   _probe(doc, 'a.chplinks');
   stdout.writeln('');
 
   // 5. Full HTML for offline inspection (between markers)
-  stdout.writeln('${_cyan}── FULL HTML ──$_reset');
+  stdout.writeln('$_cyan── FULL HTML ──$_reset');
   stdout.writeln('<<<HTML_BEGIN>>>');
   stdout.writeln(html);
   stdout.writeln('<<<HTML_END>>>');

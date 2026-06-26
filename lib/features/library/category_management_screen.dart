@@ -253,22 +253,22 @@ class _CategoryTile extends StatelessWidget {
           CupertinoButton(
             padding: const EdgeInsets.symmetric(horizontal: 8),
             onPressed: onRename,
+            minimumSize: const Size(36, 36),
             child: const Icon(
               CupertinoIcons.pencil,
               size: 18,
               color: AppColors.textSecondary,
             ),
-            minimumSize: Size(36, 36),
           ),
           CupertinoButton(
             padding: const EdgeInsets.symmetric(horizontal: 8),
             onPressed: onDelete,
+            minimumSize: const Size(36, 36),
             child: const Icon(
               CupertinoIcons.trash,
               size: 18,
               color: AppColors.unread,
             ),
-            minimumSize: Size(36, 36),
           ),
         ],
       ),

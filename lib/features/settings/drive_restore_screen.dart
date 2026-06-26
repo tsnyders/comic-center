@@ -28,11 +28,12 @@ class _DriveRestoreScreenState extends ConsumerState<DriveRestoreScreen> {
     setState(() => _loading = true);
     try {
       final bs = await GoogleDriveService.listBackups();
-      if (mounted)
+      if (mounted) {
         setState(() {
           _backups = bs;
           _loading = false;
         });
+      }
     } catch (e) {
       if (mounted) {
         setState(() {

@@ -22,7 +22,7 @@ Future<void> main(List<String> args) async {
         'Referer': 'https://demonicscans.org/',
         'User-Agent':
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
-            '(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                '(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Accept':
             'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
         'Accept-Language': 'en-US,en;q=0.9',
@@ -48,11 +48,15 @@ Future<void> main(List<String> args) async {
 
   // 1. All unique element IDs
   print('── ALL ELEMENT IDs ──');
-  final ids = doc.querySelectorAll('[id]')
+  final ids = doc
+      .querySelectorAll('[id]')
       .map((e) => '${e.localName}#${e.id}')
-      .toSet().toList()
+      .toSet()
+      .toList()
     ..sort();
-  for (final id in ids) print('  $id');
+  for (final id in ids) {
+    print('  $id');
+  }
   print('  (${ids.length} unique)\n');
 
   // 2. All <a href> patterns — bucket by path prefix
@@ -81,9 +85,8 @@ Future<void> main(List<String> args) async {
     final text = a.text.trim().replaceAll(RegExp(r'\s+'), ' ');
     final preview = text.length > 60 ? '${text.substring(0, 60)}…' : text;
     final parent = a.parent;
-    final parentDesc = parent != null
-        ? '${parent.localName}${_attrSummary(parent)}'
-        : '?';
+    final parentDesc =
+        parent != null ? '${parent.localName}${_attrSummary(parent)}' : '?';
     print('  [$i] parent=$parentDesc');
     print('      <a${cls.isNotEmpty ? ' class="$cls"' : ''} href="$href">'
         '${preview.isNotEmpty ? ' :: "$preview"' : ''}</a>');
@@ -114,7 +117,8 @@ Future<void> main(List<String> args) async {
   for (final c in containers.take(20)) {
     final id = c.id.isEmpty ? '' : ' #${c.id}';
     final cls = c.cls.isEmpty ? '' : ' .${c.cls.replaceAll(' ', '.')}';
-    final childCls = c.childClass.isEmpty ? '' : '.${c.childClass.replaceAll(' ', '.')}';
+    final childCls =
+        c.childClass.isEmpty ? '' : '.${c.childClass.replaceAll(' ', '.')}';
     final sample = c.sampleText.length > 50
         ? '${c.sampleText.substring(0, 50)}…'
         : c.sampleText;
@@ -161,9 +165,8 @@ Future<void> main(List<String> args) async {
     if (!src.contains('/thumbnails/') && !src.contains('/cover')) continue;
     final cls = img.attributes['class'] ?? '';
     final parent = img.parent;
-    final parentDesc = parent != null
-        ? '${parent.localName}${_attrSummary(parent)}'
-        : '?';
+    final parentDesc =
+        parent != null ? '${parent.localName}${_attrSummary(parent)}' : '?';
     print('  parent=$parentDesc <img class="$cls" src="$src">');
   }
 }
