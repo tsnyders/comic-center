@@ -268,22 +268,20 @@ class _DetailSheetState extends ConsumerState<_DetailSheet> {
       borderRadius: const BorderRadius.vertical(
         top: Radius.circular(AppRadius.xl),
       ),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 40, sigmaY: 40),
-        child: Container(
-          decoration: BoxDecoration(
-            color: context.surfaceColor.withValues(alpha: 0.96),
-            borderRadius: const BorderRadius.vertical(
-              top: Radius.circular(AppRadius.xl),
-            ),
-            border: Border(
-              top: BorderSide(
-                color: context.borderStrongColor,
-                width: AppRadius.hairline,
-              ),
+      child: Container(
+        decoration: BoxDecoration(
+          color: context.surfaceColor,
+          borderRadius: const BorderRadius.vertical(
+            top: Radius.circular(AppRadius.xl),
+          ),
+          border: Border(
+            top: BorderSide(
+              color: context.borderStrongColor,
+              width: AppRadius.hairline,
             ),
           ),
-          child: CustomScrollView(
+        ),
+        child: CustomScrollView(
             controller: scrollController,
             physics: const BouncingScrollPhysics(),
             slivers: [
@@ -535,7 +533,6 @@ class _DetailSheetState extends ConsumerState<_DetailSheet> {
             ],
           ),
         ),
-      ),
     );
   }
 
@@ -833,34 +830,49 @@ class _ActionRow extends ConsumerWidget {
       children: [
         // Primary CTA — full-width accent button
         Expanded(
-          child: CupertinoButton(
-            padding: const EdgeInsets.symmetric(vertical: 13),
-            color: chs.isEmpty ? context.surfaceElevatedColor : context.accentColor,
-            borderRadius: BorderRadius.circular(AppRadius.md),
-            onPressed: chs.isEmpty ? null : () => _continueReading(context, chs),
-            child: chapters.isLoading
-                ? const CupertinoActivityIndicator()
-                : Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        CupertinoIcons.play_arrow_solid,
-                        size: 16,
-                        color: chs.isEmpty
-                            ? context.textTertiaryColor
-                            : AppColors.textOnAccent,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        started ? 'Continue Reading' : 'Start Reading',
-                        style: AppTextStyles.buttonPrimary.copyWith(
+          child: GestureDetector(
+            onTap: chs.isEmpty ? null : () => _continueReading(context, chs),
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 15),
+              decoration: BoxDecoration(
+                color: chs.isEmpty
+                    ? context.surfaceElevatedColor
+                    : context.accentColor,
+                borderRadius: BorderRadius.circular(AppRadius.pill),
+                boxShadow: chs.isEmpty
+                    ? null
+                    : [
+                        BoxShadow(
+                          color: context.accentColor.withValues(alpha: 0.32),
+                          blurRadius: 18,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
+              ),
+              child: chapters.isLoading
+                  ? const Center(child: CupertinoActivityIndicator())
+                  : Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          CupertinoIcons.play_arrow_solid,
+                          size: 15,
                           color: chs.isEmpty
                               ? context.textTertiaryColor
-                              : AppColors.textOnAccent,
+                              : CupertinoColors.white,
                         ),
-                      ),
-                    ],
-                  ),
+                        const SizedBox(width: 8),
+                        Text(
+                          started ? 'Continue Reading' : 'Start Reading',
+                          style: AppTextStyles.buttonPrimary.copyWith(
+                            color: chs.isEmpty
+                                ? context.textTertiaryColor
+                                : CupertinoColors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+            ),
           ),
         ),
         const SizedBox(width: AppSpacing.x5),

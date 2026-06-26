@@ -24,7 +24,7 @@ class _MockAdapter implements HttpClientAdapter {
         _stubs.entries
             .firstWhere(
               (e) => path.startsWith(e.key) || e.key == path.split('?').first,
-              orElse: () => MapEntry('', null),
+              orElse: () => const MapEntry('', null),
             )
             .value;
 
@@ -39,7 +39,9 @@ class _MockAdapter implements HttpClientAdapter {
     return ResponseBody.fromString(
       jsonEncode(body),
       200,
-      headers: {Headers.contentTypeHeader: [Headers.jsonContentType]},
+      headers: {
+        Headers.contentTypeHeader: [Headers.jsonContentType]
+      },
     );
   }
 

@@ -36,8 +36,8 @@ class EmptyState extends StatelessWidget {
               shape: BoxShape.circle,
               gradient: RadialGradient(
                 colors: [
-                  AppColors.accent.withOpacity(0.22),
-                  AppColors.accent.withOpacity(0.0),
+                  AppColors.accent.withValues(alpha: 0.22),
+                  AppColors.accent.withValues(alpha: 0.0),
                 ],
               ),
             ),
@@ -47,8 +47,9 @@ class EmptyState extends StatelessWidget {
                 height: 60,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: context.surfaceElevatedColor.withOpacity(0.6),
-                  border: Border.all(color: context.borderStrongColor, width: 0.5),
+                  color: context.surfaceElevatedColor.withValues(alpha: 0.6),
+                  border:
+                      Border.all(color: context.borderStrongColor, width: 0.5),
                 ),
                 child: Icon(icon, size: 28, color: AppColors.accent),
               ),

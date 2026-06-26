@@ -1,18 +1,15 @@
-import 'dart:ui';
-
 import 'package:flutter/cupertino.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/providers/settings_provider.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
-import '../../../shared/widgets/app_glass.dart';
 
 /// Top + bottom chrome bars revealed by a tap on the reader canvas.
 ///
 /// [visible] drives the 200ms opacity + 8px translate animation:
 /// the top bar slides -8px (up) when hidden; the bottom bar slides +8px (down).
+///
+/// Bars use a dark gradient overlay — solid dark at the edge, fading to
+/// transparent toward the comic canvas for a cinematic immersive look.
 class ReaderChrome extends StatelessWidget {
   const ReaderChrome({
     super.key,
@@ -54,7 +51,7 @@ class ReaderChrome extends StatelessWidget {
   }
 }
 
-class _TopBar extends ConsumerWidget {
+class _TopBar extends StatelessWidget {
   const _TopBar({
     required this.chapterTitle,
     required this.visible,
@@ -68,16 +65,15 @@ class _TopBar extends ConsumerWidget {
   final VoidCallback onSettings;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final topPadding = MediaQuery.of(context).padding.top;
-    final liquid = ref.watch(glassThemeProvider) == GlassTheme.liquid;
 
     final content = Padding(
       padding: EdgeInsets.only(
         top: topPadding + 4,
         left: 20,
         right: 20,
-        bottom: 12,
+        bottom: 16,
       ),
       child: Row(
         children: [
@@ -110,37 +106,22 @@ class _TopBar extends ConsumerWidget {
       ),
     );
 
-    final bar = liquid
-        ? AppGlass(borderRadius: 0, blur: 26, sheen: false, child: content)
-        : ClipRect(
-            child: BackdropFilter(
-              // Spec: blur-26
-              filter: ImageFilter.blur(sigmaX: 26, sigmaY: 26),
-              child: DecoratedBox(
-                decoration: const BoxDecoration(
-                  // Spec: gradient white@10 → black@45
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Color(0x1AFFFFFF), // white 10%
-                      Color(0x73000000), // black 45%
-                    ],
-                  ),
-                  border: Border(
-                    bottom: BorderSide(
-                      // hairline per spec
-                      color: Color(0x24FFFFFF), // white ~14%
-                      width: AppRadius.hairline,
-                    ),
-                  ),
-                ),
-                child: content,
-              ),
-            ),
-          );
+    // Dark gradient — solid at top edge, fades to transparent toward canvas.
+    final bar = DecoratedBox(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Color(0xD9000000), // 85% black at top
+            Color(0x00000000), // transparent at bottom
+          ],
+        ),
+      ),
+      child: content,
+    );
 
-    // 200ms opacity + 8px upward translate when hiding (spec).
+    // 200ms opacity + 8px upward translate when hiding.
     return Positioned(
       top: 0,
       left: 0,
@@ -161,7 +142,7 @@ class _TopBar extends ConsumerWidget {
   }
 }
 
-class _BottomBar extends ConsumerWidget {
+class _BottomBar extends StatelessWidget {
   const _BottomBar({
     required this.currentPage,
     required this.totalPages,
@@ -175,13 +156,12 @@ class _BottomBar extends ConsumerWidget {
   final ValueChanged<int> onSeek;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final bottomPadding = MediaQuery.of(context).padding.bottom;
-    final liquid = ref.watch(glassThemeProvider) == GlassTheme.liquid;
 
     final content = Padding(
       padding: EdgeInsets.only(
-        top: 12,
+        top: 16,
         left: 24,
         right: 24,
         bottom: bottomPadding + 12,
@@ -215,35 +195,22 @@ class _BottomBar extends ConsumerWidget {
       ),
     );
 
-    final bar = liquid
-        ? AppGlass(borderRadius: 0, blur: 26, sheen: false, child: content)
-        : ClipRect(
-            child: BackdropFilter(
-              // Spec: blur-26 (matches top bar)
-              filter: ImageFilter.blur(sigmaX: 26, sigmaY: 26),
-              child: DecoratedBox(
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.bottomCenter,
-                    end: Alignment.topCenter,
-                    colors: [
-                      Color(0x1AFFFFFF), // white 10%
-                      Color(0x73000000), // black 45%
-                    ],
-                  ),
-                  border: Border(
-                    top: BorderSide(
-                      color: Color(0x24FFFFFF), // white ~14%
-                      width: AppRadius.hairline,
-                    ),
-                  ),
-                ),
-                child: content,
-              ),
-            ),
-          );
+    // Dark gradient — solid at bottom edge, fades to transparent toward canvas.
+    final bar = DecoratedBox(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.bottomCenter,
+          end: Alignment.topCenter,
+          colors: [
+            Color(0xD9000000), // 85% black at bottom
+            Color(0x00000000), // transparent at top
+          ],
+        ),
+      ),
+      child: content,
+    );
 
-    // 200ms opacity + 8px downward translate when hiding (spec).
+    // 200ms opacity + 8px downward translate when hiding.
     return Positioned(
       bottom: 0,
       left: 0,
@@ -319,15 +286,15 @@ class _ScrubberState extends State<_Scrubber> {
               clipBehavior: Clip.none,
               alignment: Alignment.centerLeft,
               children: [
-                // Track — 4px, white@22% per spec
+                // Track
                 Container(
                   height: 4,
                   decoration: BoxDecoration(
-                    color: const Color(0x38FFFFFF), // white 22%
+                    color: const Color(0x38FFFFFF),
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
-                // Fill — no animation during drag to stay locked to finger
+                // Fill
                 Container(
                   height: 4,
                   width: w * progress,

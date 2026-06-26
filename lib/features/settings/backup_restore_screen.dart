@@ -16,8 +16,7 @@ class BackupRestoreScreen extends ConsumerStatefulWidget {
       _BackupRestoreScreenState();
 }
 
-class _BackupRestoreScreenState
-    extends ConsumerState<BackupRestoreScreen> {
+class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
   List<BackupFile>? _backups;
   bool _loading = true;
 
@@ -30,7 +29,11 @@ class _BackupRestoreScreenState
   Future<void> _load() async {
     setState(() => _loading = true);
     final bs = await BackupService.listBackups();
-    if (mounted) setState(() { _backups = bs; _loading = false; });
+    if (mounted)
+      setState(() {
+        _backups = bs;
+        _loading = false;
+      });
   }
 
   @override
@@ -73,12 +76,12 @@ class _BackupRestoreScreenState
                     ),
                   ),
                 ),
-                Align(
+                const Align(
                   alignment: Alignment.bottomCenter,
                   child: Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child:
-                        Text('Restore Backup', style: AppTextStyles.sectionTitle),
+                    padding: EdgeInsets.only(bottom: 12),
+                    child: Text('Restore Backup',
+                        style: AppTextStyles.sectionTitle),
                   ),
                 ),
               ],
@@ -105,7 +108,7 @@ class _BackupRestoreScreenState
                               ),
                             ),
                             const SizedBox(height: 6),
-                            Text(
+                            const Text(
                               'Export a backup first from Settings.',
                               style: AppTextStyles.bodySmall,
                               textAlign: TextAlign.center,
@@ -114,8 +117,8 @@ class _BackupRestoreScreenState
                         ),
                       )
                     : ListView.builder(
-                        padding: EdgeInsets.fromLTRB(
-                            20, 8, 20, bottomPadding + 20),
+                        padding:
+                            EdgeInsets.fromLTRB(20, 8, 20, bottomPadding + 20),
                         itemCount: _backups!.length,
                         itemBuilder: (_, i) => _BackupTile(
                           backup: _backups![i],
@@ -217,7 +220,7 @@ class _BackupTile extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: AppColors.surfaceElevated.withOpacity(0.6),
+          color: AppColors.surfaceElevated.withValues(alpha: 0.6),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: AppColors.border, width: 0.5),
         ),
@@ -230,8 +233,7 @@ class _BackupTile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(backup.displayName,
-                      style: AppTextStyles.bodyMedium),
+                  Text(backup.displayName, style: AppTextStyles.bodyMedium),
                   if (backup.mangaCount != null)
                     Text(
                       '${backup.mangaCount} manga',

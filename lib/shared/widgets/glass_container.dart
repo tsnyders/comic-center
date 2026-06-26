@@ -1,9 +1,12 @@
-import 'dart:ui';
-
 import 'package:flutter/cupertino.dart';
 
-/// Reusable liquid-glass panel — BackdropFilter blur + specular highlight +
-/// semi-transparent fill, mirroring Apple's glass material aesthetic.
+import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_spacing.dart';
+
+/// Solid surface container — replaces the previous backdrop-blur GlassContainer.
+/// The [blur], [tintOpacity], [borderOpacity], and [shadowOpacity] parameters
+/// are accepted but [blur] is ignored; depth is expressed via solid surfaces
+/// and [AppElevation] shadows.
 class GlassContainer extends StatelessWidget {
   const GlassContainer({
     super.key,
@@ -13,9 +16,9 @@ class GlassContainer extends StatelessWidget {
     this.padding,
     this.margin,
     this.borderRadius = 20,
-    this.blur = 28,
-    this.tintOpacity = 0.18,
-    this.borderOpacity = 0.22,
+    this.blur = 28, // ignored — kept for API compatibility
+    this.tintOpacity = 1.0,
+    this.borderOpacity = 0.08,
     this.shadowOpacity = 0.22,
     this.tintColor,
   });
@@ -34,72 +37,33 @@ class GlassContainer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fill = (tintColor ?? const Color(0xFFFFFFFF)).withOpacity(tintOpacity);
-    final border = const Color(0xFFFFFFFF).withOpacity(borderOpacity);
+    final isDark = CupertinoTheme.brightnessOf(context) == Brightness.dark;
+    final bg = tintColor ??
+        (isDark ? AppColors.surfaceElevated : AppColors.lightSurfaceElevated);
     final r = BorderRadius.circular(borderRadius);
 
     return Container(
       margin: margin,
+      width: width,
+      height: height,
+      padding: padding,
       decoration: BoxDecoration(
+        color: bg,
         borderRadius: r,
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF000000).withOpacity(shadowOpacity),
-            blurRadius: 40,
-            spreadRadius: -6,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: r,
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
-          child: Container(
-            width: width,
-            height: height,
-            padding: padding,
-            decoration: BoxDecoration(
-              color: fill,
-              borderRadius: r,
-              border: Border.all(color: border, width: 0.5),
-            ),
-            child: Stack(
-              children: [
-                // Specular highlight — white shimmer on the top edge
-                Positioned(
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  height: borderRadius,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.vertical(
-                        top: Radius.circular(borderRadius),
-                      ),
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          const Color(0xFFFFFFFF).withOpacity(0.12),
-                          const Color(0x00FFFFFF),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                if (child != null) child!,
-              ],
-            ),
-          ),
+        border: Border.all(
+          color: isDark ? AppColors.borderSubtle : AppColors.lightBorder,
+          width: AppRadius.hairline,
         ),
+        boxShadow: isDark ? AppElevation.e3 : AppElevation.e3Light,
       ),
+      child: child,
     );
   }
 }
 
-/// A glass card with shimmer animation and press-scale — used for featured
-/// source cards.
+/// Animated gradient card with a diagonal shimmer — used for featured source
+/// cards in the Browse screen. The backdrop blur has been removed; the gradient
+/// and shimmer remain intact for visual richness.
 class AnimatedGlassCard extends StatefulWidget {
   const AnimatedGlassCard({
     super.key,
@@ -161,71 +125,52 @@ class _AnimatedGlassCardState extends State<AnimatedGlassCard>
             gradient: widget.gradient,
             boxShadow: [
               BoxShadow(
-                color: (widget.gradient as LinearGradient).colors.first
-                    .withOpacity(0.40),
+                color: (widget.gradient as LinearGradient)
+                    .colors
+                    .first
+                    .withValues(alpha: 0.36),
                 blurRadius: 28,
                 spreadRadius: -4,
                 offset: const Offset(0, 12),
               ),
             ],
           ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(20),
-            child: Stack(
-              children: [
-                // Animated diagonal shimmer
-                AnimatedBuilder(
-                  animation: _shimmer,
-                  builder: (_, __) => Positioned.fill(
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment(-1 + _shimmer.value * 2, -0.5),
-                          end: Alignment(0 + _shimmer.value * 2, 0.5),
-                          colors: const [
-                            Color(0x00FFFFFF),
-                            Color(0x22FFFFFF),
-                            Color(0x00FFFFFF),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                // Specular highlight — top-edge glow
-                Positioned(
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  height: 40,
+          child: Stack(
+            children: [
+              // Diagonal shimmer — travels left to right
+              AnimatedBuilder(
+                animation: _shimmer,
+                builder: (_, __) => Positioned.fill(
                   child: DecoratedBox(
                     decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(20),
                       gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          const Color(0xFFFFFFFF).withOpacity(0.28),
-                          const Color(0x00FFFFFF),
+                        begin: Alignment(-1 + _shimmer.value * 2, -0.5),
+                        end: Alignment(0 + _shimmer.value * 2, 0.5),
+                        colors: const [
+                          Color(0x00FFFFFF),
+                          Color(0x18FFFFFF),
+                          Color(0x00FFFFFF),
                         ],
                       ),
                     ),
                   ),
                 ),
-                // Inner border
-                Positioned.fill(
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: const Color(0x40FFFFFF),
-                        width: 0.75,
-                      ),
+              ),
+              // Hairline inner border
+              Positioned.fill(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: const Color(0x33FFFFFF),
+                      width: 0.75,
                     ),
                   ),
                 ),
-                widget.child,
-              ],
-            ),
+              ),
+              widget.child,
+            ],
           ),
         ),
       ),

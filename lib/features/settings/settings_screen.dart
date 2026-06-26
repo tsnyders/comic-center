@@ -45,7 +45,6 @@ class SettingsScreen extends ConsumerWidget {
     final bottomPadding = MediaQuery.of(context).padding.bottom;
     final dlLocation    = ref.watch(downloadLocationProvider);
     final brightness    = ref.watch(brightnessProvider);
-    final glassTheme    = ref.watch(glassThemeProvider);
     final direction     = ref.watch(readingDirectionProvider);
     final scale         = ref.watch(pageScaleModeProvider);
     final background    = ref.watch(readerBackgroundProvider);
@@ -76,20 +75,6 @@ class SettingsScreen extends ConsumerWidget {
 
           // ── Appearance ───────────────────────────────────────────────
           _buildSection(context, 'Appearance', [
-            _SettingRow(
-              icon: CupertinoIcons.sparkles,
-              iconBgColor: _IColor.purple,
-              label: 'Theme',
-              trailing: _SegmentedPicker<GlassTheme>(
-                value: glassTheme,
-                items: const [
-                  (GlassTheme.frosty, 'Frosty'),
-                  (GlassTheme.liquid, 'Liquid'),
-                ],
-                onChanged: (g) =>
-                    ref.read(glassThemeProvider.notifier).state = g,
-              ),
-            ),
             _SettingRow(
               icon: CupertinoIcons.moon_stars,
               iconBgColor: _IColor.indigo,

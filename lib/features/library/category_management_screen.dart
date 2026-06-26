@@ -52,17 +52,17 @@ class _CategoryManagementScreenState
                     ),
                   ),
                 ),
-                Align(
+                const Align(
                   alignment: Alignment.bottomCenter,
                   child: Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: Text('Categories', style: AppTextStyles.sectionTitle),
+                    padding: EdgeInsets.only(bottom: 12),
+                    child:
+                        Text('Categories', style: AppTextStyles.sectionTitle),
                   ),
                 ),
               ],
             ),
           ),
-
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
             child: Row(
@@ -76,8 +76,7 @@ class _CategoryManagementScreenState
                     decoration: BoxDecoration(
                       color: AppColors.surfaceElevated,
                       borderRadius: BorderRadius.circular(10),
-                      border:
-                          Border.all(color: AppColors.border, width: 0.5),
+                      border: Border.all(color: AppColors.border, width: 0.5),
                     ),
                     style: AppTextStyles.bodyMedium,
                     onSubmitted: (_) => _addCategory(),
@@ -107,11 +106,9 @@ class _CategoryManagementScreenState
               ],
             ),
           ),
-
           Expanded(
             child: categoriesAsync.when(
-              loading: () =>
-                  const Center(child: CupertinoActivityIndicator()),
+              loading: () => const Center(child: CupertinoActivityIndicator()),
               error: (e, _) => Center(child: Text(e.toString())),
               data: (cats) => cats.isEmpty
                   ? Center(
@@ -131,7 +128,7 @@ class _CategoryManagementScreenState
                             ),
                           ),
                           const SizedBox(height: 6),
-                          Text(
+                          const Text(
                             'Add one above to organise your library.',
                             style: AppTextStyles.bodySmall,
                             textAlign: TextAlign.center,
@@ -140,15 +137,13 @@ class _CategoryManagementScreenState
                       ),
                     )
                   : ListView.builder(
-                      padding: EdgeInsets.fromLTRB(
-                          20, 0, 20, bottomPadding + 20),
+                      padding:
+                          EdgeInsets.fromLTRB(20, 0, 20, bottomPadding + 20),
                       itemCount: cats.length,
                       itemBuilder: (context, i) => _CategoryTile(
                         name: cats[i],
-                        onRename: () =>
-                            _showRenameDialog(context, cats[i]),
-                        onDelete: () =>
-                            _confirmDelete(context, cats[i]),
+                        onRename: () => _showRenameDialog(context, cats[i]),
+                        onDelete: () => _confirmDelete(context, cats[i]),
                       ),
                     ),
             ),
@@ -217,9 +212,7 @@ class _CategoryManagementScreenState
             isDestructiveAction: true,
             onPressed: () async {
               Navigator.pop(context);
-              await ref
-                  .read(categoryNotifierProvider.notifier)
-                  .remove(name);
+              await ref.read(categoryNotifierProvider.notifier).remove(name);
             },
             child: const Text('Delete'),
           ),
@@ -246,37 +239,36 @@ class _CategoryTile extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: AppColors.surfaceElevated.withOpacity(0.6),
+        color: AppColors.surfaceElevated.withValues(alpha: 0.6),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppColors.border, width: 0.5),
       ),
       child: Row(
         children: [
-          const Icon(CupertinoIcons.folder,
-              size: 18, color: AppColors.accent),
+          const Icon(CupertinoIcons.folder, size: 18, color: AppColors.accent),
           const SizedBox(width: 12),
           Expanded(
             child: Text(name, style: AppTextStyles.bodyMedium),
           ),
           CupertinoButton(
             padding: const EdgeInsets.symmetric(horizontal: 8),
-            minSize: 36,
             onPressed: onRename,
             child: const Icon(
               CupertinoIcons.pencil,
               size: 18,
               color: AppColors.textSecondary,
             ),
+            minimumSize: Size(36, 36),
           ),
           CupertinoButton(
             padding: const EdgeInsets.symmetric(horizontal: 8),
-            minSize: 36,
             onPressed: onDelete,
             child: const Icon(
               CupertinoIcons.trash,
               size: 18,
               color: AppColors.unread,
             ),
+            minimumSize: Size(36, 36),
           ),
         ],
       ),

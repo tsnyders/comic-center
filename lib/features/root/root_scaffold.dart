@@ -7,7 +7,6 @@ import '../../core/services/whats_new_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text_styles.dart';
-import '../../shared/widgets/app_glass.dart';
 import '../browse/browse_screen.dart';
 import '../downloads/downloads_screen.dart';
 import '../library/library_screen.dart';
@@ -67,7 +66,7 @@ class _RootScaffoldState extends ConsumerState<RootScaffold> {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          // ── Ambient backdrop — gives BackdropFilter something to refract ──
+          // ── Ambient backdrop — subtle radial gradient on the obsidian canvas ──
           DecoratedBox(
             decoration: BoxDecoration(
               gradient: RadialGradient(
@@ -237,13 +236,19 @@ class _GlassNavBarState extends ConsumerState<_GlassNavBar>
     final isDark = context.isDark;
     final shadows = isDark ? AppElevation.float : AppElevation.floatLight;
 
-    return DecoratedBox(
+    // Reference match: a solid dark pill in both modes, lifted by a soft shadow.
+    return Container(
       decoration: BoxDecoration(
+        color: const Color(0xF21F1C28),
         borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(
+          color: const Color(0x14FFFFFF),
+          width: AppRadius.hairline,
+        ),
         boxShadow: shadows,
       ),
-      child: AppGlass(
-        borderRadius: AppRadius.lg,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(AppRadius.lg),
         child: _barContent(context),
       ),
     );
@@ -307,7 +312,8 @@ class _TabButtonState extends State<_TabButton>
   @override
   Widget build(BuildContext context) {
     final accentColor = context.accentColor;
-    final inactiveColor = context.textTertiaryColor;
+    // Nav is a dark pill in both modes, so inactive items are a fixed light grey.
+    const inactiveColor = Color(0x80FFFFFF);
 
     return GestureDetector(
       behavior: HitTestBehavior.opaque,

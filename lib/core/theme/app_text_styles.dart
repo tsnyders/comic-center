@@ -2,128 +2,237 @@ import 'package:flutter/cupertino.dart';
 import 'app_colors.dart';
 
 /// ============================================================================
-/// Comic Center — AppTextStyles  ("Content-First" redesign)
+/// Comic Center — AppTextStyles  ("Obsidian" design system)
 ///
-/// Two-typeface system: **Sora** (a variable display face, bundled) carries the
-/// wordmark, hero, section, nav, card, and button text — the "designed" layer.
-/// Body, captions, labels, and metadata stay on **SF Pro** (the Cupertino
-/// system face) for native legibility at small sizes.
+/// THREE-TIER EDITORIAL TYPE SYSTEM:
 ///
-/// Sora is registered once as a variable font; each display style drives its
-/// weight via `fontVariations: [FontVariation('wght', …)]` (kept in sync with
-/// `fontWeight` so non-variable fallbacks still read correctly).
+///   Tier 1 — Editorial (Cormorant Garamond)
+///     High-contrast optical serif. Variable font — drive weight via
+///     fontVariations: [FontVariation('wght', w)]. Use for display titles,
+///     hero text, chapter openers, and the wordmark. The dramatic thick/thin
+///     contrast makes manga titles feel cinematic at large sizes.
 ///
-/// Most styles bake a sensible DARK-mode default color so legacy call sites
-/// keep their look; redesigned screens override per-mode with
-/// `.copyWith(color: context.textSecondaryColor)` (and friends from
-/// `AppColorsX`). The few always-accent styles bake the accent.
+///   Tier 2 — Interface (Sora)
+///     Clean, precise grotesque. Variable font. Use for nav chrome, labels,
+///     overlines, buttons, metadata, and all UI copy. Neutral enough that it
+///     disappears; distinctive enough to feel designed.
+///
+///   Tier 3 — Reading (system Roboto / SF Pro)
+///     No fontFamily set — inherits the platform body font. Used for prose,
+///     captions, and synopses where native legibility is paramount.
+///
+/// USAGE:
+///   • Reference static constants — never hard-code fonts or sizes.
+///   • Override color with .copyWith(color: context.textSecondaryColor).
+///   • Never bake a light-mode color into a static const — use AppColorsX.
 /// ============================================================================
 abstract final class AppTextStyles {
-  /// The bundled variable display family (see pubspec `fonts:`).
-  static const display = 'Sora';
+  // ── Font family tokens ─────────────────────────────────────────────────────
+  // Studio: a single-family Inter system. Tokens kept so call sites compile;
+  // all three resolve to Inter (weight differentiates the tiers).
+  static const serif   = 'Inter';
+  static const sans    = 'Inter';
+  static const display = 'Inter';
 
-  // ── Display ──────────────────────────────────────────────────────────
-  static const displayTitle = TextStyle(
-    fontFamily: display, fontVariations: [FontVariation('wght', 800)],
-    fontSize: 44, fontWeight: FontWeight.w800, letterSpacing: -1.5, height: 1.0,
+  // ══════════════════════════════════════════════════════════════════════════════
+  // TIER 1 — EDITORIAL (Cormorant Garamond)
+  // ══════════════════════════════════════════════════════════════════════════════
+
+  /// Full-bleed chapter-open / cinematic moment. 56 pt, ultra-tight tracking.
+  static const displayXL = TextStyle(
+    fontFamily: serif,
+    fontVariations: [FontVariation('wght', 700)],
+    fontSize: 56, fontWeight: FontWeight.w700,
+    letterSpacing: -2.5, height: 0.92,
   );
+
+  /// Hero section openers — title detail, featured banners. 44 pt.
+  static const displayL = TextStyle(
+    fontFamily: serif,
+    fontVariations: [FontVariation('wght', 700)],
+    fontSize: 44, fontWeight: FontWeight.w700,
+    letterSpacing: -2.0, height: 0.96,
+  );
+
+  /// Medium hero — 36 pt. Use for browse section heroes.
+  static const displayM = TextStyle(
+    fontFamily: serif,
+    fontVariations: [FontVariation('wght', 700)],
+    fontSize: 36, fontWeight: FontWeight.w700,
+    letterSpacing: -1.5, height: 1.0,
+  );
+
+  /// Sheet / panel / detail title — 28 pt.
+  static const displayS = TextStyle(
+    fontFamily: serif,
+    fontVariations: [FontVariation('wght', 600)],
+    fontSize: 28, fontWeight: FontWeight.w600,
+    letterSpacing: -1.0, height: 1.05,
+  );
+
+  /// Shelf section header ("Continue Reading") — 22 pt serif.
+  static const hero = TextStyle(
+    fontFamily: serif,
+    fontVariations: [FontVariation('wght', 700)],
+    fontSize: 22, fontWeight: FontWeight.w700,
+    letterSpacing: -0.5, height: 1.1,
+  );
+
+  // Back-compat aliases
+  static const displayTitle = displayS;
   static const displayTitleAccent = TextStyle(
-    fontFamily: display, fontVariations: [FontVariation('wght', 800)],
-    fontSize: 44, fontWeight: FontWeight.w800, letterSpacing: -1.5, height: 1.0,
+    fontFamily: serif,
+    fontVariations: [FontVariation('wght', 600)],
+    fontSize: 28, fontWeight: FontWeight.w600,
+    letterSpacing: -1.0, height: 1.05,
     color: AppColors.accent,
   );
 
-  /// A mid-weight hero step for shelf headers ("Continue Reading").
-  static const hero = TextStyle(
-    fontFamily: display, fontVariations: [FontVariation('wght', 800)],
-    fontSize: 34, fontWeight: FontWeight.w800, letterSpacing: -0.8, height: 1.05,
-  );
+  // ══════════════════════════════════════════════════════════════════════════════
+  // TIER 2 — INTERFACE (Sora)
+  // ══════════════════════════════════════════════════════════════════════════════
 
-  // ── Navigation / sections ────────────────────────────────────────────
+  /// Navigation bar title — Sora SemiBold 17.
   static const navTitle = TextStyle(
-    fontFamily: display, fontVariations: [FontVariation('wght', 600)],
-    fontSize: 17, fontWeight: FontWeight.w600, letterSpacing: -0.2,
+    fontFamily: sans,
+    fontVariations: [FontVariation('wght', 600)],
+    fontSize: 17, fontWeight: FontWeight.w600,
+    letterSpacing: -0.2,
   );
+
+  /// Section headings — Sora Bold 22.
   static const sectionTitle = TextStyle(
-    fontFamily: display, fontVariations: [FontVariation('wght', 700)],
-    fontSize: 19, fontWeight: FontWeight.w700, letterSpacing: -0.3,
+    fontFamily: sans,
+    fontVariations: [FontVariation('wght', 700)],
+    fontSize: 22, fontWeight: FontWeight.w700,
+    letterSpacing: -0.5, height: 1.15,
   );
 
-  // ── Body ─────────────────────────────────────────────────────────────
-  static const bodyLarge = TextStyle(
-    fontSize: 17, fontWeight: FontWeight.w400, letterSpacing: -0.1,
-  );
-  static const bodyMedium = TextStyle(
-    fontSize: 15, fontWeight: FontWeight.w400,
-  );
-  static const bodySmall = TextStyle(
-    fontSize: 13, fontWeight: FontWeight.w400, height: 1.45,
-    color: AppColors.textSecondary,
+  /// Mid-level headings — Sora SemiBold 18.
+  static const titleM = TextStyle(
+    fontFamily: sans,
+    fontVariations: [FontVariation('wght', 600)],
+    fontSize: 18, fontWeight: FontWeight.w600,
+    letterSpacing: -0.3, height: 1.2,
   );
 
-  // ── Labels / captions ────────────────────────────────────────────────
+  /// Prominent label — card titles, row primary text. Sora SemiBold 14.
+  static const labelXL = TextStyle(
+    fontFamily: sans,
+    fontVariations: [FontVariation('wght', 600)],
+    fontSize: 14, fontWeight: FontWeight.w600,
+    letterSpacing: -0.1, height: 1.2,
+    color: AppColors.textPrimary,
+  );
+
+  /// Standard metadata label — Sora Medium 13.
   static const labelMedium = TextStyle(
+    fontFamily: sans,
+    fontVariations: [FontVariation('wght', 500)],
     fontSize: 13, fontWeight: FontWeight.w500,
+    letterSpacing: 0.0,
     color: AppColors.textSecondary,
   );
+
+  /// Small metadata — Sora Medium 11.
   static const labelSmall = TextStyle(
-    fontSize: 11, fontWeight: FontWeight.w500, letterSpacing: 0.2,
+    fontFamily: sans,
+    fontVariations: [FontVariation('wght', 500)],
+    fontSize: 11, fontWeight: FontWeight.w500,
+    letterSpacing: 0.1,
+    color: AppColors.textSecondary,
+  );
+
+  /// Uppercase section overline — Sora SemiBold 10, tracked wide.
+  static const overline = TextStyle(
+    fontFamily: sans,
+    fontVariations: [FontVariation('wght', 600)],
+    fontSize: 10, fontWeight: FontWeight.w600,
+    letterSpacing: 0.8,
     color: AppColors.textTertiary,
   );
+
+  /// Primary filled button — Sora SemiBold 14.
+  static const buttonPrimary = TextStyle(
+    fontFamily: sans,
+    fontVariations: [FontVariation('wght', 600)],
+    fontSize: 14, fontWeight: FontWeight.w600,
+    letterSpacing: 0.1,
+  );
+
+  /// Source name row — Sora SemiBold 15.
+  static const sourceName = TextStyle(
+    fontFamily: sans,
+    fontVariations: [FontVariation('wght', 600)],
+    fontSize: 15, fontWeight: FontWeight.w600,
+  );
+
+  /// Source meta / secondary — Sora Regular 12.
+  static const sourceMeta = TextStyle(
+    fontFamily: sans,
+    fontVariations: [FontVariation('wght', 400)],
+    fontSize: 12, fontWeight: FontWeight.w400,
+    color: AppColors.textTertiary,
+  );
+
+  // ══════════════════════════════════════════════════════════════════════════════
+  // TIER 3 — READING (system Roboto / SF Pro — no fontFamily set)
+  // ══════════════════════════════════════════════════════════════════════════════
+
+  /// Large body — synopses, descriptions. 16 pt, generous line height.
+  static const bodyLarge = TextStyle(
+    fontSize: 16, fontWeight: FontWeight.w400,
+    letterSpacing: -0.1, height: 1.65,
+  );
+
+  /// Standard body — chapter lists, metadata prose. 15 pt.
+  static const bodyMedium = TextStyle(
+    fontSize: 15, fontWeight: FontWeight.w400,
+    height: 1.6,
+  );
+
+  /// Small body — secondary descriptions. 13 pt.
+  static const bodySmall = TextStyle(
+    fontSize: 13, fontWeight: FontWeight.w400,
+    height: 1.55,
+    color: AppColors.textSecondary,
+  );
+
+  /// Fine print — footnotes, metadata. 11 pt.
   static const caption = TextStyle(
     fontSize: 11, fontWeight: FontWeight.w400,
     color: AppColors.textTertiary,
   );
-  /// Uppercase section overline ("184 CHAPTERS", "APPEARANCE").
-  static const overline = TextStyle(
-    fontFamily: display, fontVariations: [FontVariation('wght', 600)],
-    fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 0.5,
-    color: AppColors.textTertiary,
-  );
 
-  // ── Cards ────────────────────────────────────────────────────────────
-  static const cardTitle = TextStyle(
-    fontFamily: display, fontVariations: [FontVariation('wght', 600)],
-    fontSize: 13, fontWeight: FontWeight.w600, letterSpacing: -0.1, height: 1.3,
-    color: AppColors.textPrimary,
-  );
+  // ── Cards ──────────────────────────────────────────────────────────────────
+
+  static const cardTitle    = labelXL;
   static const cardSubtitle = TextStyle(
     fontSize: 11, fontWeight: FontWeight.w400,
     color: AppColors.textSecondary,
   );
 
-  // ── Buttons ──────────────────────────────────────────────────────────
-  static const buttonPrimary = TextStyle(
-    fontFamily: display, fontVariations: [FontVariation('wght', 600)],
-    fontSize: 15, fontWeight: FontWeight.w600, letterSpacing: -0.1,
-  );
+  // ── Sheet / Detail ─────────────────────────────────────────────────────────
 
-  // ── Detail sheet ─────────────────────────────────────────────────────
-  static const sheetTitle = TextStyle(
-    fontFamily: display, fontVariations: [FontVariation('wght', 700)],
-    fontSize: 22, fontWeight: FontWeight.w700, letterSpacing: -0.5,
-  );
+  static const sheetTitle  = displayS;
   static const sheetAuthor = TextStyle(
     fontSize: 14, fontWeight: FontWeight.w400,
     color: AppColors.textSecondary,
   );
 
-  // ── Reader ───────────────────────────────────────────────────────────
+  // ── Reader chrome ──────────────────────────────────────────────────────────
+
   static const readerChapterTitle = TextStyle(
+    fontFamily: sans,
+    fontVariations: [FontVariation('wght', 600)],
     fontSize: 14, fontWeight: FontWeight.w600,
     color: AppColors.textPrimary,
   );
+
   static const readerPagePill = TextStyle(
+    fontFamily: sans,
+    fontVariations: [FontVariation('wght', 500)],
     fontSize: 12, fontWeight: FontWeight.w500,
     color: AppColors.textPrimary,
-  );
-
-  // ── Source rows ──────────────────────────────────────────────────────
-  static const sourceName = TextStyle(
-    fontSize: 15, fontWeight: FontWeight.w600,
-  );
-  static const sourceMeta = TextStyle(
-    fontSize: 12, fontWeight: FontWeight.w400,
-    color: AppColors.textTertiary,
   );
 }

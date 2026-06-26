@@ -785,7 +785,7 @@ class _NextChapterFooter extends StatelessWidget {
           color: AppColors.surfaceElevated,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-              color: const Color(0x59FF6A5C), // AppColors.accent at 35% opacity
+              color: const Color(0x40FF6F61), // AppColors.accent, faint
               width: 0.5),
         ),
         child: Row(
