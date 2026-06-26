@@ -42,13 +42,6 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     super.dispose();
   }
 
-  String get _greeting {
-    final h = DateTime.now().hour;
-    if (h < 12) return 'Good morning';
-    if (h < 18) return 'Good afternoon';
-    return 'Good evening';
-  }
-
   @override
   Widget build(BuildContext context) {
     final topPadding = MediaQuery.of(context).padding.top;
@@ -64,16 +57,31 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
             controller: _scrollController,
             physics: const BouncingScrollPhysics(),
             slivers: [
-              SliverToBoxAdapter(child: SizedBox(height: topPadding + 12)),
+              // Cinematic full-bleed hero — cover bleeds behind the status bar
+              if (continueItems.isNotEmpty)
+                SliverToBoxAdapter(
+                  child: _CinematicHero(
+                    manga: continueItems.first,
+                    topInset: topPadding,
+                    onTap: () => _openDetail(continueItems.first),
+                  ),
+                )
+              else
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.fromLTRB(AppSpacing.gutter,
+                        topPadding + 32, AppSpacing.gutter, AppSpacing.x4),
+                    child: Text('Your Library',
+                        style: AppTextStyles.displayM
+                            .copyWith(color: context.textPrimaryColor)),
+                  ),
+                ),
 
-              // Greeting header
-              SliverToBoxAdapter(child: _GreetingHeader(greeting: _greeting)),
-
-              // Search field
+              // Search
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.gutter, 4, AppSpacing.gutter, AppSpacing.x6,
+                    AppSpacing.gutter, AppSpacing.x6, AppSpacing.gutter, AppSpacing.x6,
                   ),
                   child: _SearchField(
                     controller: _searchController,
@@ -87,21 +95,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                 ),
               ),
 
-              // Continue-reading hero (top in-progress title)
-              if (continueItems.isNotEmpty)
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(
-                      AppSpacing.gutter, 0, AppSpacing.gutter, AppSpacing.x7,
-                    ),
-                    child: _ContinueHero(
-                      manga: continueItems.first,
-                      onTap: () => _openDetail(continueItems.first),
-                    ),
-                  ),
-                ),
-
-              // "Jump back in" horizontal shelf (the rest of the recents)
+              // "Your shelf" — horizontal recents
               if (continueItems.length > 1)
                 SliverToBoxAdapter(
                   child: ContinueReadingShelf(onOpen: _openDetail),
@@ -226,64 +220,6 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   }
 }
 
-// ── Greeting header ─────────────────────────────────────────────────────────
-
-class _GreetingHeader extends StatelessWidget {
-  const _GreetingHeader({required this.greeting});
-  final String greeting;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.gutter, 0, AppSpacing.gutter, AppSpacing.x5,
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: context.accentSubtleColor,
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: context.accentLineColor,
-                width: AppRadius.hairline,
-              ),
-            ),
-            child: Icon(
-              CupertinoIcons.book_fill,
-              color: context.accentColor,
-              size: 20,
-            ),
-          ),
-          const SizedBox(width: AppSpacing.x5),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  greeting,
-                  style: AppTextStyles.bodySmall.copyWith(
-                    color: context.textTertiaryColor,
-                  ),
-                ),
-                const SizedBox(height: 1),
-                Text(
-                  'Your Library',
-                  style: AppTextStyles.hero.copyWith(
-                    color: context.textPrimaryColor,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 // ── Search field + filter ───────────────────────────────────────────────────
 
 class _SearchField extends StatelessWidget {
@@ -364,107 +300,132 @@ class _SearchField extends StatelessWidget {
   }
 }
 
-// ── Continue-reading hero card ──────────────────────────────────────────────
+// ── Cinematic full-bleed continue hero ──────────────────────────────────────
 
-class _ContinueHero extends StatefulWidget {
-  const _ContinueHero({required this.manga, required this.onTap});
+class _CinematicHero extends StatelessWidget {
+  const _CinematicHero({
+    required this.manga,
+    required this.topInset,
+    required this.onTap,
+  });
+
   final MangaEntry manga;
+  final double topInset;
   final VoidCallback onTap;
 
   @override
-  State<_ContinueHero> createState() => _ContinueHeroState();
-}
-
-class _ContinueHeroState extends State<_ContinueHero> {
-  bool _pressed = false;
-
-  @override
   Widget build(BuildContext context) {
-    final manga = widget.manga;
-    final chapter = manga.lastReadChapterNumber?.toStringAsFixed(0);
+    final ch = manga.lastReadChapterNumber;
+    final total = manga.chapterCount;
+    final progress =
+        (ch != null && total > 0) ? (ch / total).clamp(0.0, 1.0) : 0.0;
+    final chStr = ch?.toStringAsFixed(0);
+    final ink = context.backgroundColor;
+
     return GestureDetector(
-      onTap: widget.onTap,
-      onTapDown: (_) => setState(() => _pressed = true),
-      onTapUp: (_) => setState(() => _pressed = false),
-      onTapCancel: () => setState(() => _pressed = false),
-      child: AnimatedScale(
-        scale: _pressed ? 0.97 : 1.0,
-        duration: AppMotion.fast,
-        curve: AppMotion.easeOut,
-        child: Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: context.accentColor,
-            borderRadius: BorderRadius.circular(AppRadius.lg),
-            boxShadow: [
-              BoxShadow(
-                color: context.accentColor.withValues(alpha: 0.34),
-                blurRadius: 24,
-                offset: const Offset(0, 12),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(AppRadius.cover),
-                child: Hero(
-                  tag: mangaCoverHeroTag(manga.id),
-                  child: SizedBox(
-                    width: 60,
-                    height: 84,
-                    child: CoverImage(url: manga.coverUrl),
-                  ),
+      onTap: onTap,
+      child: SizedBox(
+        height: topInset + 312,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            // Cover art bleeds to every edge
+            Hero(
+              tag: mangaCoverHeroTag(manga.id),
+              child: CoverImage(url: manga.coverUrl),
+            ),
+            // Scrim — darken top (for chrome) and bottom (for text); art shows mid
+            DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    ink.withValues(alpha: 0.55),
+                    const Color(0x00000000),
+                    ink.withValues(alpha: 0.65),
+                    ink,
+                  ],
+                  stops: const [0.0, 0.30, 0.74, 1.0],
                 ),
               ),
-              const SizedBox(width: AppSpacing.x6),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'CONTINUE READING',
-                      style: TextStyle(
-                        fontFamily: AppTextStyles.display,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 1.0,
-                        color: Color(0xCCFFFFFF),
-                      ),
+            ),
+            // Top wordmark
+            Positioned(
+              top: topInset + 10,
+              left: AppSpacing.gutter,
+              right: AppSpacing.gutter,
+              child: Text(
+                'YOMI',
+                style: AppTextStyles.metaMono.copyWith(
+                  color: context.textPrimaryColor,
+                  letterSpacing: 3.0,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            // Bottom: mono label · title · iris progress
+            Positioned(
+              left: AppSpacing.gutter,
+              right: AppSpacing.gutter,
+              bottom: AppSpacing.x5,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    chStr != null ? 'CONTINUE · CH $chStr' : 'CONTINUE',
+                    style: AppTextStyles.metaMono.copyWith(
+                      color: context.accentColor,
+                      fontWeight: FontWeight.w700,
                     ),
-                    const SizedBox(height: 5),
-                    Text(
-                      manga.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppTextStyles.cardTitle.copyWith(
-                        fontSize: 17,
-                        color: CupertinoColors.white,
-                      ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    manga.title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTextStyles.displayM.copyWith(
+                      color: context.textPrimaryColor,
+                      height: 1.0,
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      chapter != null ? 'Chapter $chapter' : 'Tap to start',
-                      style: AppTextStyles.bodySmall.copyWith(
-                        color: const Color(0xCCFFFFFF),
-                      ),
+                  ),
+                  if (progress > 0) ...[
+                    const SizedBox(height: 14),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Container(
+                            height: 3,
+                            decoration: BoxDecoration(
+                              color: context.textQuaternaryColor,
+                              borderRadius: BorderRadius.circular(2),
+                            ),
+                            child: FractionallySizedBox(
+                              alignment: Alignment.centerLeft,
+                              widthFactor: progress,
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: context.accentColor,
+                                  borderRadius: BorderRadius.circular(2),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          '${(progress * 100).round()}%',
+                          style: AppTextStyles.metaMonoSm.copyWith(
+                            color: context.textSecondaryColor,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
-                ),
+                ],
               ),
-              const SizedBox(width: AppSpacing.x4),
-              Container(
-                width: 44,
-                height: 44,
-                decoration: const BoxDecoration(
-                  color: CupertinoColors.white,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(CupertinoIcons.play_arrow_solid,
-                    color: context.accentColor, size: 20),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
