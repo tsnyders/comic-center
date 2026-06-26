@@ -354,20 +354,20 @@ class _DetailSheetState extends ConsumerState<_DetailSheet> {
                     children: [
                       Text(
                         liveManga.title,
-                        style: AppTextStyles.sheetTitle.copyWith(
+                        style: AppTextStyles.displayM.copyWith(
                           color: context.textPrimaryColor,
                         ),
                       ),
-                      const SizedBox(height: AppSpacing.x2),
+                      const SizedBox(height: AppSpacing.x4),
                       Text(
                         [
-                          if (liveManga.author != null) liveManga.author!,
-                          '·',
+                          if (liveManga.author != null &&
+                              liveManga.author!.isNotEmpty)
+                            liveManga.author!,
                           _capitalise(liveManga.status),
-                          '·',
-                          '${liveManga.chapterCount} ch',
-                        ].join(' '),
-                        style: AppTextStyles.sheetAuthor.copyWith(
+                          '${liveManga.chapterCount} CH',
+                        ].join('   ·   '),
+                        style: AppTextStyles.metaMono.copyWith(
                           color: context.textSecondaryColor,
                         ),
                       ),
@@ -773,18 +773,17 @@ class _GenreChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: context.surfaceElevatedColor,
-        borderRadius: BorderRadius.circular(AppRadius.sm),
+        borderRadius: BorderRadius.circular(AppRadius.pill),
         border: Border.all(
           color: context.borderStrongColor,
           width: AppRadius.hairline,
         ),
       ),
       child: Text(
-        label,
-        style: AppTextStyles.labelSmall.copyWith(
+        label.toUpperCase(),
+        style: AppTextStyles.metaMonoSm.copyWith(
           color: context.textSecondaryColor,
         ),
       ),
@@ -850,6 +849,10 @@ class _ActionRow extends ConsumerWidget {
     final chs = chapters.valueOrNull ?? [];
     final started = _hasStarted(chs);
     final dark = context.isDark;
+    // Primary CTA is tinted by the cover's own palette ("let art decide").
+    final art = ref.watch(coverPaletteProvider(manga.coverUrl ?? ''))
+            .valueOrNull ??
+        context.accentColor;
     return Row(
       children: [
         // Primary CTA — full-width accent button
@@ -859,15 +862,13 @@ class _ActionRow extends ConsumerWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(vertical: 15),
               decoration: BoxDecoration(
-                color: chs.isEmpty
-                    ? context.surfaceElevatedColor
-                    : context.accentColor,
+                color: chs.isEmpty ? context.surfaceElevatedColor : art,
                 borderRadius: BorderRadius.circular(AppRadius.pill),
                 boxShadow: chs.isEmpty
                     ? null
                     : [
                         BoxShadow(
-                          color: context.accentColor.withValues(alpha: 0.32),
+                          color: art.withValues(alpha: 0.32),
                           blurRadius: 18,
                           offset: const Offset(0, 8),
                         ),
