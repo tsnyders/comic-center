@@ -27,12 +27,29 @@ import 'app_colors.dart';
 ///   • Never bake a light-mode color into a static const — use AppColorsX.
 /// ============================================================================
 abstract final class AppTextStyles {
-  // ── Font family tokens ─────────────────────────────────────────────────────
-  // Studio: a single-family Inter system. Tokens kept so call sites compile;
-  // all three resolve to Inter (weight differentiates the tiers).
-  static const serif   = 'Inter';
-  static const sans    = 'Inter';
-  static const display = 'Inter';
+  // ── Font family tokens (LUMEN) ──────────────────────────────────────────────
+  // HankenGrotesk carries display + UI (weight differentiates the tiers).
+  // SpaceMono is the technical voice: chapter numbers, ratings, metadata, labels.
+  static const serif   = 'HankenGrotesk';  // display titles (oversized editorial)
+  static const sans    = 'HankenGrotesk';  // UI chrome, labels, buttons
+  static const display = 'HankenGrotesk';
+  static const mono    = 'SpaceMono';      // metadata · numbers · technical labels
+
+  /// LUMEN metadata voice — mono, tracked, used for "CH 142 · ONGOING · 9.3★".
+  static const metaMono = TextStyle(
+    fontFamily: mono,
+    fontSize: 11, fontWeight: FontWeight.w400,
+    letterSpacing: 1.2,
+    color: AppColors.textSecondary,
+  );
+
+  /// Smaller mono — counts, fine technical labels.
+  static const metaMonoSm = TextStyle(
+    fontFamily: mono,
+    fontSize: 9, fontWeight: FontWeight.w400,
+    letterSpacing: 1.0,
+    color: AppColors.textTertiary,
+  );
 
   // ══════════════════════════════════════════════════════════════════════════════
   // TIER 1 — EDITORIAL (Cormorant Garamond)

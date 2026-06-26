@@ -79,7 +79,19 @@ flutter:
   #   Tier 3: system Roboto / SF Pro — body prose, captions (no declaration needed)
   # Poppins retained for back-compat with any remaining call sites.
   fonts:
-    # Studio design system — Inter (variable). Weight via FontVariation('wght').
+    # LUMEN design system:
+    #   HankenGrotesk (variable) — display + UI, weight via FontVariation('wght')
+    #   SpaceMono — metadata, numbers, technical labels
+    - family: HankenGrotesk
+      fonts:
+        - asset: assets/fonts/HankenGrotesk.ttf
+    - family: SpaceMono
+      fonts:
+        - asset: assets/fonts/SpaceMono-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/SpaceMono-Bold.ttf
+          weight: 700
+
     - family: Inter
       fonts:
         - asset: assets/fonts/Inter.ttf

@@ -13,12 +13,12 @@ final downloadLocationProvider = StateProvider<DownloadLocation>((ref) {
       DownloadLocation.values, DownloadLocation.local);
 });
 
-/// App-wide brightness (theme mode). Persisted. Defaults to light (Studio).
+/// App-wide brightness (theme mode). Persisted. Defaults to dark (LUMEN ink).
 final brightnessProvider = StateProvider<Brightness>((ref) {
   final prefs = ref.watch(sharedPreferencesProvider);
   ref.listenSelf(
       (_, next) => prefs.setBool('settings.brightnessDark', next == Brightness.dark));
-  return (prefs.getBool('settings.brightnessDark') ?? false)
+  return (prefs.getBool('settings.brightnessDark') ?? true)
       ? Brightness.dark
       : Brightness.light;
 });
