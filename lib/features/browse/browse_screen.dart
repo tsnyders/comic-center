@@ -6,7 +6,6 @@ import '../../core/providers/source_registry_provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text_styles.dart';
-import '../../shared/widgets/app_glass.dart';
 import '../../shared/widgets/empty_state.dart';
 import 'extensions_screen.dart';
 import 'source_manga_screen.dart';
@@ -96,21 +95,29 @@ class BrowseScreen extends ConsumerWidget {
         slivers: [
           SliverToBoxAdapter(child: SizedBox(height: topPadding + 8)),
 
-          // ── Title + search pill ──────────────────────────────────────────
+          // ── Kicker + title + search ───────────────────────────────────────
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 14),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
+                    'DISCOVER',
+                    style: AppTextStyles.metaMono.copyWith(
+                      color: context.accentColor,
+                      letterSpacing: 2.5,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
                     'Browse',
-                    style: AppTextStyles.hero.copyWith(
+                    style: AppTextStyles.displayM.copyWith(
                       color: context.textPrimaryColor,
                     ),
                   ),
-                  const SizedBox(height: 10),
-                  _GlassSearchBar(),
+                  const SizedBox(height: 16),
+                  _SearchBar(),
                 ],
               ),
             ),
@@ -243,36 +250,36 @@ class BrowseScreen extends ConsumerWidget {
   }
 }
 
-// ── Glass search bar ──────────────────────────────────────────────────────────
+// ── Search bar (solid LUMEN surface) ──────────────────────────────────────────
 
-class _GlassSearchBar extends StatelessWidget {
+class _SearchBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return AppGlass(
-      borderRadius: AppRadius.pill,
-      blur: 16,
-      child: SizedBox(
-        height: 46,
-        child: Row(
-          children: [
-            const SizedBox(width: 14),
-            Icon(
-              CupertinoIcons.search,
-              size: 16,
-              color: context.textTertiaryColor,
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                'Search all sources…',
-                style: AppTextStyles.bodyLarge.copyWith(
-                  color: context.textTertiaryColor,
-                  fontWeight: FontWeight.w400,
-                ),
+    return Container(
+      height: 50,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: context.surfaceColor,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(
+          color: context.borderColor,
+          width: AppRadius.hairline,
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(CupertinoIcons.search,
+              size: 18, color: context.textTertiaryColor),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              'Search all sources…',
+              style: AppTextStyles.bodyMedium.copyWith(
+                color: context.textTertiaryColor,
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -302,11 +309,16 @@ class _ExtensionsCardState extends State<_ExtensionsCard> {
         scale: _pressed ? AppMotion.pressScale : 1.0,
         duration: AppMotion.fast,
         curve: AppMotion.easeOut,
-        child: AppGlass(
-          borderRadius: AppRadius.lg,
-          blur: 20,
-          tint: context.accentSubtleColor,
+        child: Container(
           padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: context.surfaceColor,
+            borderRadius: BorderRadius.circular(AppRadius.lg),
+            border: Border.all(
+              color: context.accentLineColor,
+              width: AppRadius.hairline,
+            ),
+          ),
           child: Row(
             children: [
               Container(
