@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -26,7 +28,6 @@ class _RootScaffoldState extends ConsumerState<RootScaffold> {
   @override
   void initState() {
     super.initState();
-    // Show "What's New" dialog on first launch after a version update.
     if (ref.read(showWhatsNewProvider)) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _showWhatsNewDialog(context);
@@ -45,11 +46,9 @@ class _RootScaffoldState extends ConsumerState<RootScaffold> {
     try {
       release = await UpdateService.fetchLatestRelease();
     } catch (_) {
-      // Silently skip if offline — user can always tap "What's New" in Settings.
       return;
     }
     if (release == null || !context.mounted) return;
-
     showCupertinoDialog<void>(
       context: context,
       builder: (_) => _WhatsNewDialog(release: release!),
@@ -66,20 +65,17 @@ class _RootScaffoldState extends ConsumerState<RootScaffold> {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          // ── Ambient backdrop — subtle radial gradient on the obsidian canvas ──
+          // Ambient backdrop — subtle radial wash on the ink canvas
           DecoratedBox(
             decoration: BoxDecoration(
               gradient: RadialGradient(
-                center: const Alignment(0.0, -0.4),
+                center: const Alignment(0.0, -0.5),
                 radius: 1.4,
-                colors: isDark
-                    ? AppColors.ambientDark
-                    : AppColors.ambientLight,
+                colors: isDark ? AppColors.ambientDark : AppColors.ambientLight,
               ),
             ),
           ),
 
-          // ── Tab content ───────────────────────────────────────────────────
           IndexedStack(
             index: _selectedIndex,
             children: const [
@@ -90,14 +86,16 @@ class _RootScaffoldState extends ConsumerState<RootScaffold> {
             ],
           ),
 
-          // ── Floating glass navigation bar ─────────────────────────────────
+          // Floating LUMEN nav pill — centered, compact, icon-only
           Positioned(
-            bottom: bottomPadding + AppSpacing.x5,
-            left: AppSpacing.x7,
-            right: AppSpacing.x7,
-            child: _GlassNavBar(
-              selectedIndex: _selectedIndex,
-              onTap: _onTap,
+            bottom: bottomPadding + AppSpacing.x6,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: _LumenNav(
+                selectedIndex: _selectedIndex,
+                onTap: _onTap,
+              ),
             ),
           ),
         ],
@@ -106,270 +104,110 @@ class _RootScaffoldState extends ConsumerState<RootScaffold> {
   }
 }
 
-// ── Glass navigation bar ──────────────────────────────────────────────────────
+// ── LUMEN floating nav pill ─────────────────────────────────────────────────
 
-class _GlassNavBar extends ConsumerStatefulWidget {
-  const _GlassNavBar({
-    required this.selectedIndex,
-    required this.onTap,
-  });
+class _LumenNav extends StatelessWidget {
+  const _LumenNav({required this.selectedIndex, required this.onTap});
 
   final int selectedIndex;
   final ValueChanged<int> onTap;
 
-  @override
-  ConsumerState<_GlassNavBar> createState() => _GlassNavBarState();
-}
-
-class _GlassNavBarState extends ConsumerState<_GlassNavBar>
-    with TickerProviderStateMixin {
-  late final AnimationController _indicatorCtrl;
-  late Animation<double> _indicatorPos;
-  int _prevIndex = 0;
-
-  static const _tabs = [
-    _TabItem(icon: CupertinoIcons.book, activeIcon: CupertinoIcons.book_fill, label: 'Library'),
-    _TabItem(icon: CupertinoIcons.globe, activeIcon: CupertinoIcons.globe, label: 'Browse'),
-    _TabItem(icon: CupertinoIcons.arrow_down_circle, activeIcon: CupertinoIcons.arrow_down_circle_fill, label: 'Downloads'),
-    _TabItem(icon: CupertinoIcons.settings, activeIcon: CupertinoIcons.settings_solid, label: 'Settings'),
+  static const _items = <(IconData, IconData)>[
+    (CupertinoIcons.square_stack_3d_up, CupertinoIcons.square_stack_3d_up_fill),
+    (CupertinoIcons.compass, CupertinoIcons.compass_fill),
+    (CupertinoIcons.arrow_down_circle, CupertinoIcons.arrow_down_circle_fill),
+    (CupertinoIcons.settings, CupertinoIcons.settings_solid),
   ];
 
   @override
-  void initState() {
-    super.initState();
-    _indicatorCtrl = AnimationController(
-      vsync: this,
-      duration: AppMotion.slow,
-    );
-    _indicatorPos = Tween<double>(
-      begin: widget.selectedIndex.toDouble(),
-      end: widget.selectedIndex.toDouble(),
-    ).animate(
-      CurvedAnimation(parent: _indicatorCtrl, curve: AppMotion.easeOut),
-    );
-  }
-
-  @override
-  void didUpdateWidget(_GlassNavBar old) {
-    super.didUpdateWidget(old);
-    if (old.selectedIndex != widget.selectedIndex) {
-      _indicatorPos = Tween<double>(
-        begin: _prevIndex.toDouble(),
-        end: widget.selectedIndex.toDouble(),
-      ).animate(
-        CurvedAnimation(parent: _indicatorCtrl, curve: AppMotion.easeOut),
-      );
-      _indicatorCtrl.forward(from: 0);
-      _prevIndex = widget.selectedIndex;
-    }
-  }
-
-  @override
-  void dispose() {
-    _indicatorCtrl.dispose();
-    super.dispose();
-  }
-
-  Widget _barContent(BuildContext context) {
-    return SizedBox(
-      height: 64,
-      child: Stack(
-        children: [
-          // ── Animated pill indicator ────────────────────────────────────
-          AnimatedBuilder(
-            animation: _indicatorPos,
-            builder: (ctx, __) {
-              final barWidth = MediaQuery.of(ctx).size.width
-                  - AppSpacing.x7 * 2   // L/R inset (20 + 20)
-                  - AppSpacing.x4 * 2;  // inner horizontal padding (8 + 8)
-              final tabWidth = barWidth / _tabs.length;
-              final pillLeft =
-                  _indicatorPos.value * tabWidth + AppSpacing.x4;
-
-              return Positioned(
-                top: AppSpacing.x4,
-                bottom: AppSpacing.x4,
-                left: pillLeft,
-                width: tabWidth,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: ctx.accentSubtleColor,
-                    borderRadius: BorderRadius.circular(AppRadius.pill),
-                    border: Border.all(
-                      color: ctx.accentLineColor,
-                      width: AppRadius.hairline,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: ctx.accentSubtleColor,
-                        blurRadius: 14,
-                        spreadRadius: 0,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(AppRadius.pill),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+        child: Container(
+          padding: const EdgeInsets.all(6),
+          decoration: BoxDecoration(
+            color: context.isDark
+                ? const Color(0xCC15151B)
+                : const Color(0xCCFFFFFF),
+            borderRadius: BorderRadius.circular(AppRadius.pill),
+            border: Border.all(
+              color: context.borderSubtleColor,
+              width: AppRadius.hairline,
+            ),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x59000000),
+                blurRadius: 32,
+                spreadRadius: -4,
+                offset: Offset(0, 14),
+              ),
+            ],
           ),
-
-          // ── Tab icons + labels ─────────────────────────────────────────
-          Row(
-            children: List.generate(_tabs.length, (i) {
-              final isActive = i == widget.selectedIndex;
-              return Expanded(
-                child: _TabButton(
-                  tab: _tabs[i],
-                  isActive: isActive,
-                  onTap: () => widget.onTap(i),
-                ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: List.generate(_items.length, (i) {
+              final active = i == selectedIndex;
+              return _NavDot(
+                icon: active ? _items[i].$2 : _items[i].$1,
+                active: active,
+                onTap: () => onTap(i),
               );
             }),
           ),
-        ],
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = context.isDark;
-    final shadows = isDark ? AppElevation.float : AppElevation.floatLight;
-
-    // Reference match: a solid dark pill in both modes, lifted by a soft shadow.
-    return Container(
-      decoration: BoxDecoration(
-        color: const Color(0xF21F1C28),
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(
-          color: const Color(0x14FFFFFF),
-          width: AppRadius.hairline,
         ),
-        boxShadow: shadows,
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        child: _barContent(context),
       ),
     );
   }
 }
 
-// ── Tab button ────────────────────────────────────────────────────────────────
-
-class _TabButton extends StatefulWidget {
-  const _TabButton({
-    required this.tab,
-    required this.isActive,
+class _NavDot extends StatelessWidget {
+  const _NavDot({
+    required this.icon,
+    required this.active,
     required this.onTap,
   });
 
-  final _TabItem tab;
-  final bool isActive;
+  final IconData icon;
+  final bool active;
   final VoidCallback onTap;
 
   @override
-  State<_TabButton> createState() => _TabButtonState();
-}
-
-class _TabButtonState extends State<_TabButton>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _scaleCtrl;
-  late final Animation<double> _scale;
-
-  @override
-  void initState() {
-    super.initState();
-    _scaleCtrl = AnimationController(
-      vsync: this,
-      duration: AppMotion.base,
-      value: widget.isActive ? 1.0 : 0.0,
-    );
-    // Active: scale 1.06; inactive: scale 1.0
-    _scale = Tween<double>(begin: 1.0, end: 1.06).animate(
-      CurvedAnimation(parent: _scaleCtrl, curve: AppMotion.spring),
-    );
-  }
-
-  @override
-  void didUpdateWidget(_TabButton old) {
-    super.didUpdateWidget(old);
-    if (old.isActive != widget.isActive) {
-      if (widget.isActive) {
-        _scaleCtrl.forward();
-      } else {
-        _scaleCtrl.reverse();
-      }
-    }
-  }
-
-  @override
-  void dispose() {
-    _scaleCtrl.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final accentColor = context.accentColor;
-    // Nav is a dark pill in both modes, so inactive items are a fixed light grey.
-    const inactiveColor = Color(0x80FFFFFF);
-
+    final inactive = context.isDark
+        ? const Color(0x99F3F0E9)
+        : const Color(0x99151019);
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTap: widget.onTap,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          AnimatedBuilder(
-            animation: _scale,
-            builder: (_, child) => Transform.scale(
-              scale: _scale.value,
-              child: child,
-            ),
-            child: AnimatedSwitcher(
-              duration: AppMotion.base,
-              child: Icon(
-                widget.isActive ? widget.tab.activeIcon : widget.tab.icon,
-                key: ValueKey<bool>(widget.isActive),
-                size: 21,
-                color: widget.isActive ? accentColor : inactiveColor,
-              ),
-            ),
-          ),
-          const SizedBox(height: 3),
-          AnimatedDefaultTextStyle(
-            duration: AppMotion.base,
-            style: TextStyle(
-              fontFamily: AppTextStyles.display,
-              fontVariations: [
-                FontVariation('wght', widget.isActive ? 600 : 400),
-              ],
-              fontSize: 10,
-              fontWeight:
-                  widget.isActive ? FontWeight.w600 : FontWeight.w400,
-              color: widget.isActive ? accentColor : inactiveColor,
-            ),
-            child: Text(widget.tab.label),
-          ),
-        ],
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: AppMotion.base,
+        curve: AppMotion.easeOut,
+        width: 52,
+        height: 52,
+        margin: const EdgeInsets.symmetric(horizontal: 2),
+        decoration: BoxDecoration(
+          color: active ? context.accentColor : const Color(0x00000000),
+          shape: BoxShape.circle,
+          boxShadow: active
+              ? [
+                  BoxShadow(
+                    color: context.accentColor.withValues(alpha: 0.45),
+                    blurRadius: 18,
+                    offset: const Offset(0, 5),
+                  ),
+                ]
+              : null,
+        ),
+        child: Icon(
+          icon,
+          size: 23,
+          color: active ? AppColors.textOnAccent : inactive,
+        ),
       ),
     );
   }
-}
-
-// ── Tab data ──────────────────────────────────────────────────────────────────
-
-class _TabItem {
-  const _TabItem({
-    required this.icon,
-    required this.activeIcon,
-    required this.label,
-  });
-
-  final IconData icon;
-  final IconData activeIcon;
-  final String label;
 }
 
 // ── What's New dialog ─────────────────────────────────────────────────────────
@@ -416,7 +254,6 @@ class _WhatsNewDialog extends StatelessWidget {
             ),
           if (body.isNotEmpty)
             Text(
-              // Show first 300 chars to keep dialog manageable.
               body.length > 300 ? '${body.substring(0, 300)}…' : body,
               style: AppTextStyles.bodySmall,
             )
