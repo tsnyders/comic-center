@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/services.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class ReleaseInfo {
   const ReleaseInfo({
@@ -37,6 +38,16 @@ class UpdateCheckException implements Exception {
 class UpdateService {
   static const _repo    = 'tsnyders/comic-center';
   static const _channel = MethodChannel('yomi/platform');
+
+  /// In-app APK download + install is only possible on Android. On iOS the
+  /// App Store / TestFlight owns updates, so the UI falls back to opening the
+  /// GitHub release page instead.
+  static bool get supportsInAppUpdate => Platform.isAndroid;
+
+  /// Canonical web URL for a given release tag (used by the iOS "View Release"
+  /// fallback and anywhere a release needs to open in the browser).
+  static String releaseUrl(String tag) =>
+      'https://github.com/$_repo/releases/tag/$tag';
 
   static final _dio = Dio(BaseOptions(
     connectTimeout: const Duration(seconds: 10),
@@ -112,10 +123,12 @@ class UpdateService {
     await _channel.invokeMethod<void>('installApk', {'path': path});
   }
 
-  /// Open a URL via the native Android intent (VIEW action).
+  /// Open a URL in the system browser (cross-platform via url_launcher).
   static Future<void> openUrl(String url) async {
+    final uri = Uri.tryParse(url);
+    if (uri == null) return;
     try {
-      await _channel.invokeMethod<void>('openUrl', {'url': url});
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
     } catch (_) {}
   }
 

@@ -5,20 +5,47 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 
+import '../config/google_drive_config.dart';
+
+/// Thrown when a Drive action is attempted before an OAuth client ID has been
+/// configured for the current platform (see [GoogleDriveConfig]).
+class DriveNotConfiguredException implements Exception {
+  const DriveNotConfiguredException();
+  @override
+  String toString() =>
+      'Google Drive is not set up for this build. '
+      'Add an iOS OAuth client ID — see docs/DRIVE_SETUP_IOS.md.';
+}
+
 class GoogleDriveService {
   static final _signIn = GoogleSignIn(
+    // Apple platforms read the client ID from the constructor; Android uses the
+    // bundled google-services.json instead, so leave it null there.
+    clientId: _platformClientId,
     scopes: [drive.DriveApi.driveFileScope],
   );
+
+  static String? get _platformClientId =>
+      (Platform.isIOS || Platform.isMacOS) && GoogleDriveConfig.hasIosClientId
+          ? GoogleDriveConfig.iosClientId
+          : null;
+
+  /// Whether Drive sign-in can be attempted on the current platform.
+  static bool get isConfigured => (Platform.isIOS || Platform.isMacOS)
+      ? GoogleDriveConfig.hasIosClientId
+      : true; // Android relies on google-services.json at build time
 
   static GoogleSignInAccount? _account;
   static GoogleSignInAccount? get currentAccount => _account;
 
   static Future<GoogleSignInAccount?> signInSilently() async {
+    if (!isConfigured) return null;
     _account = await _signIn.signInSilently();
     return _account;
   }
 
   static Future<GoogleSignInAccount?> signIn() async {
+    if (!isConfigured) throw const DriveNotConfiguredException();
     _account = await _signIn.signIn();
     return _account;
   }

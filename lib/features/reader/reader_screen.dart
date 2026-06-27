@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 
 import 'package:extended_image/extended_image.dart';
 import 'package:flutter/cupertino.dart';
@@ -82,7 +83,9 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   void dispose() {
     _pillHideTimer?.cancel();
     _volumeSub?.cancel();
-    _platform.invokeMethod<void>('setVolumeKeyIntercept', {'enabled': false});
+    if (Platform.isAndroid) {
+      _platform.invokeMethod<void>('setVolumeKeyIntercept', {'enabled': false});
+    }
     _restoreBrightness();
     _pageController.dispose();
     _scrollController.dispose();
@@ -94,6 +97,9 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   // ── Volume-key page turning ──────────────────────────────────────────────
 
   void _enableVolumeKeys() {
+    // Volume-key page turning is backed by an Android-only platform channel;
+    // iOS apps can't intercept the hardware volume buttons, so skip entirely.
+    if (!Platform.isAndroid) return;
     _platform.invokeMethod<void>('setVolumeKeyIntercept', {'enabled': true});
     _volumeSub = _volumeKeys.receiveBroadcastStream().listen((event) {
       if (event == 'down') {

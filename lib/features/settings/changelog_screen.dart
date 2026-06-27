@@ -283,7 +283,13 @@ class _ReleaseCardState extends State<_ReleaseCard> {
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                     child: GestureDetector(
-                      onTap: () => UpdateService.openUrl(release.apkUrl!),
+                      // On Android open the APK asset directly; elsewhere
+                      // (iOS) open the release page in the browser.
+                      onTap: () => UpdateService.openUrl(
+                        UpdateService.supportsInAppUpdate
+                            ? release.apkUrl!
+                            : UpdateService.releaseUrl(release.tag),
+                      ),
                       child: Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 16, vertical: 10),
@@ -291,18 +297,22 @@ class _ReleaseCardState extends State<_ReleaseCard> {
                           color: AppColors.accent,
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: const Row(
+                        child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(
-                              CupertinoIcons.arrow_down_to_line,
+                              UpdateService.supportsInAppUpdate
+                                  ? CupertinoIcons.arrow_down_to_line
+                                  : CupertinoIcons.arrow_up_right_square,
                               size: 14,
                               color: AppColors.textOnAccent,
                             ),
-                            SizedBox(width: 8),
+                            const SizedBox(width: 8),
                             Text(
-                              'Download APK',
-                              style: TextStyle(
+                              UpdateService.supportsInAppUpdate
+                                  ? 'Download APK'
+                                  : 'View Release',
+                              style: const TextStyle(
                                 color: AppColors.textOnAccent,
                                 fontSize: 13,
                                 fontWeight: FontWeight.w600,

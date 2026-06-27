@@ -398,6 +398,16 @@ class SettingsScreen extends ConsumerWidget {
 
   static Future<void> _linkGoogleDrive(
       BuildContext context, WidgetRef ref) async {
+    if (!GoogleDriveService.isConfigured) {
+      _showAlert(
+        context,
+        'Google Drive Not Set Up',
+        'This build has no Google OAuth client ID yet, so Drive backup is '
+            'disabled.\n\nAdd an iOS client ID (see docs/DRIVE_SETUP_IOS.md) '
+            'and rebuild to enable cloud backup. Local backup still works.',
+      );
+      return;
+    }
     final confirmed = await showCupertinoDialog<bool>(
       context: context,
       builder: (_) => CupertinoAlertDialog(
@@ -822,10 +832,11 @@ class _UpdateDialogState extends State<_UpdateDialog> {
 
   Future<void> _startDownload() async {
     final url = widget.release.apkUrl;
-    if (url == null) {
+    // iOS can't sideload an APK, and a missing APK asset has nothing to
+    // install — in both cases just open the release page in the browser.
+    if (!UpdateService.supportsInAppUpdate || url == null) {
       Navigator.of(context).pop();
-      await UpdateService.openUrl(
-          'https://github.com/tsnyders/comic-center/releases');
+      await UpdateService.openUrl(UpdateService.releaseUrl(widget.release.tag));
       return;
     }
     setState(() {
@@ -898,7 +909,8 @@ class _UpdateDialogState extends State<_UpdateDialog> {
                 isDefaultAction: true,
                 onPressed: _startDownload,
                 child: Text(
-                  widget.release.apkUrl != null
+                  (UpdateService.supportsInAppUpdate &&
+                          widget.release.apkUrl != null)
                       ? 'Download & Install'
                       : 'View Release',
                 ),
