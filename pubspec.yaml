@@ -57,6 +57,9 @@ dependencies:
   # Icons
   cupertino_icons: ^1.0.6
 
+  # Cross-platform URL opening (replaces the Android-only intent channel)
+  url_launcher: ^6.3.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -69,12 +72,34 @@ dev_dependencies:
   # riverpod_lint and custom_lint removed — incompatible with isar_generator's
   # analyzer version constraint. Add back once Isar 4.x ships.
 
+# ── Native splash / launch screen ────────────────────────────────────────────
+# The launch screen assets (ios/Runner/.../LaunchImage* + LaunchScreen.storyboard,
+# android launch_background drawables) are already generated and committed, so
+# the generator package is NOT a build dependency (it broke Swift Package Manager
+# resolution as a dev_dependency). To regenerate after changing the logo/colour,
+# temporarily add `flutter_native_splash: ^2.4.1` to dev_dependencies and run
+# `dart run flutter_native_splash:create`, then remove it again.
+flutter_native_splash:
+  color: "#0A0A0F"            # ink background (matches AppColors.background)
+  image: assets/branding/yomi_logo.png
+  color_dark: "#0A0A0F"
+  image_dark: assets/branding/yomi_logo.png
+  android_12:
+    color: "#0A0A0F"
+    image: assets/branding/yomi_logo.png
+    color_dark: "#0A0A0F"
+    image_dark: assets/branding/yomi_logo.png
+  ios: true
+  android: true
+  web: false
+
 flutter:
   uses-material-design: true
 
   assets:
     - assets/images/
     - assets/icons/
+    - assets/branding/
 
   # "Obsidian" type system — three tiers:
   #   Tier 1: Cormorant Garamond (variable) — editorial display / hero titles
