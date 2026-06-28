@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/providers/settings_provider.dart';
+import 'core/services/widget_service.dart';
 import 'core/theme/app_theme.dart';
 import 'features/root/root_scaffold.dart';
 
@@ -12,6 +13,9 @@ class YomiApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final brightness = ref.watch(brightnessProvider);
+    
+    // Initialize widget service so it listens to library updates
+    ref.watch(widgetServiceProvider);
 
     SystemChrome.setSystemUIOverlayStyle(
       brightness == Brightness.dark
