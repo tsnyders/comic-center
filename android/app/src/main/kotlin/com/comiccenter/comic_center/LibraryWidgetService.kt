@@ -42,14 +42,13 @@ class LibraryWidgetFactory(private val context: Context) : RemoteViewsService.Re
                 views.setTextViewText(R.id.item_badge, "")
             }
             
-            // Note: If coverUrl is remote, consider using Glide/Picasso with AppWidgetTarget, 
-            // but for simplicity we try to read it as a local file if it's cached by Flutter.
             val coverUrl = manga.optString("coverUrl", "")
-            if (coverUrl.startsWith("/")) {
-                val file = File(coverUrl)
-                if (file.exists()) {
-                    val bitmap = BitmapFactory.decodeFile(file.absolutePath)
+            if (coverUrl.isNotEmpty()) {
+                try {
+                    val bitmap = com.squareup.picasso.Picasso.get().load(coverUrl).get()
                     views.setImageViewBitmap(R.id.item_cover, bitmap)
+                } catch (e: Exception) {
+                    e.printStackTrace()
                 }
             }
         }

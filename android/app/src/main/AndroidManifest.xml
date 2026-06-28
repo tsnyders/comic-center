@@ -39,7 +39,7 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
         </provider>
-        <!-- App Widget Provider -->
+        <!-- App Widget Provider: Recently Updated -->
         <receiver
             android:name=".LibraryWidgetProvider"
             android:exported="true">
@@ -49,6 +49,18 @@
             <meta-data
                 android:name="android.appwidget.provider"
                 android:resource="@xml/library_widget_info" />
+        </receiver>
+        
+        <!-- App Widget Provider: Continue Reading -->
+        <receiver
+            android:name=".ContinueReadingWidgetProvider"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/continue_reading_widget_info" />
         </receiver>
 
         <!-- RemoteViews Service for the Widget List -->
