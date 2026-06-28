@@ -56,6 +56,7 @@ dependencies:
 
   # Icons
   cupertino_icons: ^1.0.6
+  home_widget: ^0.9.3
 
 dev_dependencies:
   flutter_test:

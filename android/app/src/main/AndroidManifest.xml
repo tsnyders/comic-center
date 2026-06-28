@@ -39,6 +39,24 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
         </provider>
+        <!-- App Widget Provider -->
+        <receiver
+            android:name=".LibraryWidgetProvider"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/library_widget_info" />
+        </receiver>
+
+        <!-- RemoteViews Service for the Widget List -->
+        <service
+            android:name=".LibraryWidgetService"
+            android:permission="android.permission.BIND_REMOTEVIEWS"
+            android:exported="false" />
+            
     </application>
 
     <queries>
