@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'preferences_provider.dart';
@@ -6,31 +8,48 @@ import 'source_registry_provider.dart';
 // ── Chapter pages ─────────────────────────────────────────────────────────────
 
 final chapterPagesProvider =
-    FutureProvider.family<List<String>, _ChapterKey>((ref, key) async {
+    FutureProvider.family<List<String>, ChapterKey>((ref, key) async {
+  // Serve from local storage when the chapter is downloaded
+  if (key.downloadPath != null) {
+    final dir = Directory(key.downloadPath!);
+    if (await dir.exists()) {
+      final pages = await dir
+          .list()
+          .where((e) => e is File && e.path.contains('page_'))
+          .map((e) => e.path)
+          .toList()
+        ..sort();
+      if (pages.isNotEmpty) return pages;
+    }
+  }
+
+  // Fall back to network fetch
   final source = ref.watch(sourceByIdProvider(key.sourceId));
   if (source == null) throw Exception('Source ${key.sourceId} not found');
   return source.fetchPageUrls(key.chapterId);
 });
 
-class _ChapterKey {
-  const _ChapterKey({required this.sourceId, required this.chapterId});
+class ChapterKey {
+  const ChapterKey({
+    required this.sourceId,
+    required this.chapterId,
+    this.downloadPath,
+  });
   final String sourceId;
   final String chapterId;
+  final String? downloadPath;
 
   @override
   bool operator ==(Object other) =>
-      other is _ChapterKey &&
+      other is ChapterKey &&
       other.sourceId == sourceId &&
-      other.chapterId == chapterId;
+      other.chapterId == chapterId &&
+      other.downloadPath == downloadPath;
 
   @override
-  int get hashCode => Object.hash(sourceId, chapterId);
+  int get hashCode => Object.hash(sourceId, chapterId, downloadPath);
 }
 
-ChapterKey chapterKey({required String sourceId, required String chapterId}) =>
-    ChapterKey(sourceId: sourceId, chapterId: chapterId);
-
-typedef ChapterKey = _ChapterKey;
 
 // ── Reading options ───────────────────────────────────────────────────────────
 
