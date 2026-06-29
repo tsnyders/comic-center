@@ -45,6 +45,7 @@ class SettingsScreen extends ConsumerWidget {
     final bottomPadding = MediaQuery.of(context).padding.bottom;
     final dlLocation    = ref.watch(downloadLocationProvider);
     final brightness    = ref.watch(brightnessProvider);
+    final autoUpdate    = ref.watch(autoCheckUpdatesProvider);
     final direction     = ref.watch(readingDirectionProvider);
     final scale         = ref.watch(pageScaleModeProvider);
     final background    = ref.watch(readerBackgroundProvider);
@@ -122,9 +123,10 @@ class SettingsScreen extends ConsumerWidget {
               iconBgColor: _IColor.green,
               label: 'Auto-Update',
               trailing: CupertinoSwitch(
-                value: true,
+                value: autoUpdate,
                 activeTrackColor: context.downloadedColor,
-                onChanged: (_) {},
+                onChanged: (v) =>
+                    ref.read(autoCheckUpdatesProvider.notifier).state = v,
               ),
               isLast: true,
             ),

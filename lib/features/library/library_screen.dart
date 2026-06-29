@@ -82,7 +82,10 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.gutter, AppSpacing.x6, AppSpacing.gutter, AppSpacing.x6,
+                    AppSpacing.gutter,
+                    AppSpacing.x6,
+                    AppSpacing.gutter,
+                    AppSpacing.x6,
                   ),
                   child: _SearchField(
                     controller: _searchController,
@@ -110,7 +113,10 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.gutter, 0, AppSpacing.gutter, AppSpacing.x5,
+                    AppSpacing.gutter,
+                    0,
+                    AppSpacing.gutter,
+                    AppSpacing.x5,
                   ),
                   child: Text(
                     'Your collection',
@@ -125,9 +131,8 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
               library.when(
                 loading: () => _buildShimmer(),
                 error: (e, _) => _ErrorView(message: e.toString()),
-                data: (mangas) => mangas.isEmpty
-                    ? _EmptyLibraryView()
-                    : _buildList(mangas),
+                data: (mangas) =>
+                    mangas.isEmpty ? _EmptyLibraryView() : _buildList(mangas),
               ),
 
               SliverToBoxAdapter(
@@ -332,7 +337,7 @@ class _CinematicHero extends StatelessWidget {
           children: [
             // Cover art bleeds to every edge
             Hero(
-              tag: mangaCoverHeroTag(manga.id),
+              tag: 'cover_hero_${manga.id}',
               child: CoverImage(url: manga.coverUrl),
             ),
             // Scrim — darken top (for chrome) and bottom (for text); art shows mid
@@ -456,9 +461,8 @@ class _ComicRowState extends State<_ComicRow> {
   Widget build(BuildContext context) {
     final manga = widget.manga;
     final chapter = manga.lastReadChapterNumber?.toStringAsFixed(0);
-    final meta = chapter != null
-        ? 'Chapter $chapter'
-        : '${manga.chapterCount} chapters';
+    final meta =
+        chapter != null ? 'Chapter $chapter' : '${manga.chapterCount} chapters';
     return GestureDetector(
       onTap: widget.onTap,
       onLongPress: widget.onLongPress,
@@ -634,9 +638,8 @@ class _FadeSlideIn extends StatelessWidget {
 class _AmbientBackground extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    final seedColor = context.isDark
-        ? const Color(0x1AFF6F61)
-        : const Color(0x10E04A3C);
+    final seedColor =
+        context.isDark ? const Color(0x1AFF6F61) : const Color(0x10E04A3C);
     final baseColor = context.backgroundColor;
     return Container(
       decoration: BoxDecoration(

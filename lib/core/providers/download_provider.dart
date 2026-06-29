@@ -125,12 +125,22 @@ class DownloadManager extends AsyncNotifier<void> {
         await isar.downloadEntrys.put(entry);
       }
     });
-    if (!_isProcessing) _processQueue();
+    _processQueue();
   }
 
+  /**
+   * This is the cancel function for the downloads
+   */
   Future<void> cancel(int downloadId) async {
     final isar = ref.read(isarProvider);
+    final entry = await isar.downloadEntrys.get(downloadId);
     await isar.writeTxn(() => isar.downloadEntrys.delete(downloadId));
+    if (entry != null) {
+      final docDir = await getApplicationDocumentsDirectory();
+      final dir = Directory(
+          '${docDir.path}/downloads/${entry.mangaId}/${entry.chapterId}');
+      if (await dir.exists()) await dir.delete(recursive: true);
+    }
   }
 
   Future<void> retry(int downloadId) => resume(downloadId);

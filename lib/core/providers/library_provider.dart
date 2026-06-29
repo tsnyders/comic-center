@@ -92,9 +92,9 @@ final categoryNotifierProvider =
 // ── Library filter providers ──────────────────────────────────────────────────
 
 final selectedCategoryProvider = StateProvider<String>((_) => 'All');
-final librarySearchProvider    = StateProvider<String>((_) => '');
-final libraryStatusFilterProvider  = StateProvider<String?>((_) => null);
-final libraryGenreFilterProvider   = StateProvider<List<String>>((_) => const []);
+final librarySearchProvider = StateProvider<String>((_) => '');
+final libraryStatusFilterProvider = StateProvider<String?>((_) => null);
+final libraryGenreFilterProvider = StateProvider<List<String>>((_) => const []);
 
 /// Number of columns in the library grid (2 or 3). In-memory only.
 final libraryGridColumnsProvider = StateProvider<int>((_) => 2);
@@ -113,11 +113,11 @@ final libraryStreamProvider = StreamProvider<List<MangaEntry>>((ref) {
 // ── Filtered view ──────────────────────────────────────────────────────────────
 
 final filteredLibraryProvider = Provider<AsyncValue<List<MangaEntry>>>((ref) {
-  final library  = ref.watch(libraryStreamProvider);
+  final library = ref.watch(libraryStreamProvider);
   final category = ref.watch(selectedCategoryProvider);
-  final search   = ref.watch(librarySearchProvider);
-  final status   = ref.watch(libraryStatusFilterProvider);
-  final genres   = ref.watch(libraryGenreFilterProvider);
+  final search = ref.watch(librarySearchProvider);
+  final status = ref.watch(libraryStatusFilterProvider);
+  final genres = ref.watch(libraryGenreFilterProvider);
 
   return library.whenData((mangas) {
     var result = mangas;
@@ -152,10 +152,10 @@ final continueReadingProvider = Provider<List<MangaEntry>>((ref) {
 // ── Categories derived from library + custom list ──────────────────────────────
 
 final libraryCategoriesProvider = Provider<List<String>>((ref) {
-  final library    = ref.watch(libraryStreamProvider).valueOrNull ?? [];
+  final library = ref.watch(libraryStreamProvider).valueOrNull ?? [];
   final customCats = ref.watch(categoryNotifierProvider).valueOrNull ?? [];
-  final fromManga  = library.expand((m) => m.categories).toSet();
-  final all        = {...customCats, ...fromManga}.toList()..sort();
+  final fromManga = library.expand((m) => m.categories).toSet();
+  final all = {...customCats, ...fromManga}.toList()..sort();
   return ['All', ...all];
 });
 
@@ -163,7 +163,7 @@ final libraryCategoriesProvider = Provider<List<String>>((ref) {
 
 final libraryGenresProvider = Provider<List<String>>((ref) {
   final library = ref.watch(libraryStreamProvider).valueOrNull ?? [];
-  final genres  = library.expand((m) => m.genres).toSet().toList()..sort();
+  final genres = library.expand((m) => m.genres).toSet().toList()..sort();
   return genres;
 });
 
@@ -210,20 +210,28 @@ class LibraryNotifier extends AsyncNotifier<void> {
   }) async {
     final isar = ref.read(isarProvider);
     await isar.writeTxn(() async {
-      final manga   = await isar.mangaEntrys.get(mangaId);
+      final manga = await isar.mangaEntrys.get(mangaId);
       final chapter = await isar.chapterEntrys.get(chapterId);
       if (manga == null || chapter == null) return;
       if (!chapter.isRead) {
         chapter
-          ..isRead    = true
-          ..readAt    = DateTime.now()
+          ..isRead = true
+          ..readAt = DateTime.now()
           ..lastPageRead = lastPage;
-        manga
-          ..unreadCount         = (manga.unreadCount - 1).clamp(0, 9999)
-          ..lastReadChapterId   = chapter.sourceChapterId
-          ..lastReadPage        = lastPage
-          ..lastReadAt          = DateTime.now();
         await isar.chapterEntrys.put(chapter);
+
+        final unread = await isar.chapterEntrys
+            .filter()
+            .mangaIdEqualTo(mangaId)
+            .isReadEqualTo(false)
+            .count();
+        manga
+          ..unreadCount = unread
+          ..lastReadChapterId = chapter.sourceChapterId
+          ..lastReadChapterNumber = chapter.number
+          ..lastReadPage = lastPage
+          ..lastReadAt = DateTime.now();
+
         await isar.mangaEntrys.put(manga);
       }
     });
@@ -245,8 +253,13 @@ class LibraryNotifier extends AsyncNotifier<void> {
         }
       }
       final manga = await isar.mangaEntrys.get(mangaId);
+      final unread = await isar.chapterEntrys
+          .filter()
+          .mangaIdEqualTo(mangaId)
+          .isReadEqualTo(false)
+          .count();
       if (manga != null) {
-        manga.unreadCount = 0;
+        manga.unreadCount = unread;
         await isar.mangaEntrys.put(manga);
       }
     });
