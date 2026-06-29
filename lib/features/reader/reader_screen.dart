@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:io' show Platform;
+import 'dart:io';
 
 import 'package:extended_image/extended_image.dart';
 import 'package:flutter/cupertino.dart';
@@ -21,10 +21,12 @@ class ReaderChapterSummary {
     required this.id,
     required this.sourceChapterId,
     required this.title,
+    this.downloadPath,
   });
   final int id;
   final String sourceChapterId;
   final String title;
+  final String? downloadPath;
 }
 
 class ReaderScreen extends ConsumerStatefulWidget {
@@ -35,6 +37,7 @@ class ReaderScreen extends ConsumerStatefulWidget {
     required this.sourceId,
     required this.sourceChapterId,
     required this.chapterTitle,
+    this.downloadPath,
     this.isWebtoon = false,
     this.chapters = const [],
     this.chapterIndex = -1,
@@ -45,6 +48,7 @@ class ReaderScreen extends ConsumerStatefulWidget {
   final String sourceId;
   final String sourceChapterId;
   final String chapterTitle;
+  final String? downloadPath;
   final bool isWebtoon;
   final List<ReaderChapterSummary> chapters;
   final int chapterIndex;
@@ -162,6 +166,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
           sourceId: widget.sourceId,
           sourceChapterId: next.sourceChapterId,
           chapterTitle: next.title,
+          downloadPath: next.downloadPath,
           isWebtoon: widget.isWebtoon,
           chapters: widget.chapters,
           chapterIndex: nextIdx,
@@ -242,6 +247,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
       chapterPagesProvider(ChapterKey(
         sourceId: widget.sourceId,
         chapterId: widget.sourceChapterId,
+        downloadPath: widget.downloadPath,
       )),
     );
     final readerState   = ref.watch(readerProvider);
@@ -644,6 +650,28 @@ class _ReaderPage extends ConsumerWidget {
   final int index;
   final ReaderBackground background;
 
+  Widget? _loadStateOverlay(ExtendedImageState state) {
+    switch (state.extendedImageLoadState) {
+      case LoadState.loading:
+        return const Center(child: CupertinoActivityIndicator());
+      case LoadState.failed:
+        return Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(CupertinoIcons.exclamationmark_circle,
+                  color: AppColors.textTertiary, size: 32),
+              const SizedBox(height: 8),
+              Text('Failed to load page ${index + 1}',
+                  style: const TextStyle(color: AppColors.textTertiary)),
+            ],
+          ),
+        );
+      case LoadState.completed:
+        return null;
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final scale = ref.watch(pageScaleModeProvider);
@@ -654,42 +682,34 @@ class _ReaderPage extends ConsumerWidget {
       PageScaleMode.original  => BoxFit.none,
     };
 
+    final gestureConfig = GestureConfig(
+      minScale: 0.9,
+      animationMinScale: 0.7,
+      maxScale: 3.5,
+      animationMaxScale: 4.0,
+      speed: 1.0,
+      inertialSpeed: 100.0,
+      initialScale: 1.0,
+      inPageView: true,
+      initialAlignment: InitialAlignment.center,
+    );
+
+    if (url.startsWith('/') || url.startsWith('file://')) {
+      return ExtendedImage.file(
+        File(url),
+        fit: fit,
+        mode: ExtendedImageMode.gesture,
+        initGestureConfigHandler: (_) => gestureConfig,
+        loadStateChanged: _loadStateOverlay,
+      );
+    }
+
     return ExtendedImage.network(
       url,
       fit: fit,
       mode: ExtendedImageMode.gesture,
-      initGestureConfigHandler: (_) => GestureConfig(
-        minScale: 0.9,
-        animationMinScale: 0.7,
-        maxScale: 3.5,
-        animationMaxScale: 4.0,
-        speed: 1.0,
-        inertialSpeed: 100.0,
-        initialScale: 1.0,
-        inPageView: true,
-        initialAlignment: InitialAlignment.center,
-      ),
-      loadStateChanged: (state) {
-        switch (state.extendedImageLoadState) {
-          case LoadState.loading:
-            return const Center(child: CupertinoActivityIndicator());
-          case LoadState.failed:
-            return Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(CupertinoIcons.exclamationmark_circle,
-                      color: AppColors.textTertiary, size: 32),
-                  const SizedBox(height: 8),
-                  Text('Failed to load page ${index + 1}',
-                      style: const TextStyle(color: AppColors.textTertiary)),
-                ],
-              ),
-            );
-          case LoadState.completed:
-            return null;
-        }
-      },
+      initGestureConfigHandler: (_) => gestureConfig,
+      loadStateChanged: _loadStateOverlay,
     );
   }
 }
@@ -702,44 +722,56 @@ class _WebtoonPage extends StatelessWidget {
   final String url;
   final int index;
 
+  Widget? _loadStateOverlay(ExtendedImageState state, double screenWidth) {
+    switch (state.extendedImageLoadState) {
+      case LoadState.loading:
+        return SizedBox(
+          width: screenWidth,
+          height: screenWidth * 1.5,
+          child: const Center(child: CupertinoActivityIndicator()),
+        );
+      case LoadState.failed:
+        return SizedBox(
+          width: screenWidth,
+          height: 200,
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(CupertinoIcons.exclamationmark_circle,
+                    color: AppColors.textTertiary, size: 32),
+                const SizedBox(height: 8),
+                Text('Failed to load image ${index + 1}',
+                    style: const TextStyle(color: AppColors.textTertiary)),
+              ],
+            ),
+          ),
+        );
+      case LoadState.completed:
+        return null;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
+
+    if (url.startsWith('/') || url.startsWith('file://')) {
+      return ExtendedImage.file(
+        File(url),
+        fit: BoxFit.fitWidth,
+        width: screenWidth,
+        mode: ExtendedImageMode.none,
+        loadStateChanged: (s) => _loadStateOverlay(s, screenWidth),
+      );
+    }
 
     return ExtendedImage.network(
       url,
       fit: BoxFit.fitWidth,
       width: screenWidth,
       mode: ExtendedImageMode.none,
-      loadStateChanged: (state) {
-        switch (state.extendedImageLoadState) {
-          case LoadState.loading:
-            return SizedBox(
-              width: screenWidth,
-              height: screenWidth * 1.5,
-              child: const Center(child: CupertinoActivityIndicator()),
-            );
-          case LoadState.failed:
-            return SizedBox(
-              width: screenWidth,
-              height: 200,
-              child: Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(CupertinoIcons.exclamationmark_circle,
-                        color: AppColors.textTertiary, size: 32),
-                    const SizedBox(height: 8),
-                    Text('Failed to load image ${index + 1}',
-                        style: const TextStyle(color: AppColors.textTertiary)),
-                  ],
-                ),
-              ),
-            );
-          case LoadState.completed:
-            return null;
-        }
-      },
+      loadStateChanged: (s) => _loadStateOverlay(s, screenWidth),
     );
   }
 }

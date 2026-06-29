@@ -603,6 +603,7 @@ class _DetailSheetState extends ConsumerState<_DetailSheet> {
               id: c.id,
               sourceChapterId: c.sourceChapterId,
               title: c.title,
+              downloadPath: c.downloadPath,
             ))
         .toList();
     Navigator.of(context, rootNavigator: true).push(
@@ -614,6 +615,7 @@ class _DetailSheetState extends ConsumerState<_DetailSheet> {
           sourceId: manga.sourceId,
           sourceChapterId: chapter.sourceChapterId,
           chapterTitle: chapter.title,
+          downloadPath: chapter.downloadPath,
           isWebtoon: isWebtoon,
           chapters: summaries,
           chapterIndex: index,
@@ -825,6 +827,7 @@ class _ActionRow extends ConsumerWidget {
               id: c.id,
               sourceChapterId: c.sourceChapterId,
               title: c.title,
+              downloadPath: c.downloadPath,
             ))
         .toList();
     Navigator.of(context, rootNavigator: true).push(
@@ -836,6 +839,7 @@ class _ActionRow extends ConsumerWidget {
           sourceId: manga.sourceId,
           sourceChapterId: target.sourceChapterId,
           chapterTitle: target.title,
+          downloadPath: target.downloadPath,
           isWebtoon: _isWebtoon(manga),
           chapters: summaries,
           chapterIndex: index,
