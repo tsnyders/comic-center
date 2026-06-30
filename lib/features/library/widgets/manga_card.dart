@@ -126,7 +126,7 @@ class _BottomOverlay extends StatelessWidget {
           // rgba(0,0,0,.85) at bottom → transparent at top (~40% height)
           stops: [0.0, 0.55, 1.0],
           colors: [
-            Color(0xD9000000),
+            AppColors.scrimStrong,
             Color(0x66000000),
             Color(0x00000000),
           ],

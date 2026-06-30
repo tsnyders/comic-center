@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -35,12 +37,21 @@ class LibraryScreen extends ConsumerStatefulWidget {
 class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   final _scrollController = ScrollController();
   final _searchController = TextEditingController();
+  Timer? _searchDebounce;
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _scrollController.dispose();
     _searchController.dispose();
     super.dispose();
+  }
+
+  void _onSearchChanged(String query) {
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 300), () {
+      ref.read(librarySearchProvider.notifier).state = query;
+    });
   }
 
   @override
@@ -89,8 +100,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                   ),
                   child: _SearchField(
                     controller: _searchController,
-                    onChanged: (q) =>
-                        ref.read(librarySearchProvider.notifier).state = q,
+                    onChanged: _onSearchChanged,
                     onFilterTap: () => showCupertinoModalPopup<void>(
                       context: context,
                       builder: (_) => const LibraryFilterSheet(),

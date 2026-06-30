@@ -101,7 +101,20 @@ abstract final class AppColors {
   // ─────────────────────────────────────────────────────────────────────────────
   static const readerBackground = Color(0xFF000000);
   static const readerDim        = Color(0xFF0A0A0A);
+  static const readerWhite      = Color(0xFFFFFFFF);
   static const readerSepia      = Color(0xFFF4ECD8);
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Scrims — text-legibility gradients over cover art / images
+  // ─────────────────────────────────────────────────────────────────────────────
+  static const scrimStrong = Color(0xD9000000); // 85% black
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Floating chrome (root nav pill) — deliberately theme-independent translucent
+  // surfaces, distinct from the opaque surfaceElevated tokens above.
+  // ─────────────────────────────────────────────────────────────────────────────
+  static const navPillDark  = Color(0xCC15151B);
+  static const navPillLight = Color(0xCCFFFFFF);
 
   // ─────────────────────────────────────────────────────────────────────────────
   // Ambient backdrop seeds (hero gradient backgrounds) — teal-tinted ink
@@ -135,6 +148,7 @@ abstract final class AppColors {
   static const heroGradientColors = heroGradientDark;
   static const ambientGradient    = ambientDark;
   static const tabBarBackground   = Color(0xF2121217);
+  static const lightTabBarBackground = Color(0xEBF6F4F2);
   static const surfaceSunkenLegacy = Color(0xFF050507);
 }
 
@@ -186,5 +200,5 @@ extension AppColorsX on BuildContext {
 
   // Back-compat
   Color get tabBarColor =>
-      isDark ? AppColors.tabBarBackground : const Color(0xEBFBF9F4);
+      isDark ? AppColors.tabBarBackground : AppColors.lightTabBarBackground;
 }

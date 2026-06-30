@@ -38,6 +38,7 @@ dependencies:
 
   # Backup / archive
   archive: ^3.6.1
+  encrypt: ^5.0.3
 
   # Google Drive sync
   googleapis: ^12.0.0

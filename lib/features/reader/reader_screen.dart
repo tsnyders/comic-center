@@ -9,6 +9,7 @@ import 'package:screen_brightness/screen_brightness.dart';
 
 import '../../core/providers/library_provider.dart';
 import '../../core/providers/reader_provider.dart';
+import '../../core/services/app_logger.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import 'widgets/page_pill.dart';
@@ -142,7 +143,9 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   Future<void> _restoreBrightness() async {
     try {
       await ScreenBrightness().resetScreenBrightness();
-    } catch (_) {}
+    } catch (e, st) {
+      AppLogger.instance.warn('Failed to reset screen brightness on reader close', e, st);
+    }
   }
 
   // ── Next chapter navigation ──────────────────────────────────────────────
@@ -243,22 +246,21 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final pagesAsync = ref.watch(
-      chapterPagesProvider(ChapterKey(
-        sourceId: widget.sourceId,
-        chapterId: widget.sourceChapterId,
-        downloadPath: widget.downloadPath,
-      )),
+    final chapterKey = ChapterKey(
+      sourceId: widget.sourceId,
+      chapterId: widget.sourceChapterId,
+      downloadPath: widget.downloadPath,
     );
+    final pagesAsync = ref.watch(chapterPagesProvider(chapterKey));
     final readerState   = ref.watch(readerProvider);
-    final direction     = ref.watch(readingDirectionProvider);
+    final direction     = ref.watch(effectiveReadingDirectionProvider(widget.mangaId));
     final background    = ref.watch(readerBackgroundProvider);
     final chromeVisible = readerState.chromeVisible;
 
     final bgColor = switch (background) {
       ReaderBackground.black => AppColors.readerBackground,
-      ReaderBackground.white => const Color(0xFFFFFFFF),
-      ReaderBackground.sepia => const Color(0xFFF5E6C8),
+      ReaderBackground.white => AppColors.readerWhite,
+      ReaderBackground.sepia => AppColors.readerSepia,
     };
 
     return CupertinoPageScaffold(
@@ -266,8 +268,28 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
       child: pagesAsync.when(
         loading: () => const Center(child: CupertinoActivityIndicator()),
         error: (e, _) => Center(
-          child: Text(e.toString(),
-              style: const TextStyle(color: AppColors.textSecondary)),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(CupertinoIcons.exclamationmark_circle,
+                  color: AppColors.textTertiary, size: 32),
+              const SizedBox(height: 8),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 32),
+                child: Text(
+                  e.toString(),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: AppColors.textSecondary),
+                ),
+              ),
+              const SizedBox(height: 16),
+              CupertinoButton(
+                color: AppColors.accent,
+                onPressed: () => ref.invalidate(chapterPagesProvider(chapterKey)),
+                child: const Text('Retry'),
+              ),
+            ],
+          ),
         ),
         data: (pages) {
           final currentTotal = ref.read(readerProvider).totalPages;
@@ -362,7 +384,27 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     final isRtl      = direction == ReadingDirection.rtl;
 
     return GestureDetector(
-      onTap: () => ref.read(readerProvider.notifier).toggleChrome(),
+      // Left/right edge tap zones turn the page (the non-hardware-key
+      // alternative to Android's volume-button paging — also useful on
+      // Android as a faster alternative to swiping). Middle third toggles
+      // chrome. Zones are swapped under RTL so "tap toward the spine"
+      // always means "go forward," matching swipe direction. Vertical
+      // paging has no left/right concept, so it keeps tap-to-toggle only.
+      onTapUp: (details) {
+        if (isVertical) {
+          ref.read(readerProvider.notifier).toggleChrome();
+          return;
+        }
+        final width = MediaQuery.sizeOf(context).width;
+        final x = details.localPosition.dx;
+        if (x < width / 3) {
+          _turnPage(forward: isRtl);
+        } else if (x > width * 2 / 3) {
+          _turnPage(forward: !isRtl);
+        } else {
+          ref.read(readerProvider.notifier).toggleChrome();
+        }
+      },
       // Swipe down to dismiss the reader (horizontal paging only, where
       // vertical drags are otherwise unused).
       onVerticalDragEnd: isVertical
@@ -425,7 +467,10 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   void _showSettings(BuildContext context) {
     showCupertinoModalPopup<void>(
       context: context,
-      builder: (_) => _ReaderSettingsSheet(isWebtoon: widget.isWebtoon),
+      builder: (_) => _ReaderSettingsSheet(
+        isWebtoon: widget.isWebtoon,
+        mangaId: widget.mangaId,
+      ),
     );
   }
 }
@@ -433,14 +478,16 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
 // ── Reader settings bottom sheet ───────────────────────────────────────────
 
 class _ReaderSettingsSheet extends ConsumerWidget {
-  const _ReaderSettingsSheet({required this.isWebtoon});
+  const _ReaderSettingsSheet({required this.isWebtoon, required this.mangaId});
   final bool isWebtoon;
+  final int mangaId;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final direction  = ref.watch(readingDirectionProvider);
-    final scale      = ref.watch(pageScaleModeProvider);
-    final background = ref.watch(readerBackgroundProvider);
+    final direction      = ref.watch(readingDirectionProvider);
+    final titleOverride  = ref.watch(mangaReadingDirectionProvider(mangaId));
+    final scale          = ref.watch(pageScaleModeProvider);
+    final background     = ref.watch(readerBackgroundProvider);
 
     return Container(
       decoration: const BoxDecoration(
@@ -481,6 +528,7 @@ class _ReaderSettingsSheet extends ConsumerWidget {
             const SizedBox(height: 8),
             _OptionRow<ReadingDirection>(
               value: direction,
+              groupLabel: 'Reading Direction',
               options: const [
                 (ReadingDirection.ltr, 'Left → Right'),
                 (ReadingDirection.rtl, 'Right → Left'),
@@ -488,6 +536,28 @@ class _ReaderSettingsSheet extends ConsumerWidget {
               ],
               onChanged: (v) =>
                   ref.read(readingDirectionProvider.notifier).state = v,
+            ),
+            const SizedBox(height: 16),
+
+            // Per-title override — manhwa/webtoon and manga have opposite
+            // natural defaults, so this avoids flipping the global setting
+            // every time the user switches between genres.
+            Text('FOR THIS TITLE',
+                style: AppTextStyles.labelSmall
+                    .copyWith(color: AppColors.textTertiary)),
+            const SizedBox(height: 8),
+            _OptionRow<ReadingDirection?>(
+              value: titleOverride,
+              groupLabel: 'Reading Direction For This Title',
+              options: const [
+                (null, 'Use Default'),
+                (ReadingDirection.ltr, 'L→R'),
+                (ReadingDirection.rtl, 'R→L'),
+                (ReadingDirection.vertical, 'Vertical'),
+              ],
+              onChanged: (v) => ref
+                  .read(mangaReadingDirectionProvider(mangaId).notifier)
+                  .state = v,
             ),
             const SizedBox(height: 16),
           ],
@@ -499,6 +569,7 @@ class _ReaderSettingsSheet extends ConsumerWidget {
             const SizedBox(height: 8),
             _OptionRow<PageScaleMode>(
               value: scale,
+              groupLabel: 'Page Scale',
               options: const [
                 (PageScaleMode.fitWidth, 'Fit Width'),
                 (PageScaleMode.fitHeight, 'Fit Height'),
@@ -523,6 +594,7 @@ class _ReaderSettingsSheet extends ConsumerWidget {
           const SizedBox(height: 8),
           _OptionRow<ReaderBackground>(
             value: background,
+            groupLabel: 'Background',
             options: const [
               (ReaderBackground.black, 'Black'),
               (ReaderBackground.white, 'White'),
@@ -558,14 +630,22 @@ class _BrightnessSliderState extends State<_BrightnessSlider> {
     try {
       final current = await ScreenBrightness().current;
       if (mounted) setState(() => _value = current.clamp(0.0, 1.0));
-    } catch (_) {}
+    } catch (e, st) {
+      AppLogger.instance.warn('Failed to read current screen brightness', e, st);
+    }
   }
 
   Future<void> _set(double v) async {
+    final previous = _value;
     setState(() => _value = v);
     try {
       await ScreenBrightness().setScreenBrightness(v);
-    } catch (_) {}
+    } catch (e, st) {
+      AppLogger.instance.error('Failed to set screen brightness', e, st);
+      // Snap the slider back to the last value that actually applied, so the
+      // UI never shows a brightness the device isn't really at.
+      if (mounted) setState(() => _value = previous);
+    }
   }
 
   @override
@@ -575,10 +655,15 @@ class _BrightnessSliderState extends State<_BrightnessSlider> {
         const Icon(CupertinoIcons.sun_min,
             size: 18, color: AppColors.textTertiary),
         Expanded(
-          child: CupertinoSlider(
-            value: _value,
-            activeColor: AppColors.accent,
-            onChanged: _set,
+          child: Semantics(
+            label: 'Brightness',
+            slider: true,
+            value: '${(_value * 100).round()}%',
+            child: CupertinoSlider(
+              value: _value,
+              activeColor: AppColors.accent,
+              onChanged: _set,
+            ),
           ),
         ),
         const Icon(CupertinoIcons.sun_max_fill,
@@ -593,11 +678,17 @@ class _OptionRow<T> extends StatelessWidget {
     required this.value,
     required this.options,
     required this.onChanged,
+    required this.groupLabel,
   });
 
   final T value;
   final List<(T, String)> options;
   final ValueChanged<T> onChanged;
+
+  /// Read by screen readers as part of each option's label, e.g.
+  /// "Reading Direction: Vertical" — so VoiceOver/TalkBack announce what the
+  /// control does, not just the selected option's name in isolation.
+  final String groupLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -606,28 +697,33 @@ class _OptionRow<T> extends StatelessWidget {
       runSpacing: 8,
       children: options.map((opt) {
         final selected = value == opt.$1;
-        return GestureDetector(
-          onTap: () {
-            HapticFeedback.selectionClick();
-            onChanged(opt.$1);
-          },
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 140),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-            decoration: BoxDecoration(
-              color: selected ? AppColors.accent : AppColors.surface,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: selected ? AppColors.accent : AppColors.borderStrong,
-                width: 0.5,
+        return Semantics(
+          label: '$groupLabel: ${opt.$2}',
+          selected: selected,
+          button: true,
+          child: GestureDetector(
+            onTap: () {
+              HapticFeedback.selectionClick();
+              onChanged(opt.$1);
+            },
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 140),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+              decoration: BoxDecoration(
+                color: selected ? AppColors.accent : AppColors.surface,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: selected ? AppColors.accent : AppColors.borderStrong,
+                  width: 0.5,
+                ),
               ),
-            ),
-            child: Text(
-              opt.$2,
-              style: TextStyle(
-                fontSize: 13,
-                color: selected ? AppColors.textOnAccent : AppColors.textSecondary,
-                fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+              child: Text(
+                opt.$2,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: selected ? AppColors.textOnAccent : AppColors.textSecondary,
+                  fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                ),
               ),
             ),
           ),
@@ -755,6 +851,12 @@ class _WebtoonPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
+    // Decode at display resolution, not source resolution — webtoon strips
+    // can be 2000px+ wide; a 60-page chapter decoded at full source size
+    // can consume 150-300MB of RAM. Capping to screen width * DPR keeps
+    // every visible page sharp while bounding memory per image.
+    final cacheWidth =
+        (screenWidth * MediaQuery.devicePixelRatioOf(context)).round();
 
     if (url.startsWith('/') || url.startsWith('file://')) {
       return ExtendedImage.file(
@@ -762,6 +864,7 @@ class _WebtoonPage extends StatelessWidget {
         fit: BoxFit.fitWidth,
         width: screenWidth,
         mode: ExtendedImageMode.none,
+        cacheWidth: cacheWidth,
         loadStateChanged: (s) => _loadStateOverlay(s, screenWidth),
       );
     }
@@ -771,6 +874,7 @@ class _WebtoonPage extends StatelessWidget {
       fit: BoxFit.fitWidth,
       width: screenWidth,
       mode: ExtendedImageMode.none,
+      cacheWidth: cacheWidth,
       loadStateChanged: (s) => _loadStateOverlay(s, screenWidth),
     );
   }

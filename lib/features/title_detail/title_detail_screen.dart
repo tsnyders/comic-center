@@ -268,6 +268,8 @@ class _DetailSheetState extends ConsumerState<_DetailSheet> {
   /// false = newest first (default, matches source order); true = oldest first.
   bool _ascending = false;
 
+  bool _refreshingChapters = false;
+
   MangaEntry get manga => widget.manga;
   ScrollController get scrollController => widget.scrollController;
 
@@ -404,9 +406,11 @@ class _DetailSheetState extends ConsumerState<_DetailSheet> {
                     onShowDownloadSheet: () => _showDownloadSheet(
                       context: context,
                       ref: ref,
-                      title: 'Download All Chapters',
+                      title: 'Download Unread Chapters',
                       onConfirm: () {
-                        final chs = chapters.valueOrNull ?? [];
+                        final chs = (chapters.valueOrNull ?? [])
+                            .where((c) => !c.isRead)
+                            .toList();
                         ref.read(downloadManagerProvider.notifier).enqueueAll(
                               manga: manga,
                               chapters: chs,
@@ -456,6 +460,11 @@ class _DetailSheetState extends ConsumerState<_DetailSheet> {
                           ),
                         ),
                       ),
+                      _RefreshButton(
+                        refreshing: _refreshingChapters,
+                        onTap: _refreshChapters,
+                      ),
+                      const SizedBox(width: AppSpacing.x5),
                       _SortButton(
                         ascending: _ascending,
                         onTap: () => setState(() => _ascending = !_ascending),
@@ -678,6 +687,46 @@ class _DetailSheetState extends ConsumerState<_DetailSheet> {
 
   String _capitalise(String s) =>
       s.isEmpty ? s : '${s[0].toUpperCase()}${s.substring(1)}';
+
+  Future<void> _refreshChapters() async {
+    if (_refreshingChapters) return;
+    final source = ref.read(sourceByIdProvider(manga.sourceId));
+    if (source == null) {
+      _showRefreshError('Source "${manga.sourceId}" is not installed.');
+      return;
+    }
+    setState(() => _refreshingChapters = true);
+    try {
+      await refreshMangaChapters(
+        isar: ref.read(isarProvider),
+        source: source,
+        mangaId: manga.id,
+        sourceMangaId: manga.sourceMangaId,
+      );
+      ref.invalidate(chapterSyncProvider(manga.id));
+    } catch (e) {
+      _showRefreshError(e.toString());
+    } finally {
+      if (mounted) setState(() => _refreshingChapters = false);
+    }
+  }
+
+  void _showRefreshError(String message) {
+    if (!mounted) return;
+    showCupertinoDialog<void>(
+      context: context,
+      builder: (_) => CupertinoAlertDialog(
+        title: const Text('Refresh Failed'),
+        content: Text(message),
+        actions: [
+          CupertinoDialogAction(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 // ── Sort button ────────────────────────────────────────────────────────────
@@ -707,6 +756,54 @@ class _SortButton extends StatelessWidget {
           const SizedBox(width: 4),
           Text(
             ascending ? 'Oldest' : 'Newest',
+            style: AppTextStyles.overline.copyWith(
+              color: context.accentColor,
+              letterSpacing: 0,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Refresh (check for updates) button ─────────────────────────────────────
+
+class _RefreshButton extends StatelessWidget {
+  const _RefreshButton({required this.refreshing, required this.onTap});
+  final bool refreshing;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: refreshing
+          ? null
+          : () {
+              HapticFeedback.selectionClick();
+              onTap();
+            },
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (refreshing)
+            SizedBox(
+              width: 13,
+              height: 13,
+              child: CupertinoActivityIndicator(
+                radius: 6.5,
+                color: context.accentColor,
+              ),
+            )
+          else
+            Icon(
+              CupertinoIcons.arrow_2_circlepath,
+              size: 13,
+              color: context.accentColor,
+            ),
+          const SizedBox(width: 4),
+          Text(
+            refreshing ? 'Checking…' : 'Check Updates',
             style: AppTextStyles.overline.copyWith(
               color: context.accentColor,
               letterSpacing: 0,

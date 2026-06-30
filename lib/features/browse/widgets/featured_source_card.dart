@@ -5,6 +5,17 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
 
+/// Shared top-left sheen overlay used by both the loaded and placeholder
+/// card variants below.
+const _sheenGradient = LinearGradient(
+  begin: Alignment.topLeft,
+  end: Alignment.bottomRight,
+  colors: [
+    Color(0x1AFFFFFF),
+    Color(0x00FFFFFF),
+  ],
+);
+
 class FeaturedSourceCard extends StatefulWidget {
   const FeaturedSourceCard({
     super.key,
@@ -57,14 +68,7 @@ class _FeaturedSourceCardState extends State<FeaturedSourceCard> {
                 child: DecoratedBox(
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(AppRadius.lg),
-                    gradient: const LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        Color(0x1AFFFFFF),
-                        Color(0x00FFFFFF),
-                      ],
-                    ),
+                    gradient: _sheenGradient,
                   ),
                 ),
               ),
@@ -167,14 +171,7 @@ class _FeaturedSourcePlaceholderCardState
                 child: DecoratedBox(
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(AppRadius.lg),
-                    gradient: const LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        Color(0x1AFFFFFF),
-                        Color(0x00FFFFFF),
-                      ],
-                    ),
+                    gradient: _sheenGradient,
                   ),
                 ),
               ),

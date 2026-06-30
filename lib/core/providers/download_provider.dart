@@ -53,8 +53,8 @@ final chapterDownloadStatusProvider =
 
 class DownloadManager extends AsyncNotifier<void> {
   final _dio = Dio(BaseOptions(
-    connectTimeout: const Duration(seconds: 20),
-    receiveTimeout: const Duration(seconds: 60),
+    connectTimeout: const Duration(seconds: 15),
+    receiveTimeout: const Duration(seconds: 20),
   ));
   bool _isProcessing = false;
 
@@ -128,9 +128,7 @@ class DownloadManager extends AsyncNotifier<void> {
     _processQueue();
   }
 
-  /**
-   * This is the cancel function for the downloads
-   */
+  /// This is the cancel function for the downloads
   Future<void> cancel(int downloadId) async {
     final isar = ref.read(isarProvider);
     final entry = await isar.downloadEntrys.get(downloadId);

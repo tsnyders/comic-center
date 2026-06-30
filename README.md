@@ -106,6 +106,10 @@ abstract class MangaSource {
 }
 ```
 
+See [`docs/SOURCES.md`](docs/SOURCES.md) for the full field-by-field
+contract, error-handling conventions, and the checklist for wiring up and
+registering a new source.
+
 ---
 
 ## Getting Started

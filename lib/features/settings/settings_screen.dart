@@ -15,6 +15,7 @@ import '../../core/theme/app_text_styles.dart';
 import '../library/category_management_screen.dart';
 import 'backup_restore_screen.dart';
 import 'changelog_screen.dart';
+import 'diagnostics_screen.dart';
 import 'drive_restore_screen.dart';
 
 // ── Icon chip colors ──────────────────────────────────────────────────────
@@ -94,6 +95,7 @@ class SettingsScreen extends ConsumerWidget {
               label: 'Theme Mode',
               trailing: _SegmentedPicker<Brightness>(
                 value: brightness,
+                groupLabel: 'Theme Mode',
                 items: const [
                   (Brightness.dark, 'Dark'),
                   (Brightness.light, 'Light'),
@@ -122,11 +124,15 @@ class SettingsScreen extends ConsumerWidget {
               icon: CupertinoIcons.repeat,
               iconBgColor: _IColor.green,
               label: 'Auto-Update',
-              trailing: CupertinoSwitch(
-                value: autoUpdate,
-                activeTrackColor: context.downloadedColor,
-                onChanged: (v) =>
-                    ref.read(autoCheckUpdatesProvider.notifier).state = v,
+              trailing: Semantics(
+                label: 'Auto-Update',
+                toggled: autoUpdate,
+                child: CupertinoSwitch(
+                  value: autoUpdate,
+                  activeTrackColor: context.downloadedColor,
+                  onChanged: (v) =>
+                      ref.read(autoCheckUpdatesProvider.notifier).state = v,
+                ),
               ),
               isLast: true,
             ),
@@ -140,6 +146,7 @@ class SettingsScreen extends ConsumerWidget {
               label: 'Reading Direction',
               trailing: _SegmentedPicker<ReadingDirection>(
                 value: direction,
+                groupLabel: 'Reading Direction',
                 items: const [
                   (ReadingDirection.ltr, 'L→R'),
                   (ReadingDirection.rtl, 'R→L'),
@@ -155,6 +162,7 @@ class SettingsScreen extends ConsumerWidget {
               label: 'Page Scale',
               trailing: _SegmentedPicker<PageScaleMode>(
                 value: scale,
+                groupLabel: 'Page Scale',
                 items: const [
                   (PageScaleMode.fitWidth, 'Width'),
                   (PageScaleMode.fitHeight, 'Height'),
@@ -170,6 +178,7 @@ class SettingsScreen extends ConsumerWidget {
               label: 'Background',
               trailing: _SegmentedPicker<ReaderBackground>(
                 value: background,
+                groupLabel: 'Reader Background',
                 items: const [
                   (ReaderBackground.black, 'Black'),
                   (ReaderBackground.white, 'White'),
@@ -190,6 +199,7 @@ class SettingsScreen extends ConsumerWidget {
               label: 'Storage Location',
               trailing: _SegmentedPicker<DownloadLocation>(
                 value: dlLocation,
+                groupLabel: 'Storage Location',
                 items: const [
                   (DownloadLocation.local, 'Local'),
                   (DownloadLocation.googleDrive, 'Drive'),
@@ -308,6 +318,17 @@ class SettingsScreen extends ConsumerWidget {
               label: 'Check for Updates',
               trailing: const _Chevron(),
               onTap: () => _checkForUpdates(context),
+            ),
+            _SettingRow(
+              icon: CupertinoIcons.doc_text_search,
+              iconBgColor: _IColor.gray,
+              label: 'Diagnostics',
+              trailing: const _Chevron(),
+              onTap: () => Navigator.of(context, rootNavigator: true).push(
+                CupertinoPageRoute<void>(
+                  builder: (_) => const DiagnosticsScreen(),
+                ),
+              ),
               isLast: true,
             ),
           ]),
@@ -600,11 +621,17 @@ class _SegmentedPicker<T> extends StatelessWidget {
     required this.value,
     required this.items,
     required this.onChanged,
+    required this.groupLabel,
   });
 
   final T value;
   final List<(T, String)> items;
   final ValueChanged<T> onChanged;
+
+  /// Read by screen readers as part of each segment's label, e.g.
+  /// "Theme Mode: Dark" — so VoiceOver/TalkBack announce what the control
+  /// does, not just the selected option's name in isolation.
+  final String groupLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -615,6 +642,7 @@ class _SegmentedPicker<T> extends StatelessWidget {
           if (i > 0) const SizedBox(width: AppSpacing.x3),
           _Pill(
             label: items[i].$2,
+            semanticLabel: '$groupLabel: ${items[i].$2}',
             selected: value == items[i].$1,
             onTap: () => onChanged(items[i].$1),
           ),
@@ -629,40 +657,47 @@ class _SegmentedPicker<T> extends StatelessWidget {
 class _Pill extends StatelessWidget {
   const _Pill({
     required this.label,
+    required this.semanticLabel,
     required this.selected,
     required this.onTap,
   });
 
   final String label;
+  final String semanticLabel;
   final bool selected;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final accent = context.accentColor;
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: AppMotion.fast,
-        curve: AppMotion.standard,
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.x5,
-          vertical: AppSpacing.x2 + 1,
-        ),
-        decoration: BoxDecoration(
-          color: selected ? accent : context.surfaceColor,
-          borderRadius: BorderRadius.circular(AppRadius.sm),
-          border: Border.all(
-            color: selected ? accent : context.borderStrongColor,
-            width: AppRadius.hairline,
+    return Semantics(
+      label: semanticLabel,
+      selected: selected,
+      button: true,
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: AppMotion.fast,
+          curve: AppMotion.standard,
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.x5,
+            vertical: AppSpacing.x2 + 1,
           ),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: selected ? AppColors.textOnAccent : context.textSecondaryColor,
-            fontSize: 11,
-            fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+          decoration: BoxDecoration(
+            color: selected ? accent : context.surfaceColor,
+            borderRadius: BorderRadius.circular(AppRadius.sm),
+            border: Border.all(
+              color: selected ? accent : context.borderStrongColor,
+              width: AppRadius.hairline,
+            ),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              color: selected ? AppColors.textOnAccent : context.textSecondaryColor,
+              fontSize: 11,
+              fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+            ),
           ),
         ),
       ),
