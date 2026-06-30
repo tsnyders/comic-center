@@ -23,5 +23,12 @@ final brightnessProvider = StateProvider<Brightness>((ref) {
       : Brightness.light;
 });
 
+/// Whether the app automatically checks for updates on launch. Persisted.
+final autoCheckUpdatesProvider = StateProvider<bool>((ref) {
+  final prefs = ref.watch(sharedPreferencesProvider);
+  ref.listenSelf((_, next) => prefs.setBool('settings.autoCheckUpdates', next));
+  return prefs.getBool('settings.autoCheckUpdates') ?? true;
+});
+
 // Glass / blur surface theming has been removed from Comic Center.
 // Surfaces now use solid elevated layers — see AppColors and AppElevation.
