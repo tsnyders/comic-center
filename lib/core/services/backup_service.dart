@@ -1,16 +1,28 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:encrypt/encrypt.dart' as enc;
 import 'package:isar/isar.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../database/models/chapter_entry.dart';
 import '../database/models/manga_entry.dart';
 
 // ── Backup / Restore service ──────────────────────────────────────────────────
+//
+// Backup contents are PII (full reading history) — see TODO #38. Files on
+// disk are AES-256-CBC encrypted with a per-device key generated on first
+// use and stored in SharedPreferences. The key never leaves the device, so
+// a backup encrypted on one device CANNOT be decrypted on another — this is
+// a deliberate trade-off: it stops a casual look at an exported file (the
+// threat the TODO describes — a shared/stolen device) at the cost of
+// cross-device portability via Drive restore. Legacy plaintext backups
+// (written before this change) are still readable on restore.
 
 class BackupService {
   static const _version = 1;
+  static const _keyPrefKey = 'backup.encryptionKeyB64';
 
   // ── Export ──────────────────────────────────────────────────────────────────
 
@@ -70,8 +82,9 @@ class BackupService {
       'manga': mangaData,
     };
 
-    await file
-        .writeAsString(const JsonEncoder.withIndent('  ').convert(payload));
+    final plainJson = const JsonEncoder.withIndent('  ').convert(payload);
+    final envelope = await _encrypt(plainJson);
+    await file.writeAsString(jsonEncode(envelope));
     return BackupFile(file: file, createdAt: now, mangaCount: mangas.length);
   }
 
@@ -109,7 +122,19 @@ class BackupService {
       throw const FormatException('Backup file has an unexpected structure.');
     }
 
-    final json = decoded;
+    Map<String, dynamic> json;
+    if (decoded['enc'] == true) {
+      final plain = await _decrypt(decoded);
+      final innerDecoded = jsonDecode(plain);
+      if (innerDecoded is! Map<String, dynamic>) {
+        throw const FormatException(
+            'Decrypted backup has an unexpected structure.');
+      }
+      json = innerDecoded;
+    } else {
+      // Legacy backup written before encryption was added — restore as-is.
+      json = decoded;
+    }
 
     // Version Gate
     final version = json['version'];
@@ -213,6 +238,47 @@ class BackupService {
     });
 
     return RestoreResult(mangaCount: mangaCount, chapterCount: chapterCount);
+  }
+
+  // ── Encryption ──────────────────────────────────────────────────────────────
+
+  static Future<Map<String, dynamic>> _encrypt(String plainText) async {
+    final key = await _getOrCreateKey();
+    final iv = enc.IV.fromSecureRandom(16);
+    final encrypter = enc.Encrypter(enc.AES(key, mode: enc.AESMode.cbc));
+    final encrypted = encrypter.encrypt(plainText, iv: iv);
+    return {
+      'enc': true,
+      'iv': iv.base64,
+      'data': encrypted.base64,
+    };
+  }
+
+  static Future<String> _decrypt(Map<String, dynamic> envelope) async {
+    final ivB64 = envelope['iv'] as String?;
+    final dataB64 = envelope['data'] as String?;
+    if (ivB64 == null || dataB64 == null) {
+      throw const FormatException('Encrypted backup is missing iv/data.');
+    }
+    final key = await _getOrCreateKey();
+    final iv = enc.IV.fromBase64(ivB64);
+    final encrypter = enc.Encrypter(enc.AES(key, mode: enc.AESMode.cbc));
+    try {
+      return encrypter.decrypt64(dataB64, iv: iv);
+    } catch (e) {
+      throw FormatException(
+          'Could not decrypt this backup — it may have been created on a '
+          'different device. ($e)');
+    }
+  }
+
+  static Future<enc.Key> _getOrCreateKey() async {
+    final prefs = await SharedPreferences.getInstance();
+    final existing = prefs.getString(_keyPrefKey);
+    if (existing != null) return enc.Key.fromBase64(existing);
+    final key = enc.Key.fromSecureRandom(32); // AES-256
+    await prefs.setString(_keyPrefKey, key.base64);
+    return key;
   }
 
   // ── Helpers ─────────────────────────────────────────────────────────────────

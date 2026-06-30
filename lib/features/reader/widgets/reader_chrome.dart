@@ -113,7 +113,7 @@ class _TopBar extends StatelessWidget {
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: [
-            Color(0xD9000000), // 85% black at top
+            AppColors.scrimStrong, // 85% black at top
             Color(0x00000000), // transparent at bottom
           ],
         ),
@@ -196,7 +196,7 @@ class _BottomBar extends StatelessWidget {
           begin: Alignment.bottomCenter,
           end: Alignment.topCenter,
           colors: [
-            Color(0xD9000000), // 85% black at bottom
+            AppColors.scrimStrong, // 85% black at bottom
             Color(0x00000000), // transparent at top
           ],
         ),

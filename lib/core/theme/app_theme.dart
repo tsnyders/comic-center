@@ -24,7 +24,7 @@ abstract final class AppTheme {
       scaffoldBackgroundColor:
           isDark ? AppColors.background : AppColors.lightBackground,
       barBackgroundColor:
-          isDark ? AppColors.tabBarBackground : const Color(0xEBF6F4F2),
+          isDark ? AppColors.tabBarBackground : AppColors.lightTabBarBackground,
       textTheme: CupertinoTextThemeData(
         primaryColor:
             isDark ? AppColors.textPrimary : AppColors.lightTextPrimary,

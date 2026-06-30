@@ -5,6 +5,7 @@ import '../../core/database/models/download_entry.dart';
 import '../../core/providers/download_provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../settings/settings_screen.dart';
 
 class DownloadsScreen extends ConsumerWidget {
   const DownloadsScreen({super.key});
@@ -160,6 +161,15 @@ class _DownloadTile extends ConsumerWidget {
               ),
             ),
           ],
+          if (isFailed && entry.errorMessage != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              entry.errorMessage!,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: AppTextStyles.caption.copyWith(color: AppColors.warning),
+            ),
+          ],
           if (entry.status != DownloadStatus.completed) ...[
             const SizedBox(height: 10),
             Row(
@@ -170,7 +180,17 @@ class _DownloadTile extends ConsumerWidget {
                     label: 'Pause',
                     onTap: () => manager.pause(entry.id),
                   ),
-                if (isPaused || isFailed)
+                if (isFailed && _isGoogleDriveError(entry.errorMessage))
+                  _ActionChip(
+                    icon: CupertinoIcons.gear_alt,
+                    label: 'Open Settings',
+                    onTap: () => Navigator.of(context, rootNavigator: true).push(
+                      CupertinoPageRoute<void>(
+                        builder: (_) => const SettingsScreen(),
+                      ),
+                    ),
+                  )
+                else if (isPaused || isFailed)
                   _ActionChip(
                     icon: CupertinoIcons.play_fill,
                     label: isFailed ? 'Retry' : 'Resume',
@@ -191,6 +211,9 @@ class _DownloadTile extends ConsumerWidget {
     );
   }
 }
+
+bool _isGoogleDriveError(String? message) =>
+    message != null && message.contains('Google Drive');
 
 class _ActionChip extends StatelessWidget {
   const _ActionChip({

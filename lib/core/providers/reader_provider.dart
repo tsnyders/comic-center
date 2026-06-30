@@ -26,7 +26,12 @@ final chapterPagesProvider =
   // Fall back to network fetch
   final source = ref.watch(sourceByIdProvider(key.sourceId));
   if (source == null) throw Exception('Source ${key.sourceId} not found');
-  return source.fetchPageUrls(key.chapterId);
+  final pages = await source.fetchPageUrls(key.chapterId);
+  if (pages.isEmpty) {
+    throw Exception(
+        'No pages were found for this chapter. The source may have removed it.');
+  }
+  return pages;
 });
 
 class ChapterKey {
@@ -62,6 +67,34 @@ final readingDirectionProvider = StateProvider<ReadingDirection>((ref) {
   ref.listenSelf((_, next) => prefs.setInt('reader.direction', next.index));
   return readEnumPref(prefs, 'reader.direction', ReadingDirection.values,
       ReadingDirection.ltr);
+});
+
+/// Per-title reading direction override. `null` means "use the global
+/// [readingDirectionProvider] default" — webtoon manhwa and Japanese manga
+/// have opposite natural defaults, so a per-title override avoids having to
+/// flip the global setting every time the user switches between genres.
+final mangaReadingDirectionProvider =
+    StateProvider.family<ReadingDirection?, int>((ref, mangaId) {
+  final prefs = ref.watch(sharedPreferencesProvider);
+  final key = 'reader.direction.manga.$mangaId';
+  ref.listenSelf((_, next) {
+    if (next == null) {
+      prefs.remove(key);
+    } else {
+      prefs.setInt(key, next.index);
+    }
+  });
+  final i = prefs.getInt(key);
+  if (i == null || i < 0 || i >= ReadingDirection.values.length) return null;
+  return ReadingDirection.values[i];
+});
+
+/// The direction actually used by the reader for [mangaId]: the per-title
+/// override if one is set, otherwise the global default.
+final effectiveReadingDirectionProvider =
+    Provider.family<ReadingDirection, int>((ref, mangaId) {
+  final override = ref.watch(mangaReadingDirectionProvider(mangaId));
+  return override ?? ref.watch(readingDirectionProvider);
 });
 
 final pageScaleModeProvider = StateProvider<PageScaleMode>((ref) {

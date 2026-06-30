@@ -172,7 +172,9 @@ final chapterSyncProvider =
   final source = ref.read(sourceByIdProvider(manga.sourceId));
   if (source == null) return [];
 
-  final infos = await source.fetchChapterList(manga.sourceMangaId);
+  final infos = (await source.fetchChapterList(manga.sourceMangaId))
+      .where((info) => info.id.trim().isNotEmpty)
+      .toList();
   if (infos.isEmpty) return [];
 
   final entries = infos
@@ -224,7 +226,9 @@ Future<void> refreshMangaChapters({
   required int mangaId,
   required String sourceMangaId,
 }) async {
-  final infos = await source.fetchChapterList(sourceMangaId);
+  final infos = (await source.fetchChapterList(sourceMangaId))
+      .where((info) => info.id.trim().isNotEmpty)
+      .toList();
   if (infos.isEmpty) return;
 
   await isar.writeTxn(() async {

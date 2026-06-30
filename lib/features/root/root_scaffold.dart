@@ -129,8 +129,8 @@ class _LumenNav extends StatelessWidget {
           padding: const EdgeInsets.all(6),
           decoration: BoxDecoration(
             color: context.isDark
-                ? const Color(0xCC15151B)
-                : const Color(0xCCFFFFFF),
+                ? AppColors.navPillDark
+                : AppColors.navPillLight,
             borderRadius: BorderRadius.circular(AppRadius.pill),
             border: Border.all(
               color: context.borderSubtleColor,
@@ -175,9 +175,7 @@ class _NavDot extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final inactive = context.isDark
-        ? const Color(0x99F3F0E9)
-        : const Color(0x99151019);
+    final inactive = context.textSecondaryColor;
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: onTap,

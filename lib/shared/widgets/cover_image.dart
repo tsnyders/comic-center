@@ -21,10 +21,17 @@ class CoverImage extends StatelessWidget {
     final src = url;
     if (src == null || src.isEmpty) return const _Placeholder();
 
+    // Cap the decoded bitmap width so scrolling a large catalog doesn't load
+    // hundreds of full-resolution covers into the in-memory image cache.
+    // 350 logical px covers every usage in this app (the widest is the
+    // cinematic hero backdrop); the device pixel ratio keeps it crisp.
+    final cacheWidth = (350 * MediaQuery.devicePixelRatioOf(context)).round();
+
     return CachedNetworkImage(
       imageUrl: src,
       httpHeaders: headers,
       fit: fit,
+      memCacheWidth: cacheWidth,
       placeholder: (_, __) => const _ShimmerPlaceholder(),
       errorWidget: (_, __, ___) => const _Placeholder(),
     );

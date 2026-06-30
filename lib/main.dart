@@ -1,4 +1,5 @@
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -7,11 +8,22 @@ import 'core/database/isar_service.dart';
 import 'core/extensions/source_registry.dart';
 import 'core/providers/database_provider.dart';
 import 'core/providers/preferences_provider.dart';
+import 'core/services/app_logger.dart';
 import 'core/services/extension_manager.dart';
 import 'core/services/whats_new_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  FlutterError.onError = (details) {
+    FlutterError.presentError(details);
+    AppLogger.instance.error(
+        'FlutterError: ${details.exceptionAsString()}', details.exception, details.stack);
+  };
+  PlatformDispatcher.instance.onError = (error, stack) {
+    AppLogger.instance.error('Uncaught error', error, stack);
+    return true;
+  };
 
   final prefs = await SharedPreferences.getInstance();
   final isar = await IsarService.init();
