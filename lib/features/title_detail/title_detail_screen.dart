@@ -11,7 +11,6 @@ import '../../core/providers/database_provider.dart';
 import '../../core/providers/download_provider.dart';
 import '../../core/providers/source_registry_provider.dart';
 import '../../core/providers/library_provider.dart';
-import '../../core/providers/settings_provider.dart';
 import '../../core/providers/cover_palette_provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
@@ -403,20 +402,15 @@ class _DetailSheetState extends ConsumerState<_DetailSheet> {
                   child: _ActionRow(
                     manga: manga,
                     chapters: chapters,
-                    onShowDownloadSheet: () => _showDownloadSheet(
-                      context: context,
-                      ref: ref,
-                      title: 'Download Unread Chapters',
-                      onConfirm: () {
-                        final chs = (chapters.valueOrNull ?? [])
-                            .where((c) => !c.isRead)
-                            .toList();
-                        ref.read(downloadManagerProvider.notifier).enqueueAll(
-                              manga: manga,
-                              chapters: chs,
-                            );
-                      },
-                    ),
+                    onShowDownloadSheet: () {
+                      final chs = (chapters.valueOrNull ?? [])
+                          .where((c) => !c.isRead)
+                          .toList();
+                      ref.read(downloadManagerProvider.notifier).enqueueAll(
+                            manga: manga,
+                            chapters: chs,
+                          );
+                    },
                     onManageCategories: () =>
                         _showCategorySheet(context, ref, manga),
                   ),
@@ -638,51 +632,10 @@ class _DetailSheetState extends ConsumerState<_DetailSheet> {
     WidgetRef ref,
     ChapterEntry chapter,
   ) {
-    _showDownloadSheet(
-      context: context,
-      ref: ref,
-      title: 'Download Chapter ${chapter.number?.toStringAsFixed(0) ?? '?'}',
-      onConfirm: () {
-        ref.read(downloadManagerProvider.notifier).enqueue(
-              manga: manga,
-              chapter: chapter,
-            );
-      },
-    );
-  }
-
-  static void _showDownloadSheet({
-    required BuildContext context,
-    required WidgetRef ref,
-    required String title,
-    required VoidCallback onConfirm,
-  }) {
-    final location = ref.read(downloadLocationProvider);
-    final locationLabel =
-        location == DownloadLocation.local ? 'Local Storage' : 'Google Drive';
-
-    showCupertinoModalPopup<void>(
-      context: context,
-      builder: (_) => CupertinoActionSheet(
-        title: Text(title),
-        message: Text('Save to: $locationLabel\n'
-            'Change storage location in Settings → Downloads.'),
-        actions: [
-          CupertinoActionSheetAction(
-            onPressed: () {
-              Navigator.pop(context);
-              onConfirm();
-            },
-            child: const Text('Download'),
-          ),
-        ],
-        cancelButton: CupertinoActionSheetAction(
-          isDestructiveAction: false,
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
-        ),
-      ),
-    );
+    ref.read(downloadManagerProvider.notifier).enqueue(
+          manga: manga,
+          chapter: chapter,
+        );
   }
 
   String _capitalise(String s) =>
