@@ -3,6 +3,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:palette_generator/palette_generator.dart';
 
+import '../services/device_profile.dart';
 import '../theme/app_colors.dart';
 
 /// LUMEN "let art decide" — extracts a vivid accent colour from a cover image,
@@ -12,6 +13,10 @@ import '../theme/app_colors.dart';
 final coverPaletteProvider =
     FutureProvider.family<Color, String>((ref, url) async {
   if (url.isEmpty) return AppColors.accent;
+  // Palette quantization decodes the cover a second time and crunches pixels
+  // on the UI isolate — a visible hitch when opening a title on entry-level
+  // SoCs. Low-spec devices use the standard accent instead.
+  if (DeviceProfile.current.lowSpec) return AppColors.accent;
   try {
     final palette = await PaletteGenerator.fromImageProvider(
       CachedNetworkImageProvider(url),

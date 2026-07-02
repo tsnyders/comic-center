@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/database/models/manga_entry.dart';
 import '../../core/providers/library_provider.dart';
+import '../../core/services/device_profile.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text_styles.dart';
@@ -583,7 +584,10 @@ class _RowShimmerState extends State<_RowShimmer>
     _ctrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1200),
-    )..repeat(reverse: true);
+    );
+    if (!DeviceProfile.current.reducedMotion) {
+      _ctrl.repeat(reverse: true);
+    }
     _anim = CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut);
   }
 
@@ -623,6 +627,9 @@ class _FadeSlideIn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // The stagger runs a 760ms tween per row on first build — on
+    // reduced-motion devices show rows immediately.
+    if (DeviceProfile.current.reducedMotion) return child;
     final clamped = index < 12 ? index : 11;
     const total = 760.0;
     final start = (clamped * 40) / total;

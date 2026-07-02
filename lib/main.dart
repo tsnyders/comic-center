@@ -9,11 +9,22 @@ import 'core/extensions/source_registry.dart';
 import 'core/providers/database_provider.dart';
 import 'core/providers/preferences_provider.dart';
 import 'core/services/app_logger.dart';
+import 'core/services/device_profile.dart';
 import 'core/services/extension_manager.dart';
 import 'core/services/whats_new_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Detect hardware/OS capabilities before the first frame so every widget
+  // can consult DeviceProfile.current when deciding whether to animate.
+  await DeviceProfile.init();
+  if (DeviceProfile.current.lowSpec) {
+    // Halve the decoded-image cache (default 100MB). On 4GB devices like the
+    // Galaxy A23 the default lets the heap balloon until Android starts
+    // killing/GC-thrashing the app; covers re-decode cheaply on demand.
+    PaintingBinding.instance.imageCache.maximumSizeBytes = 48 << 20;
+  }
 
   FlutterError.onError = (details) {
     FlutterError.presentError(details);

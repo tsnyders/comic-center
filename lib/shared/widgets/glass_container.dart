@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 
+import '../../core/services/device_profile.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 
@@ -96,7 +97,12 @@ class _AnimatedGlassCardState extends State<AnimatedGlassCard>
     _ctrl = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 4),
-    )..repeat(reverse: true);
+    );
+    // The travelling sheen repaints the card every frame for as long as the
+    // Browse tab is visible — skip it entirely on reduced-motion devices.
+    if (!DeviceProfile.current.reducedMotion) {
+      _ctrl.repeat(reverse: true);
+    }
     _shimmer = CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut);
   }
 
@@ -138,25 +144,26 @@ class _AnimatedGlassCardState extends State<AnimatedGlassCard>
           child: Stack(
             children: [
               // Diagonal shimmer — travels left to right
-              AnimatedBuilder(
-                animation: _shimmer,
-                builder: (_, __) => Positioned.fill(
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(20),
-                      gradient: LinearGradient(
-                        begin: Alignment(-1 + _shimmer.value * 2, -0.5),
-                        end: Alignment(0 + _shimmer.value * 2, 0.5),
-                        colors: const [
-                          Color(0x00FFFFFF),
-                          Color(0x18FFFFFF),
-                          Color(0x00FFFFFF),
-                        ],
+              if (!DeviceProfile.current.reducedMotion)
+                AnimatedBuilder(
+                  animation: _shimmer,
+                  builder: (_, __) => Positioned.fill(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(20),
+                        gradient: LinearGradient(
+                          begin: Alignment(-1 + _shimmer.value * 2, -0.5),
+                          end: Alignment(0 + _shimmer.value * 2, 0.5),
+                          colors: const [
+                            Color(0x00FFFFFF),
+                            Color(0x18FFFFFF),
+                            Color(0x00FFFFFF),
+                          ],
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
               // Hairline inner border
               Positioned.fill(
                 child: DecoratedBox(

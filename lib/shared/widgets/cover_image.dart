@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/cupertino.dart';
 
+import '../../core/services/device_profile.dart';
 import '../../core/theme/app_colors.dart';
 
 /// Cached cover art with shimmer placeholder and error fallback.
@@ -32,7 +33,12 @@ class CoverImage extends StatelessWidget {
       httpHeaders: headers,
       fit: fit,
       memCacheWidth: cacheWidth,
-      placeholder: (_, __) => const _ShimmerPlaceholder(),
+      // A grid of loading covers each running a repeating shimmer keeps the
+      // GPU compositing every frame; on reduced-motion devices use a static
+      // placeholder instead.
+      placeholder: DeviceProfile.current.reducedMotion
+          ? (_, __) => const ColoredBox(color: AppColors.surface)
+          : (_, __) => const _ShimmerPlaceholder(),
       errorWidget: (_, __, ___) => const _Placeholder(),
     );
   }

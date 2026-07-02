@@ -1,7 +1,10 @@
 package com.comiccenter.comic_center
 
+import android.app.ActivityManager
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.view.KeyEvent
 import androidx.core.content.FileProvider
 import io.flutter.embedding.android.FlutterActivity
@@ -38,6 +41,20 @@ class MainActivity : FlutterActivity() {
                         volumeKeyInterceptEnabled =
                             call.argument<Boolean>("enabled") ?: false
                         result.success(null)
+                    }
+                    // Hardware/OS profile used by the Dart side to decide
+                    // whether to run in reduced-motion / low-spec mode.
+                    "getDeviceProfile" -> {
+                        val am = getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+                        val memInfo = ActivityManager.MemoryInfo()
+                        am.getMemoryInfo(memInfo)
+                        result.success(mapOf(
+                            "sdkInt" to Build.VERSION.SDK_INT,
+                            "totalMemBytes" to memInfo.totalMem,
+                            "isLowRamDevice" to am.isLowRamDevice,
+                            "model" to Build.MODEL,
+                            "manufacturer" to Build.MANUFACTURER,
+                        ))
                     }
                     "openUrl" -> {
                         val url = call.argument<String>("url")
