@@ -65,8 +65,12 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   late final PageController   _pageController;
   late final ScrollController _scrollController;
 
-  bool   _pillVisible         = false;
-  double _webtoonProgress     = 0.0;
+  // Driven directly (without setState) from the scroll/page-change callbacks so
+  // that scrolling a webtoon or turning a page does NOT rebuild the entire
+  // reader Stack (image list + chrome) every frame — only the tiny progress
+  // line and page pill repaint, via ValueListenableBuilder.
+  final ValueNotifier<bool>   _pillVisible     = ValueNotifier(false);
+  final ValueNotifier<double> _webtoonProgress = ValueNotifier(0.0);
   Timer? _pillHideTimer;
   bool   _chapterMarkedRead   = false;
   StreamSubscription<dynamic>? _volumeSub;
@@ -92,6 +96,8 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
       _platform.invokeMethod<void>('setVolumeKeyIntercept', {'enabled': false});
     }
     _restoreBrightness();
+    _pillVisible.dispose();
+    _webtoonProgress.dispose();
     _pageController.dispose();
     _scrollController.dispose();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.manual,
@@ -203,24 +209,32 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
         ? (rawProgress * total).floor().clamp(0, total - 1)
         : 0;
 
+    // Push the page index to the provider only when the *integer* page
+    // actually changes (a few times per chapter), never every frame.
     if (ref.read(readerProvider).currentPage != page) {
       ref.read(readerProvider.notifier).setPage(page);
     }
 
-    setState(() {
-      _webtoonProgress = rawProgress;
-      _pillVisible     = true;
-    });
-
-    _pillHideTimer?.cancel();
-    _pillHideTimer = Timer(const Duration(seconds: 2), () {
-      if (mounted) setState(() => _pillVisible = false);
-    });
+    // Per-frame values go through ValueNotifiers — no setState, so the image
+    // list is not rebuilt while scrolling.
+    _webtoonProgress.value = rawProgress;
+    _showPillBriefly();
 
     // Mark as read when 95% through the webtoon
     if (rawProgress >= 0.95 && total > 0) {
       _tryMarkAsRead(total - 1);
     }
+  }
+
+  /// Show the page-count pill and schedule it to fade after 2s. Uses a single
+  /// cancellable timer (not stacked `Future.delayed`s) and drives visibility
+  /// through the [_pillVisible] notifier so no full rebuild is triggered.
+  void _showPillBriefly() {
+    _pillVisible.value = true;
+    _pillHideTimer?.cancel();
+    _pillHideTimer = Timer(const Duration(seconds: 2), () {
+      if (mounted) _pillVisible.value = false;
+    });
   }
 
   // ── Seek (chrome scrubber) ───────────────────────────────────────────────
@@ -317,11 +331,14 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                 left: 0,
                 right: 0,
                 height: 2,
-                child: ProgressLine(
-                  progress: widget.isWebtoon
-                      ? _webtoonProgress
-                      : readerState.progress,
-                ),
+                child: widget.isWebtoon
+                    // Webtoon progress updates every scroll frame — isolate it
+                    // in a ValueListenableBuilder so only this 2px line repaints.
+                    ? ValueListenableBuilder<double>(
+                        valueListenable: _webtoonProgress,
+                        builder: (_, p, __) => ProgressLine(progress: p),
+                      )
+                    : ProgressLine(progress: readerState.progress),
               ),
 
               // ── Tap-to-reveal chrome (200ms opacity + 8px translate) ───────
@@ -347,10 +364,13 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                 bottom: MediaQuery.of(context).padding.bottom + 90,
                 left: 0,
                 right: 0,
-                child: PagePill(
-                  current: readerState.currentPage + 1,
-                  total: readerState.totalPages,
-                  visible: _pillVisible && !chromeVisible,
+                child: ValueListenableBuilder<bool>(
+                  valueListenable: _pillVisible,
+                  builder: (_, pillVisible, __) => PagePill(
+                    current: readerState.currentPage + 1,
+                    total: readerState.totalPages,
+                    visible: pillVisible && !chromeVisible,
+                  ),
                 ),
               ),
 
@@ -421,10 +441,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
         itemCount: pages.length,
         onPageChanged: (i) {
           ref.read(readerProvider.notifier).setPage(i);
-          setState(() => _pillVisible = true);
-          Future.delayed(const Duration(seconds: 2), () {
-            if (mounted) setState(() => _pillVisible = false);
-          });
+          _showPillBriefly();
           if (i == pages.length - 1) _tryMarkAsRead(i);
         },
         itemBuilder: (context, i) => _ReaderPage(
@@ -778,25 +795,25 @@ class _ReaderPage extends ConsumerWidget {
       PageScaleMode.original  => BoxFit.none,
     };
 
-    final gestureConfig = GestureConfig(
-      minScale: 0.9,
-      animationMinScale: 0.7,
-      maxScale: 3.5,
-      animationMaxScale: 4.0,
-      speed: 1.0,
-      inertialSpeed: 100.0,
-      initialScale: 1.0,
-      inPageView: true,
-      initialAlignment: InitialAlignment.center,
-    );
+    // Cap the decoded bitmap width. Manga source pages are frequently
+    // 2000px+ wide; decoding them at full resolution on a ~1080px screen
+    // wastes CPU on every swipe and fills the image cache, forcing GC pauses
+    // that show up as page-turn jank. We decode at 2× the physical screen
+    // width so pinch-zoom (up to 3.5×) still looks crisp while bounding the
+    // per-page memory cost. `cacheWidth` only ever downsamples — smaller
+    // source images are left untouched.
+    final dpr = MediaQuery.devicePixelRatioOf(context);
+    final cacheWidth = (MediaQuery.sizeOf(context).width * dpr * 2).round();
 
     if (url.startsWith('/') || url.startsWith('file://')) {
       return ExtendedImage.file(
         File(url),
         fit: fit,
         mode: ExtendedImageMode.gesture,
-        initGestureConfigHandler: (_) => gestureConfig,
+        initGestureConfigHandler: _gestureConfig,
         loadStateChanged: _loadStateOverlay,
+        cacheWidth: cacheWidth,
+        clearMemoryCacheWhenDispose: true,
       );
     }
 
@@ -804,10 +821,24 @@ class _ReaderPage extends ConsumerWidget {
       url,
       fit: fit,
       mode: ExtendedImageMode.gesture,
-      initGestureConfigHandler: (_) => gestureConfig,
+      initGestureConfigHandler: _gestureConfig,
       loadStateChanged: _loadStateOverlay,
+      cacheWidth: cacheWidth,
+      clearMemoryCacheWhenDispose: true,
     );
   }
+
+  static GestureConfig _gestureConfig(ExtendedImageState _) => GestureConfig(
+        minScale: 0.9,
+        animationMinScale: 0.7,
+        maxScale: 3.5,
+        animationMaxScale: 4.0,
+        speed: 1.0,
+        inertialSpeed: 100.0,
+        initialScale: 1.0,
+        inPageView: true,
+        initialAlignment: InitialAlignment.center,
+      );
 }
 
 // ── Webtoon strip image (full-width, natural height) ──────────────────────
@@ -865,6 +896,7 @@ class _WebtoonPage extends StatelessWidget {
         width: screenWidth,
         mode: ExtendedImageMode.none,
         cacheWidth: cacheWidth,
+        clearMemoryCacheWhenDispose: true,
         loadStateChanged: (s) => _loadStateOverlay(s, screenWidth),
       );
     }
@@ -875,6 +907,7 @@ class _WebtoonPage extends StatelessWidget {
       width: screenWidth,
       mode: ExtendedImageMode.none,
       cacheWidth: cacheWidth,
+      clearMemoryCacheWhenDispose: true,
       loadStateChanged: (s) => _loadStateOverlay(s, screenWidth),
     );
   }

@@ -131,12 +131,18 @@ class _DetailHero extends ConsumerWidget {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          // Blurred, scaled cover fills the hero area
-          Transform.scale(
-            scale: 1.3,
-            child: ImageFiltered(
-              imageFilter: ImageFilter.blur(sigmaX: 34, sigmaY: 34),
-              child: CoverImage(url: manga.coverUrl),
+          // Blurred, scaled cover fills the hero area. sigma 18 is visually
+          // indistinguishable from the old 34 for a soft background wash but
+          // roughly halves the per-paint blur cost; the RepaintBoundary keeps
+          // it from re-blurring when sibling layers (the animated colour wash)
+          // repaint or the header scrolls.
+          RepaintBoundary(
+            child: Transform.scale(
+              scale: 1.3,
+              child: ImageFiltered(
+                imageFilter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+                child: CoverImage(url: manga.coverUrl),
+              ),
             ),
           ),
 
