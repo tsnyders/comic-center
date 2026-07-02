@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -121,42 +119,41 @@ class _LumenNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(AppRadius.pill),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
-        child: Container(
-          padding: const EdgeInsets.all(6),
-          decoration: BoxDecoration(
-            color: context.isDark
-                ? AppColors.navPillDark
-                : AppColors.navPillLight,
-            borderRadius: BorderRadius.circular(AppRadius.pill),
-            border: Border.all(
-              color: context.borderSubtleColor,
-              width: AppRadius.hairline,
-            ),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x59000000),
-                blurRadius: 32,
-                spreadRadius: -4,
-                offset: Offset(0, 14),
-              ),
-            ],
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: List.generate(_items.length, (i) {
-              final active = i == selectedIndex;
-              return _NavDot(
-                icon: active ? _items[i].$2 : _items[i].$1,
-                active: active,
-                onTap: () => onTap(i),
-              );
-            }),
-          ),
+    // Solid translucent surface — the previous BackdropFilter blur re-sampled
+    // the entire scrolling list/grid behind the floating pill on every frame,
+    // which was the last live backdrop blur in the app (all others were removed
+    // in the no-glass redesign). The nav-pill colours are ~80% opaque, so a
+    // plain container reads the same without the per-frame GPU cost.
+    return Container(
+      padding: const EdgeInsets.all(6),
+      decoration: BoxDecoration(
+        color: context.isDark
+            ? AppColors.navPillDark
+            : AppColors.navPillLight,
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+        border: Border.all(
+          color: context.borderSubtleColor,
+          width: AppRadius.hairline,
         ),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x59000000),
+            blurRadius: 32,
+            spreadRadius: -4,
+            offset: Offset(0, 14),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: List.generate(_items.length, (i) {
+          final active = i == selectedIndex;
+          return _NavDot(
+            icon: active ? _items[i].$2 : _items[i].$1,
+            active: active,
+            onTap: () => onTap(i),
+          );
+        }),
       ),
     );
   }

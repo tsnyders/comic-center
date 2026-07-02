@@ -44,7 +44,15 @@ android {
                 signingConfigs.getByName("release")
             else
                 signingConfigs.getByName("debug")
-                
+
+            // Run R8: shrink + optimize the Android/Kotlin host code and strip
+            // unused resources. Without isMinifyEnabled the proguardFiles below
+            // were configured but never applied, so release builds shipped the
+            // full, un-optimized host code. (Only the JVM/Android side is
+            // affected — Dart is AOT-compiled separately.)
+            isMinifyEnabled = true
+            isShrinkResources = true
+
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
         debug {
