@@ -22,6 +22,35 @@ jobs:
         id: tag
         run: echo "tag_name=v1.0-beta.${{ github.run_number }}" >> "$GITHUB_OUTPUT"
 
+      # Full history + tags so the changelog can diff against the previous release
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Turn the commits since the last release tag into a bullet list. This
+      # becomes the "What's new" section shown both on the release page and in
+      # the app's What's New dialog (which fetches the release body).
+      - name: Build changelog from commits
+        id: changelog
+        run: |
+          PREV_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          if [ -n "$PREV_TAG" ]; then
+            RANGE="$PREV_TAG..HEAD"
+            echo "Previous release: $PREV_TAG"
+          else
+            RANGE="HEAD"
+            echo "No previous tag found — listing recent commits"
+          fi
+          NOTES=$(git log "$RANGE" --no-merges --pretty=format:'- %s' | head -30)
+          if [ -z "$NOTES" ]; then
+            NOTES="- Maintenance build (no code changes since the previous release)."
+          fi
+          {
+            echo "notes<<NOTES_EOF"
+            echo "$NOTES"
+            echo "NOTES_EOF"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -29,7 +58,7 @@ jobs:
           name: "Yomi Beta 1.0 (Build ${{ github.run_number }})"
           body: |
             ## What's new
-            See the commit history for changes in this build.
+            ${{ steps.changelog.outputs.notes }}
 
             ---
 

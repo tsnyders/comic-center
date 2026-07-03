@@ -220,9 +220,24 @@ class _WhatsNewDialog extends StatelessWidget {
     return '${months[dt.month - 1]} ${dt.day}, ${dt.year}';
   }
 
+  /// The release body is written for the GitHub release page: a "What's new"
+  /// commit list, then a "---" divider, then install instructions. In-app,
+  /// only the changelog part is relevant — cut at the divider and drop the
+  /// markdown heading (the dialog already has its own title).
+  static String _whatsNewSection(String releaseBody) {
+    var body = releaseBody.trim();
+    final divider = body.indexOf('\n---');
+    if (divider > 0) body = body.substring(0, divider);
+    body = body
+        .replaceFirst(
+            RegExp(r"^#+\s*what'?s new\s*", caseSensitive: false), '')
+        .trim();
+    return body;
+  }
+
   @override
   Widget build(BuildContext context) {
-    final body = release.body.trim();
+    final body = _whatsNewSection(release.body);
     final date = _formatDate(release.publishedAtDate);
 
     return CupertinoAlertDialog(
