@@ -7,6 +7,7 @@ import '../extensions/models/manga_detail.dart';
 import '../extensions/models/manga_summary.dart';
 import '../extensions/source_interface.dart';
 import 'database_provider.dart';
+import 'provider_cache.dart';
 import 'source_registry_provider.dart';
 
 // ── Browse mode ───────────────────────────────────────────────────────────
@@ -45,8 +46,14 @@ class BrowseArgs {
 final browseModeProvider =
     StateProvider.family<BrowseMode, String>((ref, _) => BrowseMode.popular);
 
-final browseMangaProvider =
-    FutureProvider.family<List<MangaSummary>, BrowseArgs>((ref, args) async {
+// autoDispose: BrowseArgs includes the search query and page number, so every
+// query ever typed and every page ever browsed used to stay cached for the
+// app's lifetime — an unbounded leak. cacheFor keeps each result warm for a
+// bounded window so backing out of a title and returning to the catalog
+// doesn't refetch, then lets it age out.
+final browseMangaProvider = FutureProvider.autoDispose
+    .family<List<MangaSummary>, BrowseArgs>((ref, args) async {
+  ref.cacheFor(const Duration(minutes: 15));
   final source = ref.watch(sourceByIdProvider(args.sourceId));
   if (source == null) {
     throw Exception('Source "${args.sourceId}" is not installed.');
@@ -154,8 +161,12 @@ class MangaDetailLike {
 
 // ── Chapter sync ──────────────────────────────────────────────────────────
 
-final chapterSyncProvider =
-    FutureProvider.family<List<ChapterEntry>, int>((ref, mangaId) async {
+// autoDispose: keyed per manga id — grew without bound as titles were visited.
+// Short TTL: the data is DB-backed so a refetch is cheap; the cache mainly
+// smooths the detail-screen → reader → detail-screen round trip.
+final chapterSyncProvider = FutureProvider.autoDispose
+    .family<List<ChapterEntry>, int>((ref, mangaId) async {
+  ref.cacheFor(const Duration(minutes: 5));
   final isar = ref.watch(isarProvider);
 
   final existing = await isar.chapterEntrys

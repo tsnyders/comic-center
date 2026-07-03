@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:extended_image/extended_image.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/rendering.dart' show ScrollCacheExtent;
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:screen_brightness/screen_brightness.dart';
@@ -10,6 +11,7 @@ import 'package:screen_brightness/screen_brightness.dart';
 import '../../core/providers/library_provider.dart';
 import '../../core/providers/reader_provider.dart';
 import '../../core/services/app_logger.dart';
+import '../../core/services/device_profile.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import 'widgets/page_pill.dart';
@@ -75,6 +77,12 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   bool   _chapterMarkedRead   = false;
   StreamSubscription<dynamic>? _volumeSub;
 
+  // Warms chapterPagesProvider for the next chapter once the reader is 80%
+  // through the current one, so tapping "next" doesn't sit on a spinner while
+  // page URLs are fetched. Held as a manual subscription because the provider
+  // is autoDispose — closing it (in dispose) releases the prefetched data.
+  ProviderSubscription<AsyncValue<List<String>>>? _nextChapterPrefetch;
+
   @override
   void initState() {
     super.initState();
@@ -92,6 +100,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   void dispose() {
     _pillHideTimer?.cancel();
     _volumeSub?.cancel();
+    _nextChapterPrefetch?.close();
     if (Platform.isAndroid) {
       _platform.invokeMethod<void>('setVolumeKeyIntercept', {'enabled': false});
     }
@@ -184,6 +193,23 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     );
   }
 
+  // ── Next chapter prefetch ────────────────────────────────────────────────
+
+  void _maybePrefetchNextChapter(double progress) {
+    if (_nextChapterPrefetch != null || progress < 0.8 || !_hasNextChapter) {
+      return;
+    }
+    final next = _nextSummary;
+    _nextChapterPrefetch = ref.listenManual(
+      chapterPagesProvider(ChapterKey(
+        sourceId: widget.sourceId,
+        chapterId: next.sourceChapterId,
+        downloadPath: next.downloadPath,
+      )),
+      (_, __) {},
+    );
+  }
+
   // ── Auto-mark as read ────────────────────────────────────────────────────
 
   void _tryMarkAsRead(int lastPage) {
@@ -219,6 +245,8 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     // list is not rebuilt while scrolling.
     _webtoonProgress.value = rawProgress;
     _showPillBriefly();
+
+    _maybePrefetchNextChapter(rawProgress);
 
     // Mark as read when 95% through the webtoon
     if (rawProgress >= 0.95 && total > 0) {
@@ -438,10 +466,14 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
         controller: _pageController,
         scrollDirection: isVertical ? Axis.vertical : Axis.horizontal,
         reverse: isRtl,
+        // Pre-builds the adjacent page so its image is decoded before the
+        // swipe starts, instead of showing a spinner mid-gesture.
+        allowImplicitScrolling: true,
         itemCount: pages.length,
         onPageChanged: (i) {
           ref.read(readerProvider.notifier).setPage(i);
           _showPillBriefly();
+          _maybePrefetchNextChapter((i + 1) / pages.length);
           if (i == pages.length - 1) _tryMarkAsRead(i);
         },
         itemBuilder: (context, i) => _ReaderPage(
@@ -467,6 +499,13 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
         controller: _scrollController,
         physics: const ClampingScrollPhysics(),
         padding: EdgeInsets.zero,
+        // The default cache extent (250px) means strips start loading only as
+        // they reach the viewport edge — the visible "image pops in while I
+        // scroll" stall. Read ahead by whole screens instead; low-spec devices
+        // get a smaller window to bound decoded-image memory.
+        scrollCacheExtent: DeviceProfile.current.lowSpec
+            ? const ScrollCacheExtent.viewport(1.0)
+            : const ScrollCacheExtent.viewport(2.5),
         itemCount: pages.length + (hasFooter ? 1 : 0),
         itemBuilder: (context, i) {
           if (i == pages.length) {
@@ -798,12 +837,21 @@ class _ReaderPage extends ConsumerWidget {
     // Cap the decoded bitmap width. Manga source pages are frequently
     // 2000px+ wide; decoding them at full resolution on a ~1080px screen
     // wastes CPU on every swipe and fills the image cache, forcing GC pauses
-    // that show up as page-turn jank. We decode at 2× the physical screen
-    // width so pinch-zoom (up to 3.5×) still looks crisp while bounding the
-    // per-page memory cost. `cacheWidth` only ever downsamples — smaller
-    // source images are left untouched.
+    // that show up as page-turn jank. High-spec devices decode at 2× the
+    // physical screen width so pinch-zoom (up to 3.5×) stays crisp; low-spec
+    // devices trade some zoom sharpness for ~60% less memory and decode work
+    // per page. `cacheWidth` only ever downsamples — smaller source images
+    // are left untouched.
     final dpr = MediaQuery.devicePixelRatioOf(context);
-    final cacheWidth = (MediaQuery.sizeOf(context).width * dpr * 2).round();
+    final zoomHeadroom = DeviceProfile.current.lowSpec ? 1.25 : 2.0;
+    final cacheWidth =
+        (MediaQuery.sizeOf(context).width * dpr * zoomHeadroom).round();
+
+    // Eager per-page eviction only on low-spec devices, where heap headroom
+    // matters more than back-swipe re-decode. Elsewhere the (bounded, LRU)
+    // global image cache keeps recently read pages warm so paging backwards
+    // doesn't re-decode.
+    final evictOnDispose = DeviceProfile.current.lowSpec;
 
     if (url.startsWith('/') || url.startsWith('file://')) {
       return ExtendedImage.file(
@@ -813,7 +861,7 @@ class _ReaderPage extends ConsumerWidget {
         initGestureConfigHandler: _gestureConfig,
         loadStateChanged: _loadStateOverlay,
         cacheWidth: cacheWidth,
-        clearMemoryCacheWhenDispose: true,
+        clearMemoryCacheWhenDispose: evictOnDispose,
       );
     }
 
@@ -824,7 +872,7 @@ class _ReaderPage extends ConsumerWidget {
       initGestureConfigHandler: _gestureConfig,
       loadStateChanged: _loadStateOverlay,
       cacheWidth: cacheWidth,
-      clearMemoryCacheWhenDispose: true,
+      clearMemoryCacheWhenDispose: evictOnDispose,
     );
   }
 
@@ -889,6 +937,10 @@ class _WebtoonPage extends StatelessWidget {
     final cacheWidth =
         (screenWidth * MediaQuery.devicePixelRatioOf(context)).round();
 
+    // See _ReaderPage: eager eviction only where heap headroom is scarce;
+    // otherwise let the bounded LRU cache keep back-scroll smooth.
+    final evictOnDispose = DeviceProfile.current.lowSpec;
+
     if (url.startsWith('/') || url.startsWith('file://')) {
       return ExtendedImage.file(
         File(url),
@@ -896,7 +948,7 @@ class _WebtoonPage extends StatelessWidget {
         width: screenWidth,
         mode: ExtendedImageMode.none,
         cacheWidth: cacheWidth,
-        clearMemoryCacheWhenDispose: true,
+        clearMemoryCacheWhenDispose: evictOnDispose,
         loadStateChanged: (s) => _loadStateOverlay(s, screenWidth),
       );
     }
@@ -907,7 +959,7 @@ class _WebtoonPage extends StatelessWidget {
       width: screenWidth,
       mode: ExtendedImageMode.none,
       cacheWidth: cacheWidth,
-      clearMemoryCacheWhenDispose: true,
+      clearMemoryCacheWhenDispose: evictOnDispose,
       loadStateChanged: (s) => _loadStateOverlay(s, screenWidth),
     );
   }

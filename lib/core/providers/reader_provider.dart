@@ -3,12 +3,22 @@ import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'preferences_provider.dart';
+import 'provider_cache.dart';
 import 'source_registry_provider.dart';
 
 // ── Chapter pages ─────────────────────────────────────────────────────────────
 
-final chapterPagesProvider =
-    FutureProvider.family<List<String>, ChapterKey>((ref, key) async {
+// autoDispose: without it every chapter ever opened kept its page list (and
+// provider machinery) alive for the whole session. The reader holds a watch
+// while open, and the next-chapter prefetch holds a manual subscription, so
+// the cache lives exactly as long as someone needs it.
+final chapterPagesProvider = FutureProvider.autoDispose
+    .family<List<String>, ChapterKey>((ref, key) async {
+  // Re-opening a chapter within the TTL (e.g. backing out to check the
+  // chapter list, or flipping between the last two chapters) costs nothing;
+  // afterwards the page list ages out instead of accumulating per chapter.
+  ref.cacheFor(const Duration(minutes: 15));
+
   // Serve from local storage when the chapter is downloaded
   if (key.downloadPath != null) {
     final dir = Directory(key.downloadPath!);

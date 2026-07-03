@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:extended_image/extended_image.dart' show clearDiskCachedImages;
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -25,6 +28,17 @@ void main() async {
     // killing/GC-thrashing the app; covers re-decode cheaply on demand.
     PaintingBinding.instance.imageCache.maximumSizeBytes = 48 << 20;
   }
+
+  // Trim the reader page-image disk cache (extended_image never evicts on its
+  // own, and manga pages are megabytes each — weeks of reading otherwise
+  // accumulates gigabytes). Cover art is unaffected: cached_network_image
+  // manages its own store with a built-in 7-day policy. Fire-and-forget so
+  // startup isn't blocked on disk I/O.
+  unawaited(clearDiskCachedImages(
+    duration: DeviceProfile.current.lowSpec
+        ? const Duration(days: 3)
+        : const Duration(days: 7),
+  ));
 
   FlutterError.onError = (details) {
     FlutterError.presentError(details);
