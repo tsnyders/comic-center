@@ -1,85 +1,43 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
-import 'app_colors.dart';
-import 'app_text_styles.dart';
+import 'yomi_theme.dart';
 
 /// ============================================================================
-/// Comic Center — AppTheme  ("Obsidian" design system)
+/// Comic Center — AppTheme (Sumi)
 ///
-/// Central factory for CupertinoThemeData and ThemeData.
-/// Feed the [brightness] from [brightnessProvider] and get a fully wired theme.
-///
-/// Usage in app.dart:
-///   theme: AppTheme.cupertino(brightness),
+/// Central factory for CupertinoThemeData / ThemeData, fed by the live
+/// [YomiTheme] and its (possibly mid-crossfade) [YomiColors].
 /// ============================================================================
 abstract final class AppTheme {
-  /// Full CupertinoThemeData for the app.
-  static CupertinoThemeData cupertino(Brightness brightness) {
-    final isDark = brightness == Brightness.dark;
-
+  static CupertinoThemeData cupertino(YomiTheme theme, YomiColors c) {
     return CupertinoThemeData(
-      brightness: brightness,
-      primaryColor: isDark ? AppColors.accent : AppColors.lightAccent,
-      scaffoldBackgroundColor:
-          isDark ? AppColors.background : AppColors.lightBackground,
-      barBackgroundColor:
-          isDark ? AppColors.tabBarBackground : AppColors.lightTabBarBackground,
+      brightness: theme.mode,
+      primaryColor: c.ac,
+      scaffoldBackgroundColor: c.bg,
+      barBackgroundColor: c.bg,
       textTheme: CupertinoTextThemeData(
-        primaryColor:
-            isDark ? AppColors.textPrimary : AppColors.lightTextPrimary,
-        // Default text style for all Cupertino widgets
-        textStyle: TextStyle(
-          color: isDark ? AppColors.textPrimary : AppColors.lightTextPrimary,
-          fontFamily: AppTextStyles.sans,
-          fontVariations: const [FontVariation('wght', 400)],
-          fontSize: 15,
-          height: 1.5,
-        ),
-        // Editorial serif for nav titles — Cormorant Garamond SemiBold
-        navTitleTextStyle: TextStyle(
-          color: isDark ? AppColors.textPrimary : AppColors.lightTextPrimary,
-          fontFamily: AppTextStyles.serif,
-          fontVariations: const [FontVariation('wght', 600)],
-          fontSize: 19,
-          fontWeight: FontWeight.w600,
-          letterSpacing: -0.3,
-        ),
-        // Editorial serif for large title — Cormorant Garamond Bold
-        navLargeTitleTextStyle: TextStyle(
-          color: isDark ? AppColors.textPrimary : AppColors.lightTextPrimary,
-          fontFamily: AppTextStyles.serif,
-          fontVariations: const [FontVariation('wght', 700)],
-          fontSize: 34,
-          fontWeight: FontWeight.w700,
-          letterSpacing: -1.0,
-        ),
-        actionTextStyle: TextStyle(
-          color: isDark ? AppColors.accent : AppColors.lightAccent,
-          fontFamily: AppTextStyles.sans,
-          fontVariations: const [FontVariation('wght', 500)],
-          fontSize: 16,
-        ),
+        primaryColor: c.fg,
+        textStyle: YomiText.ui(15, color: c.fg, height: 1.5),
+        navTitleTextStyle: YomiText.kanji(19, color: c.fg),
+        navLargeTitleTextStyle: YomiText.kanji(34, color: c.fg),
+        actionTextStyle: YomiText.ui(16, weight: FontWeight.w500, color: c.ac),
       ),
     );
   }
 
   /// Companion MaterialTheme for any Material widgets used alongside Cupertino.
-  static ThemeData material(Brightness brightness) {
-    final isDark = brightness == Brightness.dark;
-    final seed = isDark ? AppColors.accent : AppColors.lightAccent;
-
+  static ThemeData material(YomiTheme theme, YomiColors c) {
     return ThemeData(
       useMaterial3: true,
-      brightness: brightness,
+      brightness: theme.mode,
       colorScheme: ColorScheme.fromSeed(
-        seedColor: seed,
-        brightness: brightness,
-        surface: isDark ? AppColors.surface : AppColors.lightSurface,
+        seedColor: c.ac,
+        brightness: theme.mode,
+        surface: c.card,
       ),
-      fontFamily: AppTextStyles.sans,
-      scaffoldBackgroundColor:
-          isDark ? AppColors.background : AppColors.lightBackground,
+      fontFamily: YomiText.body,
+      scaffoldBackgroundColor: c.bg,
     );
   }
 }

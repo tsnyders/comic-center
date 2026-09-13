@@ -89,15 +89,32 @@ class CategoryNotifier extends AsyncNotifier<List<String>> {
 final categoryNotifierProvider =
     AsyncNotifierProvider<CategoryNotifier, List<String>>(CategoryNotifier.new);
 
-// ── Library filter providers ──────────────────────────────────────────────────
+// ── Shelf filter (Sumi chips) ─────────────────────────────────────────────────
 
-final selectedCategoryProvider = StateProvider<String>((_) => 'All');
-final librarySearchProvider = StateProvider<String>((_) => '');
-final libraryStatusFilterProvider = StateProvider<String?>((_) => null);
-final libraryGenreFilterProvider = StateProvider<List<String>>((_) => const []);
+/// Built-in chips. Any other value is a user category name.
+abstract final class ShelfFilter {
+  static const all = 'All';
+  static const reading = 'Reading';
+  static const finished = 'Finished';
+  static const downloaded = 'Downloaded';
+  static const builtIn = [all, reading, finished, downloaded];
+}
 
-/// Number of columns in the library grid (2 or 3). In-memory only.
-final libraryGridColumnsProvider = StateProvider<int>((_) => 2);
+final shelfFilterProvider = StateProvider<String>((_) => ShelfFilter.all);
+
+/// Manga ids with at least one downloaded chapter.
+final downloadedMangaIdsProvider = StreamProvider<Set<int>>((ref) {
+  final isar = ref.watch(isarProvider);
+  return isar.chapterEntrys
+      .filter()
+      .isDownloadedEqualTo(true)
+      .watch(fireImmediately: true)
+      .map((chs) => chs.map((c) => c.mangaId).toSet());
+});
+
+/// Started and nothing left unread.
+bool isFinished(MangaEntry m) =>
+    m.lastReadAt != null && m.chapterCount > 0 && m.unreadCount == 0;
 
 // ── Library stream ─────────────────────────────────────────────────────────────
 
@@ -114,30 +131,19 @@ final libraryStreamProvider = StreamProvider<List<MangaEntry>>((ref) {
 
 final filteredLibraryProvider = Provider<AsyncValue<List<MangaEntry>>>((ref) {
   final library = ref.watch(libraryStreamProvider);
-  final category = ref.watch(selectedCategoryProvider);
-  final search = ref.watch(librarySearchProvider);
-  final status = ref.watch(libraryStatusFilterProvider);
-  final genres = ref.watch(libraryGenreFilterProvider);
+  final filter = ref.watch(shelfFilterProvider);
+  final downloaded =
+      ref.watch(downloadedMangaIdsProvider).valueOrNull ?? const <int>{};
 
-  return library.whenData((mangas) {
-    var result = mangas;
-    if (category != 'All') {
-      result = result.where((m) => m.categories.contains(category)).toList();
-    }
-    if (search.trim().isNotEmpty) {
-      final q = search.trim().toLowerCase();
-      result = result.where((m) => m.title.toLowerCase().contains(q)).toList();
-    }
-    if (status != null && status.isNotEmpty) {
-      result = result.where((m) => m.status == status).toList();
-    }
-    if (genres.isNotEmpty) {
-      result = result
-          .where((m) => genres.every((g) => m.genres.contains(g)))
-          .toList();
-    }
-    return result;
-  });
+  return library.whenData((mangas) => switch (filter) {
+        ShelfFilter.all => mangas,
+        ShelfFilter.reading =>
+          mangas.where((m) => m.lastReadAt != null && !isFinished(m)).toList(),
+        ShelfFilter.finished => mangas.where(isFinished).toList(),
+        ShelfFilter.downloaded =>
+          mangas.where((m) => downloaded.contains(m.id)).toList(),
+        _ => mangas.where((m) => m.categories.contains(filter)).toList(),
+      });
 });
 
 // ── Continue reading (recently read, in-progress titles) ──────────────────────

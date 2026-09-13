@@ -13,6 +13,7 @@ import 'core/providers/database_provider.dart';
 import 'core/providers/preferences_provider.dart';
 import 'core/services/app_logger.dart';
 import 'core/services/device_profile.dart';
+import 'core/services/download_background_service.dart';
 import 'core/services/extension_manager.dart';
 import 'core/services/whats_new_service.dart';
 
@@ -42,8 +43,8 @@ void main() async {
 
   FlutterError.onError = (details) {
     FlutterError.presentError(details);
-    AppLogger.instance.error(
-        'FlutterError: ${details.exceptionAsString()}', details.exception, details.stack);
+    AppLogger.instance.error('FlutterError: ${details.exceptionAsString()}',
+        details.exception, details.stack);
   };
   PlatformDispatcher.instance.onError = (error, stack) {
     AppLogger.instance.error('Uncaught error', error, stack);
@@ -52,6 +53,12 @@ void main() async {
 
   final prefs = await SharedPreferences.getInstance();
   final isar = await IsarService.init();
+
+  // Android WorkManager owns chapter downloads, so they survive the Flutter UI
+  // being backgrounded or killed. Reconcile records left by older versions or
+  // an OS interruption before the first frame observes the queue.
+  await DownloadBackgroundService.initialize();
+  await DownloadBackgroundService.reconcileOnStartup(isar);
 
   // On first run (empty DB) seed all bundled sources so users are not greeted
   // by an empty Browse screen. After that, installs/uninstalls are user-driven.

@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,652 +7,244 @@ import '../../core/database/models/manga_entry.dart';
 import '../../core/providers/browse_provider.dart';
 import '../../core/providers/database_provider.dart';
 import '../../core/providers/download_provider.dart';
-import '../../core/providers/source_registry_provider.dart';
 import '../../core/providers/library_provider.dart';
-import '../../core/providers/cover_palette_provider.dart';
-import '../../core/theme/app_colors.dart';
-import '../../core/theme/app_spacing.dart';
-import '../../core/theme/app_text_styles.dart';
-import '../../shared/widgets/app_glass.dart';
+import '../../core/providers/source_registry_provider.dart';
+import '../../core/theme/yomi_theme.dart';
 import '../../shared/widgets/cover_image.dart';
+import '../../shared/widgets/sumi.dart';
 import '../library/widgets/manga_card.dart' show mangaCoverHeroTag;
-import '../reader/reader_screen.dart';
+import '../reader/open_reader.dart';
 import 'widgets/chapter_list_tile.dart';
 
-// ── Webtoon detection ──────────────────────────────────────────────────────
-
-/// Sources that publish exclusively long-strip webtoons / manhwa / manhua.
-/// Titles from these always use the continuous vertical-scroll reader so the
-/// tall strip images are never cut off by the page-by-page manga reader.
-const _webtoonSources = <String>{
-  'demonicscans_en',
-  'asurascans_en',
-  'reaperscans_en',
-  'flamescans_en',
-};
-
-/// Returns true when the manga should use the continuous vertical scroll
-/// reader (webtoon mode) rather than the page-by-page manga reader.
-///
-/// Triggers on any known webtoon-only source, and on any title whose genre
-/// list contains "manhwa", "webtoon", or "manhua".
-bool _isWebtoon(MangaEntry manga) {
-  if (_webtoonSources.contains(manga.sourceId)) return true;
-  return manga.genres.any((g) {
-    final lower = g.toLowerCase();
-    return lower == 'manhwa' || lower == 'webtoon' || lower == 'manhua';
-  });
-}
-
-// ── Screen ─────────────────────────────────────────────────────────────────
-
-class TitleDetailScreen extends ConsumerWidget {
+/// ============================================================================
+/// Title detail — cover floats on a `card` plate with the title set
+/// vertically at the right edge; brush title, meta, Read + download buttons,
+/// synopsis, then chapters with kanji numerals.
+/// ============================================================================
+class TitleDetailScreen extends ConsumerStatefulWidget {
   const TitleDetailScreen({super.key, required this.manga});
 
   final MangaEntry manga;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return CupertinoPageScaffold(
-      backgroundColor: context.backgroundColor,
-      child: Stack(
-        children: [
-          // Full-bleed hero
-          _DetailHero(manga: manga),
+  ConsumerState<TitleDetailScreen> createState() => _TitleDetailScreenState();
+}
 
-          // Back + add-to-library overlay
-          SafeArea(
-            bottom: false,
+class _TitleDetailScreenState extends ConsumerState<TitleDetailScreen> {
+  /// false = newest first (source order); true = oldest first.
+  bool _ascending = false;
+  bool _refreshing = false;
+  bool _expanded = false;
+
+  MangaEntry get manga => widget.manga;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.yc;
+    final insets = MediaQuery.paddingOf(context);
+    final gutter = context.yomiGutter;
+
+    final live = ref.watch(liveMangaProvider(manga.id)).valueOrNull ?? manga;
+    final chapterSync = ref.watch(chapterSyncProvider(manga.id));
+    final liveChapters = ref.watch(liveChaptersProvider(manga.id));
+    // The sync provider owns initial source loading; the live Isar stream owns
+    // subsequent changes made by the reader or background download isolate.
+    final chapters = (liveChapters.valueOrNull?.isEmpty ?? true)
+        ? chapterSync
+        : liveChapters;
+    final chs = chapters.valueOrNull ?? const <ChapterEntry>[];
+    final display = _ascending ? chs.reversed.toList() : chs;
+    final unread = chs.where((ch) => !ch.isRead).length;
+    final continueIdx = _continueIndex(chs);
+    final started = chs.any((ch) => ch.isRead || ch.lastPageRead > 0);
+    final readLabel = chs.isEmpty
+        ? 'No chapters'
+        : started
+            ? 'Read · Ch. ${_num(chs[continueIdx].number)}'
+            : 'Start reading';
+
+    final meta = [
+      if (live.author?.isNotEmpty ?? false) live.author!,
+      '${live.chapterCount} chapters',
+      _capitalise(live.status),
+    ].join(' · ');
+
+    // Entrance comes from LumenPageRoute (fade + rise) so the cover Hero
+    // has a single motion to fly over.
+    return CupertinoPageScaffold(
+      backgroundColor: c.bg,
+      child: CustomScrollView(
+        physics: const BouncingScrollPhysics(),
+        slivers: [
+          SliverToBoxAdapter(child: _Plate(manga: live, topInset: insets.top)),
+
+          CupertinoSliverRefreshControl(onRefresh: _refreshChapters),
+
+          SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.gutter,
-                vertical: AppSpacing.x4,
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              padding: EdgeInsets.fromLTRB(gutter, 20, gutter, 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _NavButton(
-                    onTap: () => Navigator.of(context).pop(),
-                    child: Text(
-                      '‹ Back',
-                      style: TextStyle(
-                        color: context.accentColor,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
+                  Text(live.title, style: YomiText.kanji(32, color: c.fg)),
+                  const SizedBox(height: 4),
+                  Text(meta, style: YomiText.ui(13, color: c.fg2)),
+
+                  // ── Buttons ───────────────────────────────────────────
+                  const SizedBox(height: 18),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: SumiButton(
+                          label: readLabel,
+                          height: 50,
+                          radius: 4,
+                          enabled: chs.isNotEmpty,
+                          onTap: () => openReader(context,
+                              manga: live, chapters: chs, index: continueIdx),
+                          child: chapters.isLoading
+                              ? const CupertinoActivityIndicator()
+                              : null,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      SumiSquareButton(
+                        icon: CupertinoIcons.arrow_down_to_line,
+                        onTap: unread == 0
+                            ? null
+                            : () => ref
+                                .read(downloadManagerProvider.notifier)
+                                .enqueueAll(
+                                  manga: live,
+                                  chapters:
+                                      chs.where((ch) => !ch.isRead).toList(),
+                                ),
+                      ),
+                      if (live.inLibrary) ...[
+                        const SizedBox(width: 10),
+                        SumiSquareButton(
+                          icon: CupertinoIcons.folder,
+                          onTap: () => _showCategorySheet(context, live),
+                        ),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Download for offline · $unread unread of ${chs.length} chapters',
+                    style: YomiText.ui(11, color: c.fg2),
+                  ),
+
+                  // ── Synopsis ──────────────────────────────────────────
+                  if (live.description?.isNotEmpty ?? false) ...[
+                    const SizedBox(height: 26),
+                    const SumiOverline('ABOUT · 作'),
+                    const SizedBox(height: 8),
+                    GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => setState(() => _expanded = !_expanded),
+                      child: Text(
+                        live.description!,
+                        maxLines: _expanded ? null : 5,
+                        overflow: _expanded ? null : TextOverflow.ellipsis,
+                        style: YomiText.ui(13, color: c.fg2, height: 1.55),
                       ),
                     ),
+                  ],
+
+                  // ── Chapters header ───────────────────────────────────
+                  const SizedBox(height: 26),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                    textBaseline: TextBaseline.alphabetic,
+                    children: [
+                      const SumiOverline('CHAPTERS · 話'),
+                      const Spacer(),
+                      _TextAction(
+                        label: _refreshing ? 'Checking…' : 'Refresh',
+                        onTap: _refreshing ? null : _refreshChapters,
+                      ),
+                      const SizedBox(width: 14),
+                      _TextAction(
+                        label: _ascending ? 'Oldest first' : 'Newest first',
+                        onTap: () => setState(() => _ascending = !_ascending),
+                      ),
+                    ],
                   ),
-                  _AddToLibraryButton(manga: manga),
+                  const SizedBox(height: 6),
                 ],
               ),
             ),
           ),
 
-          // Draggable detail sheet
-          DraggableScrollableSheet(
-            initialChildSize: 0.55,
-            minChildSize: 0.42,
-            maxChildSize: 0.95,
-            snap: true,
-            snapSizes: const [0.55, 0.95],
-            builder: (context, scrollController) {
-              return _DetailSheet(
-                manga: manga,
-                scrollController: scrollController,
-              );
-            },
+          // ── Chapter list ──────────────────────────────────────────────
+          chapters.when(
+            loading: () => const SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 32),
+                child: Center(child: CupertinoActivityIndicator()),
+              ),
+            ),
+            error: (e, _) => SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(gutter, 24, gutter, 0),
+                child: Text(e.toString(), style: YomiText.ui(13, color: c.fg2)),
+              ),
+            ),
+            data: (_) => SliverPadding(
+              padding: EdgeInsets.symmetric(horizontal: gutter),
+              sliver: SliverList.builder(
+                itemCount: display.length,
+                itemBuilder: (context, i) => SumiStagger(
+                  index: i,
+                  child: ChapterListTile(
+                    chapter: display[i],
+                    onTap: () => openReader(context,
+                        manga: live,
+                        chapters: chs,
+                        index: chs.indexOf(display[i])),
+                    onDownload: display[i].isDownloaded
+                        ? null
+                        : () => ref
+                            .read(downloadManagerProvider.notifier)
+                            .enqueue(manga: live, chapter: display[i]),
+                  ),
+                ),
+              ),
+            ),
           ),
+
+          SliverToBoxAdapter(child: SizedBox(height: insets.bottom + 40)),
         ],
       ),
     );
   }
-}
 
-// ── Hero ───────────────────────────────────────────────────────────────────
-
-class _DetailHero extends ConsumerWidget {
-  const _DetailHero({required this.manga});
-  final MangaEntry manga;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final dark = context.isDark;
-    final heroGradient = dark
-        ? AppColors.heroGradientDark
-        : AppColors.heroGradientLight;
-    // LUMEN: ambient colour pulled from this cover's own palette.
-    final artColor =
-        ref.watch(coverPaletteProvider(manga.coverUrl ?? '')).valueOrNull
-            ?? context.accentColor;
-
-    return SizedBox.expand(
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          // Blurred, scaled cover fills the hero area. sigma 18 is visually
-          // indistinguishable from the old 34 for a soft background wash but
-          // roughly halves the per-paint blur cost; the RepaintBoundary keeps
-          // it from re-blurring when sibling layers (the animated colour wash)
-          // repaint or the header scrolls.
-          RepaintBoundary(
-            child: Transform.scale(
-              scale: 1.3,
-              child: ImageFiltered(
-                imageFilter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-                child: CoverImage(url: manga.coverUrl),
-              ),
-            ),
-          ),
-
-          // Art ambient wash — top glow tinted by the cover's dominant colour
-          AnimatedSwitcher(
-            duration: const Duration(milliseconds: 550),
-            child: DecoratedBox(
-              key: ValueKey(artColor),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    artColor.withValues(alpha: 0.50),
-                    artColor.withValues(alpha: 0.0),
-                  ],
-                  stops: const [0.0, 0.62],
-                ),
-              ),
-            ),
-          ),
-
-          // Gradient fade to background — brightness-aware
-          DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: heroGradient,
-                stops: const [0.0, 0.55, 0.86],
-              ),
-            ),
-          ),
-
-          // Sharp cover chip — 104×156, top-right, e3 shadow
-          Positioned(
-            top: 80,
-            right: AppSpacing.gutter,
-            child: Hero(
-              tag: mangaCoverHeroTag(manga.id),
-              child: Container(
-                width: 104,
-                height: 156,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                  boxShadow: dark ? AppElevation.e3 : AppElevation.e3Light,
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                  child: CoverImage(url: manga.coverUrl),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Nav / action buttons ───────────────────────────────────────────────────
-
-class _NavButton extends StatelessWidget {
-  const _NavButton({required this.child, required this.onTap});
-  final Widget child;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AppGlass(
-        borderRadius: 14,
-        blur: 12,
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-        child: child,
-      ),
-    );
-  }
-}
-
-class _AddToLibraryButton extends ConsumerWidget {
-  const _AddToLibraryButton({required this.manga});
-  final MangaEntry manga;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    // Watch live state so the button reacts immediately after add/remove.
-    final live = ref.watch(liveMangaProvider(manga.id)).valueOrNull ?? manga;
-    final inLibrary = live.inLibrary;
-    return _NavButton(
-      onTap: () {
-        if (inLibrary) {
-          ref.read(libraryNotifierProvider.notifier).removeFromLibrary(manga.id);
-        } else {
-          ref.read(libraryNotifierProvider.notifier).addToLibrary(live);
-        }
-      },
-      child: Icon(
-        inLibrary ? CupertinoIcons.bookmark_fill : CupertinoIcons.bookmark,
-        color: inLibrary ? context.accentColor : context.textPrimaryColor,
-        size: 18,
-      ),
-    );
-  }
-}
-
-// ── Bottom sheet ───────────────────────────────────────────────────────────
-
-enum _ChapterFilter { all, unread, downloaded }
-
-class _DetailSheet extends ConsumerStatefulWidget {
-  const _DetailSheet({
-    required this.manga,
-    required this.scrollController,
-  });
-
-  final MangaEntry manga;
-  final ScrollController scrollController;
-
-  @override
-  ConsumerState<_DetailSheet> createState() => _DetailSheetState();
-}
-
-class _DetailSheetState extends ConsumerState<_DetailSheet> {
-  _ChapterFilter _filter = _ChapterFilter.all;
-
-  /// false = newest first (default, matches source order); true = oldest first.
-  bool _ascending = false;
-
-  bool _refreshingChapters = false;
-
-  MangaEntry get manga => widget.manga;
-  ScrollController get scrollController => widget.scrollController;
-
-  List<ChapterEntry> _applyFilterSort(List<ChapterEntry> chs) {
-    var result = switch (_filter) {
-      _ChapterFilter.all => chs,
-      _ChapterFilter.unread => chs.where((c) => !c.isRead).toList(),
-      _ChapterFilter.downloaded => chs.where((c) => c.isDownloaded).toList(),
-    };
-    if (_ascending) result = result.reversed.toList();
-    return result;
+  /// Newest-first list: the highest chapter the user has touched, else the
+  /// first chapter (last in the list).
+  static int _continueIndex(List<ChapterEntry> chs) {
+    if (chs.isEmpty) return 0;
+    final touched = chs.indexWhere((ch) => ch.isRead || ch.lastPageRead > 0);
+    return touched >= 0 ? touched : chs.length - 1;
   }
 
-  @override
-  Widget build(BuildContext context) {
-    // Use live manga so chapter count updates after sync.
-    final liveManga =
-        ref.watch(liveMangaProvider(manga.id)).valueOrNull ?? manga;
-    final chapters = ref.watch(chapterSyncProvider(manga.id));
+  static String _num(double? n) => n == null
+      ? '?'
+      : n == n.roundToDouble()
+          ? n.toStringAsFixed(0)
+          : n.toString();
 
-    return ClipRRect(
-      borderRadius: const BorderRadius.vertical(
-        top: Radius.circular(AppRadius.xl),
-      ),
-      child: Container(
-        decoration: BoxDecoration(
-          color: context.surfaceColor,
-          borderRadius: const BorderRadius.vertical(
-            top: Radius.circular(AppRadius.xl),
-          ),
-          border: Border(
-            top: BorderSide(
-              color: context.borderStrongColor,
-              width: AppRadius.hairline,
-            ),
-          ),
-        ),
-        child: CustomScrollView(
-            controller: scrollController,
-            physics: const BouncingScrollPhysics(),
-            slivers: [
-              // Drag handle — 36×4
-              SliverToBoxAdapter(
-                child: Center(
-                  child: Container(
-                    margin: const EdgeInsets.only(
-                      top: AppSpacing.x5,
-                      bottom: AppSpacing.x6,
-                    ),
-                    width: 36,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: context.borderStrongColor,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-              ),
-
-              // Pull-to-refresh
-              CupertinoSliverRefreshControl(
-                onRefresh: () async {
-                  final isar   = ref.read(isarProvider);
-                  final source = ref.read(sourceByIdProvider(manga.sourceId));
-                  if (source == null) return;
-                  await refreshMangaChapters(
-                    isar: isar,
-                    source: source,
-                    mangaId: manga.id,
-                    sourceMangaId: manga.sourceMangaId,
-                  );
-                  ref.invalidate(chapterSyncProvider(manga.id));
-                },
-              ),
-
-              // Title + author
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.gutter,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        liveManga.title,
-                        style: AppTextStyles.displayM.copyWith(
-                          color: context.textPrimaryColor,
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.x4),
-                      Text(
-                        [
-                          if (liveManga.author != null &&
-                              liveManga.author!.isNotEmpty)
-                            liveManga.author!,
-                          _capitalise(liveManga.status),
-                          '${liveManga.chapterCount} CH',
-                        ].join('   ·   '),
-                        style: AppTextStyles.metaMono.copyWith(
-                          color: context.textSecondaryColor,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              // Genre chips
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.gutter, AppSpacing.x5, AppSpacing.gutter, 0,
-                  ),
-                  child: Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
-                    children: liveManga.genres
-                        .map((g) => _GenreChip(label: g))
-                        .toList(),
-                  ),
-                ),
-              ),
-
-              // Action buttons
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.gutter, AppSpacing.x6, AppSpacing.gutter, 0,
-                  ),
-                  child: _ActionRow(
-                    manga: manga,
-                    chapters: chapters,
-                    onShowDownloadSheet: () {
-                      final chs = (chapters.valueOrNull ?? [])
-                          .where((c) => !c.isRead)
-                          .toList();
-                      ref.read(downloadManagerProvider.notifier).enqueueAll(
-                            manga: manga,
-                            chapters: chs,
-                          );
-                    },
-                    onManageCategories: () =>
-                        _showCategorySheet(context, ref, manga),
-                  ),
-                ),
-              ),
-
-              // Description
-              if (liveManga.description != null &&
-                  liveManga.description!.isNotEmpty)
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(
-                      AppSpacing.gutter, AppSpacing.x6, AppSpacing.gutter, 0,
-                    ),
-                    child: Text(
-                      liveManga.description!,
-                      style: AppTextStyles.bodySmall.copyWith(
-                        height: 1.5,
-                        color: context.textSecondaryColor,
-                      ),
-                      maxLines: 4,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ),
-
-              // Chapters heading + filter / sort bar
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.gutter, AppSpacing.x7, AppSpacing.gutter, AppSpacing.x4,
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          '${liveManga.chapterCount} Chapters'.toUpperCase(),
-                          style: AppTextStyles.overline.copyWith(
-                            color: context.textTertiaryColor,
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                      ),
-                      _RefreshButton(
-                        refreshing: _refreshingChapters,
-                        onTap: _refreshChapters,
-                      ),
-                      const SizedBox(width: AppSpacing.x5),
-                      _SortButton(
-                        ascending: _ascending,
-                        onTap: () => setState(() => _ascending = !_ascending),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              // Filter pills
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.gutter, 0, AppSpacing.gutter, AppSpacing.x4,
-                  ),
-                  child: Row(
-                    children: [
-                      _FilterPill(
-                        label: 'All',
-                        selected: _filter == _ChapterFilter.all,
-                        onTap: () =>
-                            setState(() => _filter = _ChapterFilter.all),
-                      ),
-                      const SizedBox(width: AppSpacing.x4),
-                      _FilterPill(
-                        label: 'Unread',
-                        selected: _filter == _ChapterFilter.unread,
-                        onTap: () =>
-                            setState(() => _filter = _ChapterFilter.unread),
-                      ),
-                      const SizedBox(width: AppSpacing.x4),
-                      _FilterPill(
-                        label: 'Downloaded',
-                        selected: _filter == _ChapterFilter.downloaded,
-                        onTap: () => setState(
-                            () => _filter = _ChapterFilter.downloaded),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              // Chapter list
-              chapters.when(
-                loading: () => const SliverToBoxAdapter(
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(vertical: 32),
-                    child: CupertinoActivityIndicator(),
-                  ),
-                ),
-                error: (e, _) => SliverToBoxAdapter(
-                  child: Text(
-                    e.toString(),
-                    style: AppTextStyles.bodySmall.copyWith(
-                      color: context.textSecondaryColor,
-                    ),
-                  ),
-                ),
-                data: (chs) {
-                  final display = _applyFilterSort(chs);
-                  if (display.isEmpty) {
-                    return SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 32),
-                        child: Center(
-                          child: Text(
-                            'No chapters match this filter.',
-                            style: AppTextStyles.bodySmall.copyWith(
-                              color: context.textSecondaryColor,
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
-                  }
-                  return SliverPadding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.gutter,
-                    ),
-                    sliver: SliverList.builder(
-                      itemCount: display.length,
-                      itemBuilder: (context, i) => ChapterListTile(
-                        chapter: display[i],
-                        onTap: () => _openReader(context, chs, display[i]),
-                        onDownload: display[i].isDownloaded
-                            ? null
-                            : () => _downloadChapter(context, ref, display[i]),
-                      ),
-                    ),
-                  );
-                },
-              ),
-
-              SliverToBoxAdapter(
-                child: SizedBox(
-                  height: MediaQuery.of(context).padding.bottom + 32,
-                ),
-              ),
-            ],
-          ),
-        ),
-    );
-  }
-
-  static void _showCategorySheet(
-    BuildContext context,
-    WidgetRef ref,
-    MangaEntry manga,
-  ) {
-    final allCats = ref.read(libraryCategoriesProvider).where((c) => c != 'All').toList();
-    if (allCats.isEmpty) {
-      showCupertinoDialog<void>(
-        context: context,
-        builder: (_) => CupertinoAlertDialog(
-          title: const Text('No Categories'),
-          content: const Text(
-              'Create categories in Settings → Categories first.'),
-          actions: [
-            CupertinoDialogAction(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('OK'),
-            ),
-          ],
-        ),
-      );
-      return;
-    }
-
-    showCupertinoModalPopup<void>(
-      context: context,
-      builder: (_) => _CategorySheet(manga: manga, allCategories: allCats),
-    );
-  }
-
-  void _openReader(
-      BuildContext context, List<ChapterEntry> chs, ChapterEntry chapter) {
-    // Index into the original (descending) list so next-chapter navigation
-    // stays correct regardless of the current display filter / sort order.
-    final index = chs.indexWhere((c) => c.id == chapter.id);
-    if (index < 0) return;
-    HapticFeedback.selectionClick();
-    final isWebtoon = _isWebtoon(manga);
-    final summaries = chs
-        .map((c) => ReaderChapterSummary(
-              id: c.id,
-              sourceChapterId: c.sourceChapterId,
-              title: c.title,
-              downloadPath: c.downloadPath,
-            ))
-        .toList();
-    Navigator.of(context, rootNavigator: true).push(
-      CupertinoPageRoute<void>(
-        fullscreenDialog: true,
-        builder: (_) => ReaderScreen(
-          mangaId: manga.id,
-          chapterId: chapter.id,
-          sourceId: manga.sourceId,
-          sourceChapterId: chapter.sourceChapterId,
-          chapterTitle: chapter.title,
-          downloadPath: chapter.downloadPath,
-          isWebtoon: isWebtoon,
-          chapters: summaries,
-          chapterIndex: index,
-        ),
-      ),
-    );
-  }
-
-  void _downloadChapter(
-    BuildContext context,
-    WidgetRef ref,
-    ChapterEntry chapter,
-  ) {
-    ref.read(downloadManagerProvider.notifier).enqueue(
-          manga: manga,
-          chapter: chapter,
-        );
-  }
-
-  String _capitalise(String s) =>
+  static String _capitalise(String s) =>
       s.isEmpty ? s : '${s[0].toUpperCase()}${s.substring(1)}';
 
   Future<void> _refreshChapters() async {
-    if (_refreshingChapters) return;
+    if (_refreshing) return;
     final source = ref.read(sourceByIdProvider(manga.sourceId));
     if (source == null) {
-      _showRefreshError('Source "${manga.sourceId}" is not installed.');
+      _showError('Source "${manga.sourceId}" is not installed.');
       return;
     }
-    setState(() => _refreshingChapters = true);
+    setState(() => _refreshing = true);
     try {
       await refreshMangaChapters(
         isar: ref.read(isarProvider),
@@ -664,13 +254,13 @@ class _DetailSheetState extends ConsumerState<_DetailSheet> {
       );
       ref.invalidate(chapterSyncProvider(manga.id));
     } catch (e) {
-      _showRefreshError(e.toString());
+      _showError(e.toString());
     } finally {
-      if (mounted) setState(() => _refreshingChapters = false);
+      if (mounted) setState(() => _refreshing = false);
     }
   }
 
-  void _showRefreshError(String message) {
+  void _showError(String message) {
     if (!mounted) return;
     showCupertinoDialog<void>(
       context: context,
@@ -686,344 +276,157 @@ class _DetailSheetState extends ConsumerState<_DetailSheet> {
       ),
     );
   }
-}
 
-// ── Sort button ────────────────────────────────────────────────────────────
-
-class _SortButton extends StatelessWidget {
-  const _SortButton({required this.ascending, required this.onTap});
-  final bool ascending;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.selectionClick();
-        onTap();
-      },
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            ascending
-                ? CupertinoIcons.arrow_up
-                : CupertinoIcons.arrow_down,
-            size: 13,
-            color: context.accentColor,
-          ),
-          const SizedBox(width: 4),
-          Text(
-            ascending ? 'Oldest' : 'Newest',
-            style: AppTextStyles.overline.copyWith(
-              color: context.accentColor,
-              letterSpacing: 0,
+  void _showCategorySheet(BuildContext context, MangaEntry live) {
+    final allCats =
+        ref.read(libraryCategoriesProvider).where((x) => x != 'All').toList();
+    if (allCats.isEmpty) {
+      showCupertinoDialog<void>(
+        context: context,
+        builder: (_) => CupertinoAlertDialog(
+          title: const Text('No Categories'),
+          content:
+              const Text('Create categories in Settings → Categories first.'),
+          actions: [
+            CupertinoDialogAction(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('OK'),
             ),
-          ),
-        ],
-      ),
+          ],
+        ),
+      );
+      return;
+    }
+    showCupertinoModalPopup<void>(
+      context: context,
+      builder: (_) => _CategorySheet(manga: live, allCategories: allCats),
     );
   }
 }
 
-// ── Refresh (check for updates) button ─────────────────────────────────────
+// ── Header plate ──────────────────────────────────────────────────────────────
 
-class _RefreshButton extends StatelessWidget {
-  const _RefreshButton({required this.refreshing, required this.onTap});
-  final bool refreshing;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: refreshing
-          ? null
-          : () {
-              HapticFeedback.selectionClick();
-              onTap();
-            },
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (refreshing)
-            SizedBox(
-              width: 13,
-              height: 13,
-              child: CupertinoActivityIndicator(
-                radius: 6.5,
-                color: context.accentColor,
-              ),
-            )
-          else
-            Icon(
-              CupertinoIcons.arrow_2_circlepath,
-              size: 13,
-              color: context.accentColor,
-            ),
-          const SizedBox(width: 4),
-          Text(
-            refreshing ? 'Checking…' : 'Check Updates',
-            style: AppTextStyles.overline.copyWith(
-              color: context.accentColor,
-              letterSpacing: 0,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Filter pill ────────────────────────────────────────────────────────────
-
-class _FilterPill extends StatelessWidget {
-  const _FilterPill({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.selectionClick();
-        onTap();
-      },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 140),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-        decoration: BoxDecoration(
-          color: selected ? context.accentColor : context.surfaceElevatedColor,
-          borderRadius: BorderRadius.circular(AppRadius.pill),
-          border: Border.all(
-            color: selected
-                ? context.accentColor
-                : context.borderStrongColor,
-            width: AppRadius.hairline,
-          ),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 12.5,
-            fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-            color: selected
-                ? AppColors.textOnAccent
-                : context.textSecondaryColor,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ── Genre chip ─────────────────────────────────────────────────────────────
-
-class _GenreChip extends StatelessWidget {
-  const _GenreChip({required this.label});
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(AppRadius.pill),
-        border: Border.all(
-          color: context.borderStrongColor,
-          width: AppRadius.hairline,
-        ),
-      ),
-      child: Text(
-        label.toUpperCase(),
-        style: AppTextStyles.metaMonoSm.copyWith(
-          color: context.textSecondaryColor,
-        ),
-      ),
-    );
-  }
-}
-
-// ── Action row ─────────────────────────────────────────────────────────────
-
-class _ActionRow extends ConsumerWidget {
-  const _ActionRow({
-    required this.manga,
-    required this.chapters,
-    required this.onShowDownloadSheet,
-    required this.onManageCategories,
-  });
-
+class _Plate extends ConsumerWidget {
+  const _Plate({required this.manga, required this.topInset});
   final MangaEntry manga;
-  final AsyncValue<List<ChapterEntry>> chapters;
-  final VoidCallback onShowDownloadSheet;
-  final VoidCallback onManageCategories;
-
-  bool _hasStarted(List<ChapterEntry> chs) =>
-      chs.any((c) => c.isRead || c.lastPageRead > 0);
-
-  void _continueReading(BuildContext context, List<ChapterEntry> chs) {
-    if (chs.isEmpty) return;
-    HapticFeedback.selectionClick();
-    // chs is sorted descending (latest/highest chapter first).
-    // "Continue": open the highest-numbered chapter the user has touched.
-    // "Start":    open the first chapter (lowest number = last in desc list).
-    final started = _hasStarted(chs);
-    final rawIdx =
-        started ? chs.indexWhere((c) => c.isRead || c.lastPageRead > 0) : -1;
-    final index = rawIdx >= 0 ? rawIdx : chs.length - 1;
-    final target = chs[index];
-    final summaries = chs
-        .map((c) => ReaderChapterSummary(
-              id: c.id,
-              sourceChapterId: c.sourceChapterId,
-              title: c.title,
-              downloadPath: c.downloadPath,
-            ))
-        .toList();
-    Navigator.of(context, rootNavigator: true).push(
-      CupertinoPageRoute<void>(
-        fullscreenDialog: true,
-        builder: (_) => ReaderScreen(
-          mangaId: manga.id,
-          chapterId: target.id,
-          sourceId: manga.sourceId,
-          sourceChapterId: target.sourceChapterId,
-          chapterTitle: target.title,
-          downloadPath: target.downloadPath,
-          isWebtoon: _isWebtoon(manga),
-          chapters: summaries,
-          chapterIndex: index,
-        ),
-      ),
-    );
-  }
+  final double topInset;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final chs = chapters.valueOrNull ?? [];
-    final started = _hasStarted(chs);
-    final dark = context.isDark;
-    // Primary CTA is tinted by the cover's own palette ("let art decide").
-    final art = ref.watch(coverPaletteProvider(manga.coverUrl ?? ''))
-            .valueOrNull ??
-        context.accentColor;
-    return Row(
-      children: [
-        // Primary CTA — full-width accent button
-        Expanded(
-          child: GestureDetector(
-            onTap: chs.isEmpty ? null : () => _continueReading(context, chs),
-            child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 15),
-              decoration: BoxDecoration(
-                color: chs.isEmpty ? context.surfaceElevatedColor : art,
-                borderRadius: BorderRadius.circular(AppRadius.pill),
-                boxShadow: chs.isEmpty
-                    ? null
-                    : [
-                        BoxShadow(
-                          color: art.withValues(alpha: 0.32),
-                          blurRadius: 18,
-                          offset: const Offset(0, 8),
-                        ),
-                      ],
+    final c = context.yc;
+    final inLibrary = manga.inLibrary;
+    return Container(
+      height: topInset + 290,
+      decoration: BoxDecoration(
+        color: c.card,
+        border: Border(bottom: BorderSide(color: c.line)),
+      ),
+      child: Stack(
+        children: [
+          Positioned(
+            left: 16,
+            top: topInset + 12,
+            child: const SumiBackButton(),
+          ),
+          Positioned(
+            right: 16,
+            top: topInset + 12,
+            child: Semantics(
+              button: true,
+              label: inLibrary ? 'Remove from library' : 'Add to library',
+              child: SumiPress(
+                onTap: () {
+                  final n = ref.read(libraryNotifierProvider.notifier);
+                  inLibrary
+                      ? n.removeFromLibrary(manga.id)
+                      : n.addToLibrary(manga);
+                },
+                child: Container(
+                  width: 36,
+                  height: 36,
+                  decoration:
+                      BoxDecoration(color: c.bg, shape: BoxShape.circle),
+                  child: Icon(
+                    inLibrary
+                        ? CupertinoIcons.bookmark_fill
+                        : CupertinoIcons.bookmark,
+                    size: 18,
+                    color: inLibrary ? c.ac : c.fg,
+                  ),
+                ),
               ),
-              child: chapters.isLoading
-                  ? const Center(child: CupertinoActivityIndicator())
-                  : Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          CupertinoIcons.play_arrow_solid,
-                          size: 15,
-                          color: chs.isEmpty
-                              ? context.textTertiaryColor
-                              : CupertinoColors.white,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          started ? 'Continue Reading' : 'Start Reading',
-                          style: AppTextStyles.buttonPrimary.copyWith(
-                            color: chs.isEmpty
-                                ? context.textTertiaryColor
-                                : CupertinoColors.white,
-                          ),
-                        ),
-                      ],
-                    ),
             ),
           ),
-        ),
-        const SizedBox(width: AppSpacing.x5),
-        // Download icon button — 48px rounded
-        GestureDetector(
-          onTap: chs.isEmpty ? null : onShowDownloadSheet,
-          child: Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: context.surfaceElevatedColor,
-              borderRadius: BorderRadius.circular(AppRadius.md),
-              border: Border.all(
-                color: context.borderStrongColor,
-                width: AppRadius.hairline,
+          Positioned(
+            right: 24,
+            top: topInset + 56,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 210),
+              child: RotatedBox(
+                quarterTurns: 1,
+                child: Text(
+                  manga.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: YomiText.kanji(20, color: c.fg2, letterSpacing: 3),
+                ),
               ),
-              boxShadow: dark ? AppElevation.e1 : AppElevation.e2Light,
             ),
+          ),
+          Positioned(
+            top: topInset + 22,
+            left: 0,
+            right: 0,
             child: Center(
-              child: Icon(
-                CupertinoIcons.arrow_down_circle,
-                color: chs.isEmpty
-                    ? context.textQuaternaryColor
-                    : context.textSecondaryColor,
-                size: 20,
+              child: SizedBox(
+                width: 150,
+                height: 220,
+                child: Hero(
+                  tag: mangaCoverHeroTag(manga.id),
+                  child: SumiCoverFrame(
+                    shadow: true,
+                    child: CoverImage(url: manga.coverUrl),
+                  ),
+                ),
               ),
             ),
           ),
-        ),
-        const SizedBox(width: AppSpacing.x5),
-        // Categories icon button — 48px rounded
-        GestureDetector(
-          onTap: onManageCategories,
-          child: Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: context.surfaceElevatedColor,
-              borderRadius: BorderRadius.circular(AppRadius.md),
-              border: Border.all(
-                color: context.borderStrongColor,
-                width: AppRadius.hairline,
-              ),
-              boxShadow: dark ? AppElevation.e1 : AppElevation.e2Light,
-            ),
-            child: Center(
-              child: Icon(
-                CupertinoIcons.folder_badge_plus,
-                color: context.textSecondaryColor,
-                size: 20,
-              ),
-            ),
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
 
-// ── Category assignment sheet ──────────────────────────────────────────────
+// ── Small text action (refresh / sort) ────────────────────────────────────────
+
+class _TextAction extends StatelessWidget {
+  const _TextAction({required this.label, required this.onTap});
+  final String label;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.yc;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap == null
+          ? null
+          : () {
+              HapticFeedback.selectionClick();
+              onTap!();
+            },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Text(label, style: YomiText.ui(12, color: c.fg2)),
+      ),
+    );
+  }
+}
+
+// ── Category assignment sheet ─────────────────────────────────────────────────
 
 class _CategorySheet extends ConsumerStatefulWidget {
-  const _CategorySheet({
-    required this.manga,
-    required this.allCategories,
-  });
+  const _CategorySheet({required this.manga, required this.allCategories});
 
   final MangaEntry manga;
   final List<String> allCategories;
@@ -1033,122 +436,52 @@ class _CategorySheet extends ConsumerStatefulWidget {
 }
 
 class _CategorySheetState extends ConsumerState<_CategorySheet> {
-  late List<String> _selected;
-
-  @override
-  void initState() {
-    super.initState();
-    _selected = List.from(widget.manga.categories);
-  }
+  late final List<String> _selected = List.from(widget.manga.categories);
 
   @override
   Widget build(BuildContext context) {
+    final c = context.yc;
+    final gutter = context.yomiGutter;
     return Container(
       decoration: BoxDecoration(
-        color: context.surfaceColor,
-        borderRadius: const BorderRadius.vertical(
-          top: Radius.circular(AppRadius.xl),
-        ),
-        border: Border(
-          top: BorderSide(
-            color: context.borderStrongColor,
-            width: AppRadius.hairline,
-          ),
-        ),
+        color: c.bg,
+        border: Border(top: BorderSide(color: c.line)),
       ),
-      padding: EdgeInsets.only(
-        top: AppSpacing.x5,
-        left: AppSpacing.gutter,
-        right: AppSpacing.gutter,
-        bottom: MediaQuery.of(context).padding.bottom + AppSpacing.gutter,
-      ),
+      padding: EdgeInsets.fromLTRB(
+          gutter, 20, gutter, MediaQuery.paddingOf(context).bottom + 20),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Center(
-            child: Container(
-              width: 36,
-              height: 4,
-              margin: const EdgeInsets.only(bottom: AppSpacing.x6),
-              decoration: BoxDecoration(
-                color: context.borderStrongColor,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          ),
-          Text(
-            'Add to Category',
-            style: AppTextStyles.sectionTitle.copyWith(
-              color: context.textPrimaryColor,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.x6),
+          const SumiOverline('CATEGORIES · 類'),
+          const SizedBox(height: 6),
+          Text('Add to category', style: YomiText.kanji(26, color: c.fg)),
+          const SizedBox(height: 16),
           Wrap(
-            spacing: AppSpacing.x4,
-            runSpacing: AppSpacing.x4,
-            children: widget.allCategories.map((cat) {
-              final isSelected = _selected.contains(cat);
-              return GestureDetector(
-                onTap: () => setState(() {
-                  if (isSelected) {
-                    _selected.remove(cat);
-                  } else {
-                    _selected.add(cat);
-                  }
-                }),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 140),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 7,
-                  ),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? context.accentColor
-                        : context.surfaceElevatedColor,
-                    borderRadius: BorderRadius.circular(AppRadius.pill),
-                    border: Border.all(
-                      color: isSelected
-                          ? context.accentColor
-                          : context.borderStrongColor,
-                      width: AppRadius.hairline,
-                    ),
-                  ),
-                  child: Text(
-                    cat,
-                    style: AppTextStyles.bodySmall.copyWith(
-                      color: isSelected
-                          ? AppColors.textOnAccent
-                          : context.textSecondaryColor,
-                      fontWeight: isSelected
-                          ? FontWeight.w600
-                          : FontWeight.w400,
-                    ),
-                  ),
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final cat in widget.allCategories)
+                SumiChip(
+                  label: cat,
+                  active: _selected.contains(cat),
+                  onTap: () => setState(() => _selected.contains(cat)
+                      ? _selected.remove(cat)
+                      : _selected.add(cat)),
                 ),
-              );
-            }).toList(),
+            ],
           ),
-          const SizedBox(height: AppSpacing.gutter),
-          SizedBox(
-            width: double.infinity,
-            child: CupertinoButton(
-              color: context.accentColor,
-              borderRadius: BorderRadius.circular(AppRadius.md),
-              onPressed: () async {
-                await ref
-                    .read(libraryNotifierProvider.notifier)
-                    .updateCategories(widget.manga.id, _selected);
-                if (context.mounted) Navigator.of(context).pop();
-              },
-              child: Text(
-                'Save',
-                style: AppTextStyles.buttonPrimary.copyWith(
-                  color: AppColors.textOnAccent,
-                ),
-              ),
-            ),
+          const SizedBox(height: 20),
+          SumiButton(
+            label: 'Save',
+            height: 50,
+            radius: 4,
+            onTap: () async {
+              await ref
+                  .read(libraryNotifierProvider.notifier)
+                  .updateCategories(widget.manga.id, _selected);
+              if (context.mounted) Navigator.of(context).pop();
+            },
           ),
         ],
       ),

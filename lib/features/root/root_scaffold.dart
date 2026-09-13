@@ -2,17 +2,20 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/providers/settings_provider.dart';
 import '../../core/services/update_service.dart';
 import '../../core/services/whats_new_service.dart';
-import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../../core/theme/yomi_theme.dart';
+import '../../shared/widgets/sumi.dart';
 import '../browse/browse_screen.dart';
-import '../downloads/downloads_screen.dart';
 import '../library/library_screen.dart';
 import '../settings/changelog_screen.dart';
 import '../settings/settings_screen.dart';
 
+/// Discover · Library (yin-yang) · Settings. Tab index lives in
+/// [rootTabProvider] so Onboarding and Settings can deep-link into a tab.
 class RootScaffold extends ConsumerStatefulWidget {
   const RootScaffold({super.key});
 
@@ -21,8 +24,6 @@ class RootScaffold extends ConsumerStatefulWidget {
 }
 
 class _RootScaffoldState extends ConsumerState<RootScaffold> {
-  int _selectedIndex = 0;
-
   @override
   void initState() {
     super.initState();
@@ -34,9 +35,9 @@ class _RootScaffoldState extends ConsumerState<RootScaffold> {
   }
 
   void _onTap(int index) {
-    if (_selectedIndex == index) return;
+    if (ref.read(rootTabProvider) == index) return;
     HapticFeedback.selectionClick();
-    setState(() => _selectedIndex = index);
+    ref.read(rootTabProvider.notifier).state = index;
   }
 
   Future<void> _showWhatsNewDialog(BuildContext context) async {
@@ -55,46 +56,29 @@ class _RootScaffoldState extends ConsumerState<RootScaffold> {
 
   @override
   Widget build(BuildContext context) {
-    final bottomPadding = MediaQuery.of(context).padding.bottom;
-    final isDark = context.isDark;
-
+    final tab = ref.watch(rootTabProvider);
     return CupertinoPageScaffold(
-      backgroundColor: context.backgroundColor,
+      backgroundColor: context.yc.bg,
       child: Stack(
         fit: StackFit.expand,
         children: [
-          // Ambient backdrop — subtle radial wash on the ink canvas
-          DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: RadialGradient(
-                center: const Alignment(0.0, -0.5),
-                radius: 1.4,
-                colors: isDark ? AppColors.ambientDark : AppColors.ambientLight,
-              ),
+          // sumiRise re-runs on every tab switch (screen entrance).
+          SumiRise(
+            trigger: tab,
+            child: IndexedStack(
+              index: tab,
+              children: const [
+                BrowseScreen(),
+                LibraryScreen(),
+                SettingsScreen(),
+              ],
             ),
           ),
-
-          IndexedStack(
-            index: _selectedIndex,
-            children: const [
-              LibraryScreen(),
-              BrowseScreen(),
-              DownloadsScreen(),
-              SettingsScreen(),
-            ],
-          ),
-
-          // Floating LUMEN nav pill — centered, compact, icon-only
           Positioned(
-            bottom: bottomPadding + AppSpacing.x6,
             left: 0,
             right: 0,
-            child: Center(
-              child: _LumenNav(
-                selectedIndex: _selectedIndex,
-                onTap: _onTap,
-              ),
-            ),
+            bottom: 0,
+            child: SumiNav(index: tab, onTap: _onTap),
           ),
         ],
       ),
@@ -102,103 +86,133 @@ class _RootScaffoldState extends ConsumerState<RootScaffold> {
   }
 }
 
-// ── LUMEN floating nav pill ─────────────────────────────────────────────────
+// ── Nav ───────────────────────────────────────────────────────────────────────
 
-class _LumenNav extends StatelessWidget {
-  const _LumenNav({required this.selectedIndex, required this.onTap});
+/// Bottom bar 92 tall, gradient transparent → `bg` from 45%. 探 Discover,
+/// yin-yang Library (raised 14px, rotates 180° when leaving Library), 設
+/// Settings.
+class SumiNav extends StatelessWidget {
+  const SumiNav({super.key, required this.index, required this.onTap});
 
-  final int selectedIndex;
+  final int index;
   final ValueChanged<int> onTap;
-
-  static const _items = <(IconData, IconData)>[
-    (CupertinoIcons.square_stack_3d_up, CupertinoIcons.square_stack_3d_up_fill),
-    (CupertinoIcons.compass, CupertinoIcons.compass_fill),
-    (CupertinoIcons.arrow_down_circle, CupertinoIcons.arrow_down_circle_fill),
-    (CupertinoIcons.settings, CupertinoIcons.settings_solid),
-  ];
 
   @override
   Widget build(BuildContext context) {
-    // Solid translucent surface — the previous BackdropFilter blur re-sampled
-    // the entire scrolling list/grid behind the floating pill on every frame,
-    // which was the last live backdrop blur in the app (all others were removed
-    // in the no-glass redesign). The nav-pill colours are ~80% opaque, so a
-    // plain container reads the same without the per-frame GPU cost.
+    final c = context.yc;
+    final bottom = MediaQuery.paddingOf(context).bottom;
+    final onLibrary = index == 1;
+    final reduced = reduceMotion(context);
+
     return Container(
-      padding: const EdgeInsets.all(6),
+      height: 92 + bottom,
+      padding: EdgeInsets.fromLTRB(40, 0, 40, 22 + bottom),
       decoration: BoxDecoration(
-        color: context.isDark
-            ? AppColors.navPillDark
-            : AppColors.navPillLight,
-        borderRadius: BorderRadius.circular(AppRadius.pill),
-        border: Border.all(
-          color: context.borderSubtleColor,
-          width: AppRadius.hairline,
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [c.bg.withValues(alpha: 0), c.bg],
+          stops: const [0.0, 0.45],
         ),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x59000000),
-            blurRadius: 32,
-            spreadRadius: -4,
-            offset: Offset(0, 14),
-          ),
-        ],
       ),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: List.generate(_items.length, (i) {
-          final active = i == selectedIndex;
-          return _NavDot(
-            icon: active ? _items[i].$2 : _items[i].$1,
-            active: active,
-            onTap: () => onTap(i),
-          );
-        }),
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          _NavItem(
+            kanji: '探',
+            label: 'Discover',
+            active: index == 0,
+            onTap: () => onTap(0),
+          ),
+          Semantics(
+            button: true,
+            selected: onLibrary,
+            label: 'Library',
+            child: Transform.translate(
+              offset: const Offset(0, -14),
+              child: AnimatedRotation(
+                turns: onLibrary || reduced ? 0 : 0.5,
+                duration: AppMotion.epic - const Duration(milliseconds: 100),
+                curve: AppMotion.spring,
+                child: AnimatedOpacity(
+                  opacity: onLibrary ? 1 : 0.7,
+                  duration: AppMotion.epic - const Duration(milliseconds: 100),
+                  curve: AppMotion.spring,
+                  child: SumiPress(
+                    onTap: () => onTap(1),
+                    haptic: false,
+                    child: Container(
+                      decoration: const BoxDecoration(
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Color(0x80000000),
+                            blurRadius: 30,
+                            offset: Offset(0, 10),
+                          ),
+                        ],
+                      ),
+                      child: const YinYang(size: 64),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          _NavItem(
+            kanji: '設',
+            label: 'Settings',
+            active: index == 2,
+            onTap: () => onTap(2),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _NavDot extends StatelessWidget {
-  const _NavDot({
-    required this.icon,
+class _NavItem extends StatelessWidget {
+  const _NavItem({
+    required this.kanji,
+    required this.label,
     required this.active,
     required this.onTap,
   });
 
-  final IconData icon;
+  final String kanji;
+  final String label;
   final bool active;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final inactive = context.textSecondaryColor;
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: AppMotion.base,
-        curve: AppMotion.easeOut,
-        width: 52,
-        height: 52,
-        margin: const EdgeInsets.symmetric(horizontal: 2),
-        decoration: BoxDecoration(
-          color: active ? context.accentColor : const Color(0x00000000),
-          shape: BoxShape.circle,
-          boxShadow: active
-              ? [
-                  BoxShadow(
-                    color: context.accentColor.withValues(alpha: 0.45),
-                    blurRadius: 18,
-                    offset: const Offset(0, 5),
-                  ),
-                ]
-              : null,
-        ),
-        child: Icon(
-          icon,
-          size: 23,
-          color: active ? AppColors.textOnAccent : inactive,
+    final c = context.yc;
+    final color = active ? c.fg : c.fg2;
+    return Semantics(
+      button: true,
+      selected: active,
+      label: label,
+      child: SumiPress(
+        onTap: onTap,
+        haptic: false,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              AnimatedDefaultTextStyle(
+                duration: AppMotion.base,
+                style: YomiText.kanji(26, color: color).copyWith(height: 1),
+                child: Text(kanji),
+              ),
+              const SizedBox(height: 3),
+              AnimatedDefaultTextStyle(
+                duration: AppMotion.base,
+                style: YomiText.ui(10, color: color, letterSpacing: 1),
+                child: Text(label),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -214,8 +228,18 @@ class _WhatsNewDialog extends StatelessWidget {
   String _formatDate(DateTime? dt) {
     if (dt == null) return '';
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return '${months[dt.month - 1]} ${dt.day}, ${dt.year}';
   }
@@ -229,8 +253,7 @@ class _WhatsNewDialog extends StatelessWidget {
     final divider = body.indexOf('\n---');
     if (divider > 0) body = body.substring(0, divider);
     body = body
-        .replaceFirst(
-            RegExp(r"^#+\s*what'?s new\s*", caseSensitive: false), '')
+        .replaceFirst(RegExp(r"^#+\s*what'?s new\s*", caseSensitive: false), '')
         .trim();
     return body;
   }
@@ -239,12 +262,13 @@ class _WhatsNewDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     final body = _whatsNewSection(release.body);
     final date = _formatDate(release.publishedAtDate);
+    final c = context.yc;
 
     return CupertinoAlertDialog(
       title: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(CupertinoIcons.sparkles, size: 16, color: AppColors.accent),
+          Icon(CupertinoIcons.sparkles, size: 16, color: c.ac),
           const SizedBox(width: 6),
           Text('What\'s New in ${release.tag}'),
         ],
@@ -257,20 +281,18 @@ class _WhatsNewDialog extends StatelessWidget {
               padding: const EdgeInsets.only(top: 4, bottom: 10),
               child: Text(
                 date,
-                style: AppTextStyles.caption.copyWith(
-                  color: AppColors.textTertiary,
-                ),
+                style: AppTextStyles.caption.copyWith(color: c.fg2),
               ),
             ),
           if (body.isNotEmpty)
             Text(
               body.length > 300 ? '${body.substring(0, 300)}…' : body,
-              style: AppTextStyles.bodySmall,
+              style: AppTextStyles.bodySmall.copyWith(color: c.fg2),
             )
           else
-            const Text(
+            Text(
               'Bug fixes and improvements.',
-              style: AppTextStyles.bodySmall,
+              style: AppTextStyles.bodySmall.copyWith(color: c.fg2),
             ),
         ],
       ),

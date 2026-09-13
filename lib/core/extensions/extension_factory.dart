@@ -3,6 +3,8 @@ import 'sources/asura_scans_source.dart';
 import 'sources/comicextra_source.dart';
 import 'sources/demonicscans_source.dart';
 import 'sources/mangadex_source.dart';
+import 'sources/mangapill_source.dart';
+import 'sources/mangataro_source.dart';
 import 'sources/reaperscans_source.dart';
 import 'sources/readcomiconline_source.dart';
 
@@ -20,6 +22,10 @@ abstract final class ExtensionFactory {
     // AsuraScans
     'eu.kanade.tachiyomi.extension.en.asurascans': 'asurascans_en',
     'eu.kanade.tachiyomi.extension.en.asura': 'asurascans_en',
+    // MangaPill
+    'eu.kanade.tachiyomi.extension.en.mangapill': 'mangapill_en',
+    // MangaTaro
+    'eu.kanade.tachiyomi.extension.en.mangataro': 'mangataro_en',
     // ReaperScans
     'eu.kanade.tachiyomi.extension.en.reaperscans': 'reaperscans_en',
     'eu.kanade.tachiyomi.extension.en.reaper': 'reaperscans_en',
@@ -35,6 +41,27 @@ abstract final class ExtensionFactory {
   /// keiyoushi repo, so we surface them ourselves.
   static const builtInExtensions =
       <({String name, String pkg, String sourceId, String lang, bool isNsfw})>[
+    (
+      name: 'MangaPill',
+      pkg: 'eu.kanade.tachiyomi.extension.en.mangapill',
+      sourceId: 'mangapill_en',
+      lang: 'en',
+      isNsfw: false,
+    ),
+    (
+      name: 'MangaTaro',
+      pkg: 'eu.kanade.tachiyomi.extension.en.mangataro',
+      sourceId: 'mangataro_en',
+      lang: 'en',
+      isNsfw: false,
+    ),
+    (
+      name: 'AsuraScans',
+      pkg: 'eu.kanade.tachiyomi.extension.en.asurascans',
+      sourceId: 'asurascans_en',
+      lang: 'en',
+      isNsfw: false,
+    ),
     (
       name: 'ReadComicOnline',
       pkg: 'eu.kanade.tachiyomi.extension.en.readcomiconline',
@@ -52,12 +79,14 @@ abstract final class ExtensionFactory {
   ];
 
   static MangaSource? create(String sourceId) => switch (sourceId) {
-        'mangadex_en_v5'     => MangaDexSource(),
-        'demonicscans_en'    => DemonicScansSource(),
-        'asurascans_en'      => AsuraScansSource(),
-        'reaperscans_en'     => ReaperScansSource(),
+        'mangadex_en_v5' => MangaDexSource(),
+        'mangapill_en' => MangaPillSource(),
+        'mangataro_en' => MangaTaroSource(),
+        'demonicscans_en' => DemonicScansSource(),
+        'asurascans_en' => AsuraScansSource(),
+        'reaperscans_en' => ReaperScansSource(),
         'readcomiconline_en' => ReadComicOnlineSource(),
-        'comicextra_en'      => ComicExtraSource(),
-        _                    => null,
+        'comicextra_en' => ComicExtraSource(),
+        _ => null,
       };
 }

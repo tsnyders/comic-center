@@ -10,10 +10,14 @@ import 'package:screen_brightness/screen_brightness.dart';
 
 import '../../core/providers/library_provider.dart';
 import '../../core/providers/reader_provider.dart';
+import '../../core/providers/settings_provider.dart';
+import '../../core/providers/source_registry_provider.dart';
 import '../../core/services/app_logger.dart';
 import '../../core/services/device_profile.dart';
+import '../../core/services/downloaded_chapter_files.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../../core/theme/yomi_theme.dart';
 import 'widgets/page_pill.dart';
 import 'widgets/progress_line.dart';
 import 'widgets/reader_chrome.dart';
@@ -24,11 +28,13 @@ class ReaderChapterSummary {
     required this.id,
     required this.sourceChapterId,
     required this.title,
+    this.number,
     this.downloadPath,
   });
   final int id;
   final String sourceChapterId;
   final String title;
+  final double? number;
   final String? downloadPath;
 }
 
@@ -40,10 +46,13 @@ class ReaderScreen extends ConsumerStatefulWidget {
     required this.sourceId,
     required this.sourceChapterId,
     required this.chapterTitle,
+    this.mangaTitle = '',
+    this.chapterNumber,
     this.downloadPath,
     this.isWebtoon = false,
     this.chapters = const [],
     this.chapterIndex = -1,
+    this.initialPage = 0,
   });
 
   final int mangaId;
@@ -51,30 +60,42 @@ class ReaderScreen extends ConsumerStatefulWidget {
   final String sourceId;
   final String sourceChapterId;
   final String chapterTitle;
+  final String mangaTitle;
+  final double? chapterNumber;
   final String? downloadPath;
+
+  /// Source / genre detection. The effective mode may override it (Page · 頁
+  /// / Strip · 縦 switch in the chrome, persisted per title).
   final bool isWebtoon;
   final List<ReaderChapterSummary> chapters;
   final int chapterIndex;
+
+  /// Page to open on (the chapter's last read page for "Continue").
+  final int initialPage;
 
   @override
   ConsumerState<ReaderScreen> createState() => _ReaderScreenState();
 }
 
 class _ReaderScreenState extends ConsumerState<ReaderScreen> {
-  static const _platform   = MethodChannel('yomi/platform');
+  static const _platform = MethodChannel('yomi/platform');
   static const _volumeKeys = EventChannel('yomi/volume_keys');
 
-  late final PageController   _pageController;
+  late PageController _pageController;
   late final ScrollController _scrollController;
+
+  /// Effective mode for this build (see [effectiveReaderModeProvider]).
+  bool _strip = false;
+  bool _didInitialJump = false;
 
   // Driven directly (without setState) from the scroll/page-change callbacks so
   // that scrolling a webtoon or turning a page does NOT rebuild the entire
   // reader Stack (image list + chrome) every frame — only the tiny progress
   // line and page pill repaint, via ValueListenableBuilder.
-  final ValueNotifier<bool>   _pillVisible     = ValueNotifier(false);
+  final ValueNotifier<bool> _pillVisible = ValueNotifier(false);
   final ValueNotifier<double> _webtoonProgress = ValueNotifier(0.0);
   Timer? _pillHideTimer;
-  bool   _chapterMarkedRead   = false;
+  bool _chapterMarkedRead = false;
   StreamSubscription<dynamic>? _volumeSub;
 
   // Warms chapterPagesProvider for the next chapter once the reader is 80%
@@ -86,13 +107,12 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   @override
   void initState() {
     super.initState();
-    _pageController   = PageController();
+    _pageController = PageController(initialPage: widget.initialPage);
     _scrollController = ScrollController();
     SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle.light);
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-    if (widget.isWebtoon) {
-      _scrollController.addListener(_onWebtoonScroll);
-    }
+    // Only fires while the strip view is attached; harmless otherwise.
+    _scrollController.addListener(_onWebtoonScroll);
     _enableVolumeKeys();
   }
 
@@ -134,12 +154,11 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     final reader = ref.read(readerProvider);
     final total = reader.totalPages;
     if (total == 0) return;
-    final target =
-        (forward ? reader.currentPage + 1 : reader.currentPage - 1)
-            .clamp(0, total - 1);
+    final target = (forward ? reader.currentPage + 1 : reader.currentPage - 1)
+        .clamp(0, total - 1);
     if (target == reader.currentPage) return;
-    HapticFeedback.selectionClick();
-    if (widget.isWebtoon) {
+    if (ref.read(hapticsProvider)) HapticFeedback.selectionClick();
+    if (_strip) {
       if (!_scrollController.hasClients) return;
       _scrollController.animateTo(
         (target / total) * _scrollController.position.maxScrollExtent,
@@ -159,7 +178,8 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     try {
       await ScreenBrightness().resetScreenBrightness();
     } catch (e, st) {
-      AppLogger.instance.warn('Failed to reset screen brightness on reader close', e, st);
+      AppLogger.instance
+          .warn('Failed to reset screen brightness on reader close', e, st);
     }
   }
 
@@ -180,10 +200,12 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
         fullscreenDialog: true,
         builder: (_) => ReaderScreen(
           mangaId: widget.mangaId,
+          mangaTitle: widget.mangaTitle,
           chapterId: next.id,
           sourceId: widget.sourceId,
           sourceChapterId: next.sourceChapterId,
           chapterTitle: next.title,
+          chapterNumber: next.number,
           downloadPath: next.downloadPath,
           isWebtoon: widget.isWebtoon,
           chapters: widget.chapters,
@@ -202,8 +224,9 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     final next = _nextSummary;
     _nextChapterPrefetch = ref.listenManual(
       chapterPagesProvider(ChapterKey(
+        databaseChapterId: next.id,
         sourceId: widget.sourceId,
-        chapterId: next.sourceChapterId,
+        sourceChapterId: next.sourceChapterId,
         downloadPath: next.downloadPath,
       )),
       (_, __) {},
@@ -231,9 +254,8 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
 
     final rawProgress = (pos.pixels / pos.maxScrollExtent).clamp(0.0, 1.0);
     final total = ref.read(readerProvider).totalPages;
-    final page  = total > 0
-        ? (rawProgress * total).floor().clamp(0, total - 1)
-        : 0;
+    final page =
+        total > 0 ? (rawProgress * total).floor().clamp(0, total - 1) : 0;
 
     // Push the page index to the provider only when the *integer* page
     // actually changes (a few times per chapter), never every frame.
@@ -268,7 +290,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   // ── Seek (chrome scrubber) ───────────────────────────────────────────────
 
   void _onSeek(int page) {
-    if (widget.isWebtoon) {
+    if (_strip) {
       if (!_scrollController.hasClients) return;
       final total = ref.read(readerProvider).totalPages;
       if (total == 0) return;
@@ -286,18 +308,49 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     }
   }
 
+  // ── Page · 頁 / Strip · 縦 ───────────────────────────────────────────────
+
+  /// Persisted per title. Keeps the current page across the view swap.
+  void _setMode(ReaderMode mode) {
+    final page = ref.read(readerProvider).currentPage;
+    final total = ref.read(readerProvider).totalPages;
+    final toStrip = mode == ReaderMode.strip;
+    if (toStrip == _strip) return;
+    if (!toStrip) {
+      _pageController.dispose();
+      _pageController = PageController(initialPage: page);
+    }
+    ref.read(mangaReaderModeProvider(widget.mangaId).notifier).state = mode;
+    if (toStrip) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || !_scrollController.hasClients || total == 0) return;
+        _scrollController.jumpTo(
+            (page / total) * _scrollController.position.maxScrollExtent);
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final chapterKey = ChapterKey(
+      databaseChapterId: widget.chapterId,
       sourceId: widget.sourceId,
-      chapterId: widget.sourceChapterId,
+      sourceChapterId: widget.sourceChapterId,
       downloadPath: widget.downloadPath,
     );
     final pagesAsync = ref.watch(chapterPagesProvider(chapterKey));
-    final readerState   = ref.watch(readerProvider);
-    final direction     = ref.watch(effectiveReadingDirectionProvider(widget.mangaId));
-    final background    = ref.watch(readerBackgroundProvider);
+    final readerState = ref.watch(readerProvider);
+    final direction =
+        ref.watch(effectiveReadingDirectionProvider(widget.mangaId));
+    final background = ref.watch(readerBackgroundProvider);
     final chromeVisible = readerState.chromeVisible;
+    final strip = resolveStripMode(
+      ref.watch(effectiveReaderModeProvider(widget.mangaId)),
+      detectedWebtoon: widget.isWebtoon,
+    );
+    final imageHeaders =
+        ref.watch(sourceByIdProvider(widget.sourceId))?.imageHeaders;
+    _strip = strip;
 
     final bgColor = switch (background) {
       ReaderBackground.black => AppColors.readerBackground,
@@ -326,8 +379,9 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
               ),
               const SizedBox(height: 16),
               CupertinoButton(
-                color: AppColors.accent,
-                onPressed: () => ref.invalidate(chapterPagesProvider(chapterKey)),
+                color: context.yc.ac,
+                onPressed: () =>
+                    ref.invalidate(chapterPagesProvider(chapterKey)),
                 child: const Text('Retry'),
               ),
             ],
@@ -337,8 +391,18 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
           final currentTotal = ref.read(readerProvider).totalPages;
           if (currentTotal != pages.length) {
             WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (mounted) {
-                ref.read(readerProvider.notifier).setTotalPages(pages.length);
+              if (!mounted) return;
+              final notifier = ref.read(readerProvider.notifier)
+                ..setTotalPages(pages.length);
+              // Land on the requested page ("Continue" → last read page).
+              final start = widget.initialPage.clamp(0, pages.length - 1);
+              if (start > 0 && !_didInitialJump) {
+                _didInitialJump = true;
+                notifier.setPage(start);
+                if (strip && _scrollController.hasClients) {
+                  _scrollController.jumpTo((start / pages.length) *
+                      _scrollController.position.maxScrollExtent);
+                }
               }
             });
           }
@@ -346,10 +410,11 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
           return Stack(
             children: [
               // ── Content ──────────────────────────────────────────────────
-              if (widget.isWebtoon)
-                _buildWebtoonView(context, pages, chromeVisible)
+              if (strip)
+                _buildWebtoonView(context, pages, chromeVisible, imageHeaders)
               else
-                _buildPagedView(context, pages, direction, background, chromeVisible),
+                _buildPagedView(context, pages, direction, background,
+                    chromeVisible, imageHeaders),
 
               // ── Always-visible 2px progress line — pinned at the very top ──
               // Sits at top:0 (above the safe-area notch) so it is always
@@ -359,7 +424,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                 left: 0,
                 right: 0,
                 height: 2,
-                child: widget.isWebtoon
+                child: strip
                     // Webtoon progress updates every scroll frame — isolate it
                     // in a ValueListenableBuilder so only this 2px line repaints.
                     ? ValueListenableBuilder<double>(
@@ -376,13 +441,17 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                 child: IgnorePointer(
                   ignoring: !chromeVisible,
                   child: ReaderChrome(
+                    mangaTitle: widget.mangaTitle,
                     chapterTitle: widget.chapterTitle,
+                    chapterNumber: widget.chapterNumber,
                     currentPage: readerState.currentPage,
                     totalPages: readerState.totalPages,
                     visible: chromeVisible,
+                    isStrip: strip,
                     onClose: () => Navigator.of(context).pop(),
                     onSettings: () => _showSettings(context),
                     onSeek: _onSeek,
+                    onModeChanged: _setMode,
                   ),
                 ),
               ),
@@ -427,9 +496,10 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     ReadingDirection direction,
     ReaderBackground background,
     bool chromeVisible,
+    Map<String, String>? imageHeaders,
   ) {
     final isVertical = direction == ReadingDirection.vertical;
-    final isRtl      = direction == ReadingDirection.rtl;
+    final isRtl = direction == ReadingDirection.rtl;
 
     return GestureDetector(
       // Left/right edge tap zones turn the page (the non-hardware-key
@@ -480,6 +550,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
           url: pages[i],
           index: i,
           background: background,
+          headers: imageHeaders,
         ),
       ),
     );
@@ -491,6 +562,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     BuildContext context,
     List<String> pages,
     bool chromeVisible,
+    Map<String, String>? imageHeaders,
   ) {
     final hasFooter = _hasNextChapter;
     return GestureDetector(
@@ -514,7 +586,11 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
               onTap: () => _goToNextChapter(context),
             );
           }
-          return _WebtoonPage(url: pages[i], index: i);
+          return _WebtoonPage(
+            url: pages[i],
+            index: i,
+            headers: imageHeaders,
+          );
         },
       ),
     );
@@ -524,7 +600,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     showCupertinoModalPopup<void>(
       context: context,
       builder: (_) => _ReaderSettingsSheet(
-        isWebtoon: widget.isWebtoon,
+        isWebtoon: _strip,
         mangaId: widget.mangaId,
       ),
     );
@@ -540,15 +616,15 @@ class _ReaderSettingsSheet extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final direction      = ref.watch(readingDirectionProvider);
-    final titleOverride  = ref.watch(mangaReadingDirectionProvider(mangaId));
-    final scale          = ref.watch(pageScaleModeProvider);
-    final background     = ref.watch(readerBackgroundProvider);
+    final direction = ref.watch(readingDirectionProvider);
+    final titleOverride = ref.watch(mangaReadingDirectionProvider(mangaId));
+    final scale = ref.watch(pageScaleModeProvider);
+    final background = ref.watch(readerBackgroundProvider);
 
     return Container(
       decoration: const BoxDecoration(
-        color: Color(0xFF1C1C24),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        color: Color(0xFF1A1917),
+        border: Border(top: BorderSide(color: Color(0xFF2A2825))),
       ),
       padding: EdgeInsets.only(
         top: 12,
@@ -571,12 +647,8 @@ class _ReaderSettingsSheet extends ConsumerWidget {
               ),
             ),
           ),
-
-          Text('Reader Settings',
-              style: AppTextStyles.sectionTitle
-                  .copyWith(color: AppColors.textPrimary)),
+          Text('Reader · 読', style: YomiText.kanji(26, color: YomiReader.ink)),
           const SizedBox(height: 20),
-
           if (!isWebtoon) ...[
             Text('DIRECTION',
                 style: AppTextStyles.labelSmall
@@ -617,7 +689,6 @@ class _ReaderSettingsSheet extends ConsumerWidget {
             ),
             const SizedBox(height: 16),
           ],
-
           if (!isWebtoon) ...[
             Text('PAGE SCALE',
                 style: AppTextStyles.labelSmall
@@ -636,14 +707,12 @@ class _ReaderSettingsSheet extends ConsumerWidget {
             ),
             const SizedBox(height: 16),
           ],
-
           Text('BRIGHTNESS',
               style: AppTextStyles.labelSmall
                   .copyWith(color: AppColors.textTertiary)),
           const SizedBox(height: 8),
           const _BrightnessSlider(),
           const SizedBox(height: 16),
-
           Text('BACKGROUND',
               style: AppTextStyles.labelSmall
                   .copyWith(color: AppColors.textTertiary)),
@@ -687,7 +756,8 @@ class _BrightnessSliderState extends State<_BrightnessSlider> {
       final current = await ScreenBrightness().current;
       if (mounted) setState(() => _value = current.clamp(0.0, 1.0));
     } catch (e, st) {
-      AppLogger.instance.warn('Failed to read current screen brightness', e, st);
+      AppLogger.instance
+          .warn('Failed to read current screen brightness', e, st);
     }
   }
 
@@ -717,7 +787,7 @@ class _BrightnessSliderState extends State<_BrightnessSlider> {
             value: '${(_value * 100).round()}%',
             child: CupertinoSlider(
               value: _value,
-              activeColor: AppColors.accent,
+              activeColor: context.yc.ac,
               onChanged: _set,
             ),
           ),
@@ -766,20 +836,17 @@ class _OptionRow<T> extends StatelessWidget {
               duration: const Duration(milliseconds: 140),
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
               decoration: BoxDecoration(
-                color: selected ? AppColors.accent : AppColors.surface,
-                borderRadius: BorderRadius.circular(20),
+                color: selected ? YomiReader.ink : const Color(0x00000000),
+                borderRadius: BorderRadius.circular(2),
                 border: Border.all(
-                  color: selected ? AppColors.accent : AppColors.borderStrong,
-                  width: 0.5,
+                  color: selected ? YomiReader.ink : YomiReader.buttonBorder,
                 ),
               ),
               child: Text(
                 opt.$2,
-                style: TextStyle(
-                  fontSize: 13,
-                  color: selected ? AppColors.textOnAccent : AppColors.textSecondary,
-                  fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-                ),
+                style: YomiText.ui(13,
+                    weight: selected ? FontWeight.w700 : FontWeight.w400,
+                    color: selected ? YomiReader.bg : YomiReader.ink),
               ),
             ),
           ),
@@ -796,11 +863,13 @@ class _ReaderPage extends ConsumerWidget {
     required this.url,
     required this.index,
     required this.background,
+    this.headers,
   });
 
   final String url;
   final int index;
   final ReaderBackground background;
+  final Map<String, String>? headers;
 
   Widget? _loadStateOverlay(ExtendedImageState state) {
     switch (state.extendedImageLoadState) {
@@ -829,9 +898,9 @@ class _ReaderPage extends ConsumerWidget {
     final scale = ref.watch(pageScaleModeProvider);
 
     final fit = switch (scale) {
-      PageScaleMode.fitWidth  => BoxFit.fitWidth,
+      PageScaleMode.fitWidth => BoxFit.fitWidth,
       PageScaleMode.fitHeight => BoxFit.fitHeight,
-      PageScaleMode.original  => BoxFit.none,
+      PageScaleMode.original => BoxFit.none,
     };
 
     // Cap the decoded bitmap width. Manga source pages are frequently
@@ -855,7 +924,7 @@ class _ReaderPage extends ConsumerWidget {
 
     if (url.startsWith('/') || url.startsWith('file://')) {
       return ExtendedImage.file(
-        File(url),
+        localPageFile(url),
         fit: fit,
         mode: ExtendedImageMode.gesture,
         initGestureConfigHandler: _gestureConfig,
@@ -867,6 +936,7 @@ class _ReaderPage extends ConsumerWidget {
 
     return ExtendedImage.network(
       url,
+      headers: headers,
       fit: fit,
       mode: ExtendedImageMode.gesture,
       initGestureConfigHandler: _gestureConfig,
@@ -892,10 +962,15 @@ class _ReaderPage extends ConsumerWidget {
 // ── Webtoon strip image (full-width, natural height) ──────────────────────
 
 class _WebtoonPage extends StatelessWidget {
-  const _WebtoonPage({required this.url, required this.index});
+  const _WebtoonPage({
+    required this.url,
+    required this.index,
+    this.headers,
+  });
 
   final String url;
   final int index;
+  final Map<String, String>? headers;
 
   Widget? _loadStateOverlay(ExtendedImageState state, double screenWidth) {
     switch (state.extendedImageLoadState) {
@@ -943,7 +1018,7 @@ class _WebtoonPage extends StatelessWidget {
 
     if (url.startsWith('/') || url.startsWith('file://')) {
       return ExtendedImage.file(
-        File(url),
+        localPageFile(url),
         fit: BoxFit.fitWidth,
         width: screenWidth,
         mode: ExtendedImageMode.none,
@@ -955,6 +1030,7 @@ class _WebtoonPage extends StatelessWidget {
 
     return ExtendedImage.network(
       url,
+      headers: headers,
       fit: BoxFit.fitWidth,
       width: screenWidth,
       mode: ExtendedImageMode.none,
@@ -981,13 +1057,13 @@ class _NextChapterButton extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(13),
         decoration: BoxDecoration(
-          color: const Color(0xCC0A0A0D),
-          borderRadius: BorderRadius.circular(26),
-          border: Border.all(color: const Color(0x1FFFFFFF), width: 0.75),
+          color: const Color(0xCC000000),
+          shape: BoxShape.circle,
+          border: Border.all(color: YomiReader.buttonBorder),
         ),
         child: const Icon(
           CupertinoIcons.chevron_right_2,
-          color: Color(0xFFF3F0E9),
+          color: YomiReader.ink,
           size: 22,
         ),
       ),
@@ -1011,16 +1087,13 @@ class _NextChapterFooter extends StatelessWidget {
         margin: EdgeInsets.fromLTRB(20, 24, 20, bottomPadding + 32),
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: AppColors.surfaceElevated,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-              color: const Color(0x40FF6F61), // AppColors.accent, faint
-              width: 0.5),
+          color: const Color(0xFF1A1917),
+          borderRadius: BorderRadius.circular(4),
+          border: Border.all(color: const Color(0xFF2A2825)),
         ),
         child: Row(
           children: [
-            const Icon(CupertinoIcons.arrow_right_circle_fill,
-                color: AppColors.accent, size: 28),
+            Text('次', style: YomiText.kanji(26, color: context.yc.ac)),
             const SizedBox(width: 14),
             Expanded(
               child: Column(

@@ -1,8 +1,9 @@
 import 'package:flutter/cupertino.dart';
 
-import '../../core/theme/app_colors.dart';
-import '../../core/theme/app_text_styles.dart';
+import '../../core/theme/yomi_theme.dart';
 
+/// Unread count — circle min 18px, `ac` fill, white 10/700. The only solid
+/// accent fill on the shelf.
 class UnreadBadge extends StatelessWidget {
   const UnreadBadge({super.key, required this.count});
 
@@ -11,20 +12,20 @@ class UnreadBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (count <= 0) return const SizedBox.shrink();
-
+    final c = context.yc;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      constraints: const BoxConstraints(minWidth: 18),
+      height: 18,
+      padding: const EdgeInsets.symmetric(horizontal: 5),
+      alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: AppColors.unread.withValues(alpha: 0.9),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppColors.textQuaternary, width: 0.5),
+        color: c.ac,
+        borderRadius: BorderRadius.circular(9),
       ),
       child: Text(
         count > 999 ? '999+' : count.toString(),
-        style: AppTextStyles.caption.copyWith(
-          color: CupertinoColors.white,
-          fontWeight: FontWeight.w700,
-        ),
+        style: YomiText.ui(10, weight: FontWeight.w700, color: c.onAccent)
+            .copyWith(height: 1),
       ),
     );
   }

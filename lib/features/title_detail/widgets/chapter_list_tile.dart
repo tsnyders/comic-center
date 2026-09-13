@@ -4,10 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/database/models/chapter_entry.dart';
 import '../../../core/database/models/download_entry.dart';
 import '../../../core/providers/download_provider.dart';
-import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_spacing.dart';
-import '../../../core/theme/app_text_styles.dart';
+import '../../../core/theme/yomi_theme.dart';
+import '../../../shared/widgets/sumi.dart';
 
+/// Chapter row: kanji numeral · title 14/700 · meta 11 · download · status
+/// dot (8px `ac` when unread, ring when in progress). Read rows sit at 55%.
 class ChapterListTile extends ConsumerWidget {
   const ChapterListTile({
     super.key,
@@ -20,116 +21,96 @@ class ChapterListTile extends ConsumerWidget {
   final VoidCallback onTap;
   final VoidCallback? onDownload;
 
-  bool get _isInProgress =>
+  bool get _inProgress =>
       !chapter.isRead && chapter.lastPageRead > 0 && chapter.pageCount > 0;
-
-  double get _progress => chapter.pageCount > 0
-      ? ((chapter.lastPageRead + 1) / chapter.pageCount).clamp(0.0, 1.0)
-      : 0.0;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final c = context.yc;
     final queueStatus =
         ref.watch(chapterDownloadStatusProvider(chapter.id)).valueOrNull;
 
-    final titleColor = chapter.isRead
-        ? context.textTertiaryColor
-        : context.textPrimaryColor;
+    final meta = [
+      if (chapter.uploadDate != null) _formatDate(chapter.uploadDate!),
+      if (_inProgress)
+        'Page ${chapter.lastPageRead + 1} of ${chapter.pageCount}'
+      else
+        chapter.isRead ? 'Read' : 'Unread',
+    ].join(' · ');
 
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        decoration: BoxDecoration(
-          border: Border(
-            bottom: BorderSide(
-              color: context.borderColor,
-              width: AppRadius.hairline,
+    final number = chapter.number;
+
+    return Semantics(
+      button: true,
+      label: '${chapter.title}, $meta',
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: Opacity(
+          opacity: chapter.isRead ? 0.55 : 1.0,
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            decoration: BoxDecoration(
+              border: Border(bottom: BorderSide(color: c.line)),
+            ),
+            child: Row(
+              children: [
+                ConstrainedBox(
+                  constraints: const BoxConstraints(minWidth: 28),
+                  child: Text(
+                    number == null ? '—' : kanjiNumeral(number),
+                    style: YomiText.kanji(20, color: c.fg2),
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        chapter.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: YomiText.ui(14,
+                            weight: FontWeight.w700, color: c.fg),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        meta,
+                        style:
+                            YomiText.ui(11, color: _inProgress ? c.ac : c.fg2),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 10),
+                _DownloadButton(
+                  chapter: chapter,
+                  queueStatus: queueStatus,
+                  onDownload: onDownload,
+                ),
+                const SizedBox(width: 10),
+                Container(
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: !chapter.isRead && !_inProgress
+                        ? c.ac
+                        : const Color(0x00000000),
+                    border: _inProgress ? Border.all(color: c.ac) : null,
+                  ),
+                ),
+              ],
             ),
           ),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            // ── Read / unread status dot — 10px wide column ──────────────
-            SizedBox(
-              width: 10,
-              child: _StatusDot(chapter: chapter),
-            ),
-
-            const SizedBox(width: AppSpacing.x5),
-
-            // ── Title + meta + progress ───────────────────────────────────
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    chapter.title,
-                    style: AppTextStyles.bodyMedium.copyWith(
-                      color: titleColor,
-                      fontWeight:
-                          chapter.isRead ? FontWeight.w500 : FontWeight.w600,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  if (chapter.uploadDate != null || _isInProgress) ...[
-                    const SizedBox(height: 3),
-                    Row(
-                      children: [
-                        if (chapter.uploadDate != null)
-                          Text(
-                            _formatDate(chapter.uploadDate!),
-                            style: AppTextStyles.caption.copyWith(
-                              color: context.textTertiaryColor,
-                            ),
-                          ),
-                        if (chapter.uploadDate != null && _isInProgress)
-                          Text(
-                            '  ·  ',
-                            style: AppTextStyles.caption.copyWith(
-                              color: context.textTertiaryColor,
-                            ),
-                          ),
-                        if (_isInProgress)
-                          Text(
-                            'Page ${chapter.lastPageRead + 1} of ${chapter.pageCount}',
-                            style: AppTextStyles.caption.copyWith(
-                              color: context.accentColor,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                      ],
-                    ),
-                  ],
-                  // Continuous progress bar for partially-read chapters.
-                  if (_isInProgress) ...[
-                    const SizedBox(height: 7),
-                    _ProgressBar(value: _progress),
-                  ],
-                ],
-              ),
-            ),
-
-            const SizedBox(width: AppSpacing.x5),
-
-            // ── Download button ───────────────────────────────────────────
-            _DownloadButton(
-              chapter: chapter,
-              queueStatus: queueStatus,
-              onDownload: onDownload,
-            ),
-          ],
         ),
       ),
     );
   }
 
   String _formatDate(DateTime date) {
-    final now = DateTime.now();
-    final diff = now.difference(date);
+    final diff = DateTime.now().difference(date);
     if (diff.inDays == 0) return 'Today';
     if (diff.inDays == 1) return 'Yesterday';
     if (diff.inDays < 7) return '${diff.inDays}d ago';
@@ -139,71 +120,9 @@ class ChapterListTile extends ConsumerWidget {
   }
 }
 
-// ── Read / unread status dot ────────────────────────────────────────────────
+// ── Download state glyph ──────────────────────────────────────────────────────
 
-class _StatusDot extends StatelessWidget {
-  const _StatusDot({required this.chapter});
-  final ChapterEntry chapter;
-
-  @override
-  Widget build(BuildContext context) {
-    // Read chapters carry no dot — the dimmed title conveys read state.
-    if (chapter.isRead) return const SizedBox.shrink();
-
-    final inProgress = chapter.lastPageRead > 0;
-    // Unread = filled accent dot; in-progress = accent ring (2px).
-    return Center(
-      child: Container(
-        width: 9,
-        height: 9,
-        decoration: BoxDecoration(
-          color: inProgress ? null : context.accentColor,
-          shape: BoxShape.circle,
-          border: inProgress
-              ? Border.all(color: context.accentColor, width: 2)
-              : null,
-        ),
-      ),
-    );
-  }
-}
-
-// ── Progress bar ────────────────────────────────────────────────────────────
-
-class _ProgressBar extends StatelessWidget {
-  const _ProgressBar({required this.value});
-  final double value;
-
-  @override
-  Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(2),
-      child: SizedBox(
-        height: 3,
-        child: Stack(
-          children: [
-            // Track
-            Positioned.fill(
-              child: ColoredBox(color: context.borderStrongColor),
-            ),
-            // Fill
-            FractionallySizedBox(
-              widthFactor: value,
-              alignment: Alignment.centerLeft,
-              child: DecoratedBox(
-                decoration: BoxDecoration(color: context.accentColor),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ── Download button — 40px circle, color@12% bg, hairline@32% border ────────
-
-class _DownloadButton extends ConsumerWidget {
+class _DownloadButton extends StatelessWidget {
   const _DownloadButton({
     required this.chapter,
     required this.queueStatus,
@@ -215,67 +134,46 @@ class _DownloadButton extends ConsumerWidget {
   final VoidCallback? onDownload;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
+    final c = context.yc;
     final done =
         chapter.isDownloaded || queueStatus == DownloadStatus.completed;
 
-    // Resolve icon / colour / tap behaviour from the current state.
-    final (IconData? icon, Color color, bool tappable, Widget? custom) =
-        switch (true) {
-      _ when done => (
-          CupertinoIcons.checkmark_alt,
-          context.downloadedColor,
-          false,
-          null,
-        ),
+    final (IconData? icon, Color color, bool tappable) = switch (true) {
+      _ when done => (CupertinoIcons.checkmark_alt, c.fg2, false),
       _ when queueStatus == DownloadStatus.pending => (
           CupertinoIcons.clock,
-          context.warningColor,
-          false,
-          null,
+          c.fg2,
+          false
         ),
-      _ when queueStatus == DownloadStatus.downloading => (
-          null,
-          context.accentColor,
-          false,
-          const CupertinoActivityIndicator(radius: 9),
-        ),
+      _ when queueStatus == DownloadStatus.downloading => (null, c.ac, false),
       _ when queueStatus == DownloadStatus.paused => (
           CupertinoIcons.pause_fill,
-          context.warningColor,
-          true,
-          null,
+          c.fg2,
+          true
         ),
       _ when queueStatus == DownloadStatus.failed => (
           CupertinoIcons.arrow_clockwise,
-          context.unreadColor,
-          true,
-          null,
+          c.ac,
+          true
         ),
-      _ => (
-          CupertinoIcons.arrow_down,
-          context.accentColor,
-          true,
-          null,
-        ),
+      _ => (CupertinoIcons.arrow_down_to_line, c.fg, true),
     };
 
-    return GestureDetector(
-      onTap: tappable ? onDownload : null,
-      behavior: HitTestBehavior.opaque,
-      child: Container(
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.12),
-          shape: BoxShape.circle,
-          border: Border.all(
-            color: color.withValues(alpha: 0.32),
-            width: AppRadius.hairline,
+    return Semantics(
+      button: tappable,
+      label: done ? 'Downloaded' : 'Download chapter',
+      child: GestureDetector(
+        onTap: tappable ? onDownload : null,
+        behavior: HitTestBehavior.opaque,
+        child: SizedBox(
+          width: 32,
+          height: 32,
+          child: Center(
+            child: icon == null
+                ? CupertinoActivityIndicator(radius: 7, color: color)
+                : Icon(icon, size: 18, color: color),
           ),
-        ),
-        child: Center(
-          child: custom ?? Icon(icon, size: 20, color: color),
         ),
       ),
     );

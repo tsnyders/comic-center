@@ -1,7 +1,11 @@
+import 'package:extended_image/extended_image.dart'
+    show clearDiskCachedImages, getCachedSizeBytes;
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/providers/database_provider.dart';
+import '../../core/providers/download_provider.dart';
 import '../../core/providers/google_drive_provider.dart';
 import '../../core/providers/library_provider.dart';
 import '../../core/providers/reader_provider.dart';
@@ -9,375 +13,366 @@ import '../../core/providers/settings_provider.dart';
 import '../../core/services/backup_service.dart';
 import '../../core/services/google_drive_service.dart';
 import '../../core/services/update_service.dart';
-import '../../core/theme/app_colors.dart';
+import '../../core/services/whats_new_service.dart';
 import '../../core/theme/app_spacing.dart';
-import '../../core/theme/app_text_styles.dart';
+import '../../core/theme/yomi_theme.dart';
+import '../../shared/widgets/sumi.dart';
+import '../downloads/downloads_screen.dart';
 import '../library/category_management_screen.dart';
 import 'backup_restore_screen.dart';
 import 'changelog_screen.dart';
 import 'diagnostics_screen.dart';
 import 'drive_restore_screen.dart';
 
-// ── Icon chip colors ──────────────────────────────────────────────────────
-// Content-first redesign: the stock-iOS rainbow palette is replaced by a single
-// cohesive warm-graphite chip (white glyph on top), so Settings reads as one
-// considered surface rather than a row of system defaults. Semantic rows that
-// want to stand out use [AppColors.accent] (coral) directly at the call site.
-// Names are retained so existing call sites keep compiling.
+/// Image disk cache size (extended_image reader pages).
+final _cacheSizeProvider =
+    FutureProvider.autoDispose<int>((_) => getCachedSizeBytes());
 
-class _IColor {
-  static const _ink = Color(0xFF55545B); // warm graphite
-  static const indigo  = _ink;
-  static const orange  = _ink;
-  static const green   = _ink;
-  static const blue    = _ink;
-  static const purple  = _ink;
-  static const teal    = _ink;
-  static const yellow  = _ink;
-  static const gray    = _ink;
-}
-
+/// ============================================================================
+/// Settings — "You". Account card, then grouped rows: READING · 読,
+/// APPEARANCE · 姿 (Theme + Accent edit the live theme), LIBRARY · 庫,
+/// STORAGE · 蔵, BACKUP · 写, ABOUT · 情.
+/// ============================================================================
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final topPadding    = MediaQuery.of(context).padding.top;
-    final bottomPadding = MediaQuery.of(context).padding.bottom;
-    final dlLocation    = ref.watch(downloadLocationProvider);
-    final brightness    = ref.watch(brightnessProvider);
-    final autoUpdate    = ref.watch(autoCheckUpdatesProvider);
-    final direction     = ref.watch(readingDirectionProvider);
-    final scale         = ref.watch(pageScaleModeProvider);
-    final background    = ref.watch(readerBackgroundProvider);
-    final driveAccount  = ref.watch(googleDriveProvider);
+    final c = context.yc;
+    final theme = context.yomi;
+    final insets = MediaQuery.paddingOf(context);
+    final gutter = context.yomiGutter;
+
+    final direction = ref.watch(readingDirectionProvider);
+    final readerMode = ref.watch(defaultReaderModeProvider);
+    final scale = ref.watch(pageScaleModeProvider);
+    final background = ref.watch(readerBackgroundProvider);
+    final haptics = ref.watch(hapticsProvider);
+    final autoUpdate = ref.watch(autoCheckUpdatesProvider);
+    final dlLocation = ref.watch(downloadLocationProvider);
+    final wifiOnly = ref.watch(wifiOnlyProvider);
+    final queued = ref.watch(downloadQueueProvider).valueOrNull?.length ?? 0;
+    final cacheBytes = ref.watch(_cacheSizeProvider).valueOrNull;
+    final driveAccount = ref.watch(googleDriveProvider);
+
+    void push(Widget screen) => Navigator.of(context, rootNavigator: true)
+        .push(CupertinoPageRoute<void>(builder: (_) => screen));
 
     return CupertinoPageScaffold(
-      backgroundColor: context.backgroundColor,
+      backgroundColor: c.bg,
       child: CustomScrollView(
         physics: const BouncingScrollPhysics(),
         slivers: [
-          SliverToBoxAdapter(child: SizedBox(height: topPadding + AppSpacing.x4)),
-
-          // ── Page title ──────────────────────────────────────────────────
+          SliverToBoxAdapter(child: SizedBox(height: insets.top + 12)),
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.gutter, AppSpacing.x2, AppSpacing.gutter, AppSpacing.x8,
-              ),
+              padding: EdgeInsets.symmetric(horizontal: gutter),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'YOMI',
-                    style: AppTextStyles.metaMono.copyWith(
-                      color: context.accentColor,
-                      letterSpacing: 3.0,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Settings',
-                    style: AppTextStyles.displayM.copyWith(
-                      color: context.textPrimaryColor,
-                    ),
-                  ),
+                  const SumiOverline('SETTINGS · 設'),
+                  Text('You', style: YomiText.kanji(36, color: c.fg)),
                 ],
               ),
             ),
           ),
 
-          // ── Appearance ───────────────────────────────────────────────
-          _buildSection(context, 'Appearance', [
-            _SettingRow(
-              icon: CupertinoIcons.moon_stars,
-              iconBgColor: _IColor.indigo,
-              label: 'Theme Mode',
-              trailing: _SegmentedPicker<Brightness>(
-                value: brightness,
-                groupLabel: 'Theme Mode',
-                items: const [
-                  (Brightness.dark, 'Dark'),
-                  (Brightness.light, 'Light'),
-                ],
-                onChanged: (b) =>
-                    ref.read(brightnessProvider.notifier).state = b,
+          // ── Account ───────────────────────────────────────────────────────
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(gutter, 18, gutter, 0),
+              child: _AccountCard(
+                email: driveAccount?.email,
+                name: driveAccount?.displayName,
+                photoUrl: driveAccount?.photoUrl,
+                onSignIn: () => _linkGoogleDrive(context, ref),
+                onSignOut: () => _signOutFromDrive(context, ref),
               ),
-              isLast: true,
+            ),
+          ),
+
+          // ── READING · 読 ──────────────────────────────────────────────────
+          _Group(title: 'READING · 読', rows: [
+            _Row(
+              label: 'Reading direction',
+              value: switch (direction) {
+                ReadingDirection.ltr => 'Left to right',
+                ReadingDirection.rtl => 'Right to left',
+                ReadingDirection.vertical => 'Vertical',
+              },
+              onTap: () => _pick(
+                  context,
+                  'Reading direction',
+                  [
+                    (ReadingDirection.ltr, 'Left to right'),
+                    (ReadingDirection.rtl, 'Right to left'),
+                    (ReadingDirection.vertical, 'Vertical'),
+                  ],
+                  (v) => ref.read(readingDirectionProvider.notifier).state = v),
+            ),
+            _Row(
+              label: 'Default mode',
+              value: switch (readerMode) {
+                ReaderMode.auto => 'Auto',
+                ReaderMode.page => 'Page · 頁',
+                ReaderMode.strip => 'Strip · 縦',
+              },
+              onTap: () => _pick(
+                  context,
+                  'Default mode',
+                  [
+                    (ReaderMode.auto, 'Auto (from source)'),
+                    (ReaderMode.page, 'Page · 頁'),
+                    (ReaderMode.strip, 'Strip · 縦'),
+                  ],
+                  (v) =>
+                      ref.read(defaultReaderModeProvider.notifier).state = v),
+            ),
+            _Row(
+              label: 'Page scale',
+              value: switch (scale) {
+                PageScaleMode.fitWidth => 'Fit width',
+                PageScaleMode.fitHeight => 'Fit height',
+                PageScaleMode.original => 'Original',
+              },
+              onTap: () => _pick(
+                  context,
+                  'Page scale',
+                  [
+                    (PageScaleMode.fitWidth, 'Fit width'),
+                    (PageScaleMode.fitHeight, 'Fit height'),
+                    (PageScaleMode.original, 'Original'),
+                  ],
+                  (v) => ref.read(pageScaleModeProvider.notifier).state = v),
+            ),
+            _Row(
+              label: 'Page background',
+              value: switch (background) {
+                ReaderBackground.black => 'Black',
+                ReaderBackground.white => 'White',
+                ReaderBackground.sepia => 'Sepia',
+              },
+              onTap: () => _pick(
+                  context,
+                  'Page background',
+                  [
+                    (ReaderBackground.black, 'Black'),
+                    (ReaderBackground.white, 'White'),
+                    (ReaderBackground.sepia, 'Sepia'),
+                  ],
+                  (v) => ref.read(readerBackgroundProvider.notifier).state = v),
+            ),
+            _Row(
+              label: 'Haptics on page turn',
+              trailing: SumiToggle(
+                label: 'Haptics on page turn',
+                value: haptics,
+                onChanged: (v) => ref.read(hapticsProvider.notifier).state = v,
+              ),
+              onTap: () => ref.read(hapticsProvider.notifier).state = !haptics,
             ),
           ]),
 
-          // ── Library ──────────────────────────────────────────────────
-          _buildSection(context, 'Library', [
-            _SettingRow(
-              icon: CupertinoIcons.folder,
-              iconBgColor: _IColor.orange,
+          // ── APPEARANCE · 姿 ───────────────────────────────────────────────
+          _Group(title: 'APPEARANCE · 姿', rows: [
+            _Row(
+              label: 'Theme',
+              value: theme.modeName,
+              onTap: () => ref.read(brightnessProvider.notifier).state =
+                  theme.isDark ? Brightness.light : Brightness.dark,
+            ),
+            _Row(
+              label: 'Accent',
+              trailing: _AccentSwatches(
+                selected: theme.accentIndex,
+                onChanged: (i) =>
+                    ref.read(accentIndexProvider.notifier).state = i,
+              ),
+            ),
+            _Row(
+              label: 'Cover size',
+              value: _cap(theme.coverSize.name),
+              onTap: () => _pick(
+                  context,
+                  'Cover size',
+                  [
+                    (CoverSize.small, 'Small'),
+                    (CoverSize.medium, 'Medium'),
+                    (CoverSize.large, 'Large'),
+                  ],
+                  (v) => ref.read(coverSizeProvider.notifier).state = v),
+            ),
+            _Row(
+              label: 'Density',
+              value: _cap(theme.density.name),
+              onTap: () => _pick(
+                  context,
+                  'Density',
+                  [
+                    (YomiDensity.comfortable, 'Comfortable'),
+                    (YomiDensity.compact, 'Compact'),
+                  ],
+                  (v) => ref.read(densityProvider.notifier).state = v),
+            ),
+          ]),
+
+          // ── LIBRARY · 庫 ──────────────────────────────────────────────────
+          _Group(title: 'LIBRARY · 庫', rows: [
+            _Row(
               label: 'Categories',
-              trailing: const _Chevron(),
-              onTap: () => Navigator.of(context, rootNavigator: true).push(
-                CupertinoPageRoute<void>(
-                  builder: (_) => const CategoryManagementScreen(),
-                ),
-              ),
+              onTap: () => push(const CategoryManagementScreen()),
             ),
-            _SettingRow(
-              icon: CupertinoIcons.repeat,
-              iconBgColor: _IColor.green,
-              label: 'Auto-Update',
-              trailing: Semantics(
-                label: 'Auto-Update',
-                toggled: autoUpdate,
-                child: CupertinoSwitch(
-                  value: autoUpdate,
-                  activeTrackColor: context.downloadedColor,
-                  onChanged: (v) =>
-                      ref.read(autoCheckUpdatesProvider.notifier).state = v,
-                ),
-              ),
-              isLast: true,
-            ),
-          ]),
-
-          // ── Reader ───────────────────────────────────────────────────
-          _buildSection(context, 'Reader', [
-            _SettingRow(
-              icon: CupertinoIcons.book,
-              iconBgColor: _IColor.blue,
-              label: 'Reading Direction',
-              trailing: _SegmentedPicker<ReadingDirection>(
-                value: direction,
-                groupLabel: 'Reading Direction',
-                items: const [
-                  (ReadingDirection.ltr, 'L→R'),
-                  (ReadingDirection.rtl, 'R→L'),
-                  (ReadingDirection.vertical, 'Vert'),
-                ],
+            _Row(
+              label: 'Check for chapter updates',
+              trailing: SumiToggle(
+                label: 'Check for chapter updates',
+                value: autoUpdate,
                 onChanged: (v) =>
-                    ref.read(readingDirectionProvider.notifier).state = v,
+                    ref.read(autoCheckUpdatesProvider.notifier).state = v,
               ),
-            ),
-            _SettingRow(
-              icon: CupertinoIcons.resize_h,
-              iconBgColor: _IColor.purple,
-              label: 'Page Scale',
-              trailing: _SegmentedPicker<PageScaleMode>(
-                value: scale,
-                groupLabel: 'Page Scale',
-                items: const [
-                  (PageScaleMode.fitWidth, 'Width'),
-                  (PageScaleMode.fitHeight, 'Height'),
-                  (PageScaleMode.original, '1:1'),
-                ],
-                onChanged: (v) =>
-                    ref.read(pageScaleModeProvider.notifier).state = v,
-              ),
-            ),
-            _SettingRow(
-              icon: CupertinoIcons.moon,
-              iconBgColor: _IColor.gray,
-              label: 'Background',
-              trailing: _SegmentedPicker<ReaderBackground>(
-                value: background,
-                groupLabel: 'Reader Background',
-                items: const [
-                  (ReaderBackground.black, 'Black'),
-                  (ReaderBackground.white, 'White'),
-                  (ReaderBackground.sepia, 'Sepia'),
-                ],
-                onChanged: (v) =>
-                    ref.read(readerBackgroundProvider.notifier).state = v,
-              ),
-              isLast: true,
+              onTap: () => ref.read(autoCheckUpdatesProvider.notifier).state =
+                  !autoUpdate,
             ),
           ]),
 
-          // ── Downloads ────────────────────────────────────────────────
-          _buildSection(context, 'Downloads', [
-            _SettingRow(
-              icon: CupertinoIcons.folder_badge_plus,
-              iconBgColor: _IColor.yellow,
-              label: 'Storage Location',
-              trailing: _SegmentedPicker<DownloadLocation>(
-                value: dlLocation,
-                groupLabel: 'Storage Location',
-                items: const [
-                  (DownloadLocation.local, 'Local'),
-                  (DownloadLocation.googleDrive, 'Drive'),
-                ],
-                onChanged: (loc) =>
-                    ref.read(downloadLocationProvider.notifier).state = loc,
-              ),
-              isLast: dlLocation != DownloadLocation.googleDrive,
+          // ── STORAGE · 蔵 ──────────────────────────────────────────────────
+          _Group(title: 'STORAGE · 蔵', rows: [
+            _Row(
+              label: 'Downloads',
+              value: queued == 0 ? 'Up to date' : '$queued queued',
+              onTap: () => push(const DownloadsScreen()),
             ),
-            if (dlLocation == DownloadLocation.googleDrive)
-              _SettingRow(
-                icon: CupertinoIcons.cloud,
-                iconBgColor: _IColor.teal,
-                label: 'Google Drive Account',
-                trailing: driveAccount != null
-                    ? _DriveConnectedBadge(email: driveAccount.email)
-                    : _DriveStatusBadge(),
-                onTap: () => driveAccount != null
-                    ? _signOutFromDrive(context, ref)
-                    : _linkGoogleDrive(context, ref),
-                isLast: true,
+            _Row(
+              label: 'Storage location',
+              value: dlLocation == DownloadLocation.local
+                  ? 'This device'
+                  : 'Google Drive',
+              onTap: () => _pick(
+                  context,
+                  'Storage location',
+                  [
+                    (DownloadLocation.local, 'This device'),
+                    (DownloadLocation.googleDrive, 'Google Drive'),
+                  ],
+                  (v) => ref.read(downloadLocationProvider.notifier).state = v),
+            ),
+            _Row(
+              label: 'Download over Wi-Fi only',
+              trailing: SumiToggle(
+                label: 'Download over Wi-Fi only',
+                value: wifiOnly,
+                onChanged: (v) => ref.read(wifiOnlyProvider.notifier).state = v,
               ),
-          ]),
-
-          // ── Extensions ───────────────────────────────────────────────
-          _buildSection(context, 'Extensions', [
-            const _SettingRow(
-              icon: CupertinoIcons.link,
-              iconBgColor: _IColor.orange,
-              label: 'Repository URL',
-              trailing: _Chevron(),
-              isLast: true,
+              onTap: () =>
+                  ref.read(wifiOnlyProvider.notifier).state = !wifiOnly,
+            ),
+            _Row(
+              label: 'Clear cache',
+              value: cacheBytes == null ? '…' : _mb(cacheBytes),
+              onTap: () async {
+                await clearDiskCachedImages();
+                PaintingBinding.instance.imageCache.clear();
+                ref.invalidate(_cacheSizeProvider);
+              },
             ),
           ]),
 
-          // ── Backup & Sync ─────────────────────────────────────────────
-          _buildSection(context, 'Backup & Sync', [
-            _SettingRow(
-              icon: CupertinoIcons.arrow_up_doc,
-              iconBgColor: _IColor.teal,
-              label: 'Export Backup',
-              trailing: const _Chevron(),
+          // ── BACKUP · 写 ───────────────────────────────────────────────────
+          _Group(title: 'BACKUP · 写', rows: [
+            _Row(
+              label: 'Export backup',
               onTap: () => _exportBackup(context, ref),
             ),
-            _SettingRow(
-              icon: CupertinoIcons.arrow_down_doc,
-              iconBgColor: _IColor.teal,
-              label: 'Restore Backup',
-              trailing: const _Chevron(),
-              onTap: () => Navigator.of(context, rootNavigator: true).push(
-                CupertinoPageRoute<void>(
-                  builder: (_) => const BackupRestoreScreen(),
-                ),
-              ),
-              isLast: driveAccount == null,
+            _Row(
+              label: 'Restore backup',
+              onTap: () => push(const BackupRestoreScreen()),
             ),
-            if (driveAccount != null) ...[
-              _SettingRow(
-                icon: CupertinoIcons.cloud_upload,
-                iconBgColor: _IColor.teal,
+            if (driveAccount == null)
+              _Row(
+                label: 'Connect Google Drive',
+                onTap: () => _linkGoogleDrive(context, ref),
+              )
+            else ...[
+              _Row(
                 label: 'Backup to Drive',
-                trailing: const _Chevron(),
+                value: driveAccount.email,
                 onTap: () => _backupToDrive(context, ref),
               ),
-              _SettingRow(
-                icon: CupertinoIcons.cloud_download,
-                iconBgColor: _IColor.teal,
+              _Row(
                 label: 'Restore from Drive',
-                trailing: const _Chevron(),
-                onTap: () => Navigator.of(context, rootNavigator: true).push(
-                  CupertinoPageRoute<void>(
-                    builder: (_) => const DriveRestoreScreen(),
-                  ),
-                ),
-                isLast: true,
+                onTap: () => push(const DriveRestoreScreen()),
               ),
             ],
-            if (driveAccount == null)
-              _SettingRow(
-                icon: CupertinoIcons.cloud,
-                iconBgColor: _IColor.teal,
-                label: 'Connect Google Drive',
-                trailing: const _Chevron(),
-                onTap: () => _linkGoogleDrive(context, ref),
-                isLast: true,
-              ),
           ]),
 
-          // ── About ────────────────────────────────────────────────────
-          _buildSection(context, 'About', [
-            _SettingRow(
-              icon: CupertinoIcons.info,
-              iconBgColor: _IColor.gray,
-              label: 'Version',
-              trailing: Text(
-                '1.0.0',
-                style: AppTextStyles.caption.copyWith(
-                  color: context.textTertiaryColor,
-                ),
-              ),
+          // ── ABOUT · 情 ────────────────────────────────────────────────────
+          _Group(title: 'ABOUT · 情', rows: [
+            _Row(label: 'Version', value: WhatsNewService.currentVersion),
+            _Row(
+              label: "What's new",
+              onTap: () => push(const ChangelogScreen()),
             ),
-            _SettingRow(
-              icon: CupertinoIcons.sparkles,
-              iconBgColor: _IColor.indigo,
-              label: "What's New",
-              trailing: const _Chevron(),
-              onTap: () => Navigator.of(context, rootNavigator: true).push(
-                CupertinoPageRoute<void>(
-                  builder: (_) => const ChangelogScreen(),
-                ),
-              ),
-            ),
-            _SettingRow(
-              icon: CupertinoIcons.cloud_download,
-              iconBgColor: _IColor.blue,
-              label: 'Check for Updates',
-              trailing: const _Chevron(),
+            _Row(
+              label: 'Check for updates',
               onTap: () => _checkForUpdates(context),
             ),
-            _SettingRow(
-              icon: CupertinoIcons.doc_text_search,
-              iconBgColor: _IColor.gray,
+            _Row(
               label: 'Diagnostics',
-              trailing: const _Chevron(),
-              onTap: () => Navigator.of(context, rootNavigator: true).push(
-                CupertinoPageRoute<void>(
-                  builder: (_) => const DiagnosticsScreen(),
-                ),
-              ),
-              isLast: true,
+              onTap: () => push(const DiagnosticsScreen()),
             ),
           ]),
 
-          SliverToBoxAdapter(child: SizedBox(height: bottomPadding + 90)),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.only(top: 30),
+              child: Text(
+                'YOMI ${WhatsNewService.currentVersion} · ${theme.look.name.toUpperCase()}',
+                textAlign: TextAlign.center,
+                style: YomiText.ui(11, color: c.fg2, letterSpacing: 1),
+              ),
+            ),
+          ),
+          SliverToBoxAdapter(child: SizedBox(height: insets.bottom + 120)),
         ],
       ),
     );
   }
 
-  static Widget _buildSection(
-      BuildContext context, String title, List<Widget> rows) {
-    return SliverToBoxAdapter(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(
-          AppSpacing.gutter, 0, AppSpacing.gutter, AppSpacing.x7,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.only(
-                left: AppSpacing.x2,
-                bottom: AppSpacing.x4,
-              ),
-              child: Text(
-                title.toUpperCase(),
-                style: AppTextStyles.metaMono.copyWith(
-                  color: context.textTertiaryColor,
-                  letterSpacing: 2.0,
-                ),
-              ),
+  static String _cap(String s) =>
+      s.isEmpty ? s : '${s[0].toUpperCase()}${s.substring(1)}';
+
+  static String _mb(int bytes) => bytes < 1 << 20
+      ? '${(bytes / 1024).round()} KB'
+      : '${(bytes / (1 << 20)).toStringAsFixed(bytes < 100 << 20 ? 1 : 0)} MB';
+
+  /// Action-sheet picker for enum rows (the whole row is the tap target).
+  static Future<void> _pick<T>(
+    BuildContext context,
+    String title,
+    List<(T, String)> options,
+    ValueChanged<T> onChanged,
+  ) async {
+    final picked = await showCupertinoModalPopup<T>(
+      context: context,
+      builder: (ctx) => CupertinoActionSheet(
+        title: Text(title),
+        actions: [
+          for (final o in options)
+            CupertinoActionSheetAction(
+              onPressed: () => Navigator.pop(ctx, o.$1),
+              child: Text(o.$2),
             ),
-            Container(
-              decoration: BoxDecoration(
-                color: context.surfaceElevatedColor.withValues(alpha: 0.6),
-                borderRadius: BorderRadius.circular(AppRadius.lg),
-                border: Border.all(
-                  color: context.borderColor,
-                  width: AppRadius.hairline,
-                ),
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: Column(children: rows),
-            ),
-          ],
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          onPressed: () => Navigator.pop(ctx),
+          child: const Text('Cancel'),
         ),
       ),
     );
+    if (picked != null) {
+      HapticFeedback.selectionClick();
+      onChanged(picked);
+    }
   }
 
   // ── Update check ─────────────────────────────────────────────────────────
@@ -551,8 +546,8 @@ class SettingsScreen extends ConsumerWidget {
     try {
       final isar = ref.read(isarProvider);
       final categories = ref.read(libraryCategoriesProvider);
-      final backup = await BackupService.export(
-          isar: isar, categories: categories);
+      final backup =
+          await BackupService.export(isar: isar, categories: categories);
       await GoogleDriveService.uploadBackup(backup.file);
       if (!context.mounted) return;
       Navigator.of(context, rootNavigator: true).pop();
@@ -565,8 +560,7 @@ class SettingsScreen extends ConsumerWidget {
     }
   }
 
-  static Future<void> _exportBackup(
-      BuildContext context, WidgetRef ref) async {
+  static Future<void> _exportBackup(BuildContext context, WidgetRef ref) async {
     showCupertinoDialog<void>(
       context: context,
       barrierDismissible: false,
@@ -580,9 +574,9 @@ class SettingsScreen extends ConsumerWidget {
     );
 
     try {
-      final isar       = ref.read(isarProvider);
+      final isar = ref.read(isarProvider);
       final categories = ref.read(libraryCategoriesProvider);
-      final backup     = await BackupService.export(
+      final backup = await BackupService.export(
         isar: isar,
         categories: categories,
       );
@@ -614,225 +608,128 @@ class SettingsScreen extends ConsumerWidget {
   }
 }
 
-// ── Generic segmented picker ─────────────────────────────────────────────
+// ── Account card ──────────────────────────────────────────────────────────────
 
-class _SegmentedPicker<T> extends StatelessWidget {
-  const _SegmentedPicker({
-    required this.value,
-    required this.items,
-    required this.onChanged,
-    required this.groupLabel,
+class _AccountCard extends StatelessWidget {
+  const _AccountCard({
+    required this.email,
+    required this.name,
+    required this.photoUrl,
+    required this.onSignIn,
+    required this.onSignOut,
   });
 
-  final T value;
-  final List<(T, String)> items;
-  final ValueChanged<T> onChanged;
-
-  /// Read by screen readers as part of each segment's label, e.g.
-  /// "Theme Mode: Dark" — so VoiceOver/TalkBack announce what the control
-  /// does, not just the selected option's name in isolation.
-  final String groupLabel;
+  final String? email;
+  final String? name;
+  final String? photoUrl;
+  final VoidCallback onSignIn;
+  final VoidCallback onSignOut;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        for (var i = 0; i < items.length; i++) ...[
-          if (i > 0) const SizedBox(width: AppSpacing.x3),
-          _Pill(
-            label: items[i].$2,
-            semanticLabel: '$groupLabel: ${items[i].$2}',
-            selected: value == items[i].$1,
-            onTap: () => onChanged(items[i].$1),
+    final c = context.yc;
+    final signedIn = email != null;
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        border: Border.all(color: c.line),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 52,
+            height: 52,
+            clipBehavior: Clip.antiAlias,
+            decoration: BoxDecoration(color: c.fg, shape: BoxShape.circle),
+            alignment: Alignment.center,
+            child: signedIn && (photoUrl?.isNotEmpty ?? false)
+                ? Image.network(photoUrl!,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) =>
+                        Text('客', style: YomiText.kanji(26, color: c.bg)))
+                : Text('客', style: YomiText.kanji(26, color: c.bg)),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  signedIn
+                      ? ((name?.isNotEmpty ?? false) ? name! : email!)
+                      : 'Guest reader',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: YomiText.ui(16, weight: FontWeight.w700, color: c.fg),
+                ),
+                Text(
+                  signedIn ? email! : 'Sign in to sync progress',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: YomiText.ui(12, color: c.fg2),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          SumiPress(
+            onTap: signedIn ? onSignOut : onSignIn,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                color: signedIn ? const Color(0x00000000) : c.ac,
+                border: signedIn ? Border.all(color: c.line) : null,
+                borderRadius: BorderRadius.circular(2),
+              ),
+              child: Text(
+                signedIn ? 'Sign out' : 'Sign in',
+                style: YomiText.ui(12,
+                    weight: FontWeight.w700,
+                    color: signedIn ? c.fg : c.onAccent),
+              ),
+            ),
           ),
         ],
-      ],
-    );
-  }
-}
-
-// ── Pill segment button ───────────────────────────────────────────────────
-
-class _Pill extends StatelessWidget {
-  const _Pill({
-    required this.label,
-    required this.semanticLabel,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String label;
-  final String semanticLabel;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final accent = context.accentColor;
-    return Semantics(
-      label: semanticLabel,
-      selected: selected,
-      button: true,
-      child: GestureDetector(
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: AppMotion.fast,
-          curve: AppMotion.standard,
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.x5,
-            vertical: AppSpacing.x2 + 1,
-          ),
-          decoration: BoxDecoration(
-            color: selected ? accent : context.surfaceColor,
-            borderRadius: BorderRadius.circular(AppRadius.sm),
-            border: Border.all(
-              color: selected ? accent : context.borderStrongColor,
-              width: AppRadius.hairline,
-            ),
-          ),
-          child: Text(
-            label,
-            style: TextStyle(
-              color: selected ? AppColors.textOnAccent : context.textSecondaryColor,
-              fontSize: 11,
-              fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-            ),
-          ),
-        ),
       ),
     );
   }
 }
 
-// ── Google Drive status badges ────────────────────────────────────────────
+// ── Group + row ───────────────────────────────────────────────────────────────
 
-class _DriveStatusBadge extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final warning = context.warningColor;
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.x5,
-        vertical: AppSpacing.x2,
-      ),
-      decoration: BoxDecoration(
-        color: warning.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(AppRadius.sm),
-        border: Border.all(
-          color: warning.withValues(alpha: 0.3),
-          width: AppRadius.hairline,
-        ),
-      ),
-      child: Text(
-        'Not Connected',
-        style: AppTextStyles.caption.copyWith(
-          color: warning,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-    );
-  }
-}
-
-class _DriveConnectedBadge extends StatelessWidget {
-  const _DriveConnectedBadge({required this.email});
-  final String email;
+class _Group extends StatelessWidget {
+  const _Group({required this.title, required this.rows});
+  final String title;
+  final List<Widget> rows;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 8,
-          height: 8,
-          decoration: BoxDecoration(
-            color: context.downloadedColor,
-            shape: BoxShape.circle,
-          ),
-        ),
-        const SizedBox(width: AppSpacing.x3),
-        ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 160),
-          child: Text(
-            email,
-            style: AppTextStyles.caption.copyWith(
-              color: context.textSecondaryColor,
-            ),
-            overflow: TextOverflow.ellipsis,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-// ── Setting row ───────────────────────────────────────────────────────────
-
-class _SettingRow extends StatelessWidget {
-  const _SettingRow({
-    required this.icon,
-    required this.iconBgColor,
-    required this.label,
-    required this.trailing,
-    this.onTap,
-    this.isLast = false,
-  });
-
-  final IconData icon;
-  final Color iconBgColor;
-  final String label;
-  final Widget trailing;
-  final VoidCallback? onTap;
-
-  /// When true the bottom divider is omitted (last row in a group).
-  final bool isLast;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.x6,
-          vertical: AppSpacing.x5,
-        ),
-        decoration: isLast
-            ? null
-            : BoxDecoration(
-                border: Border(
-                  bottom: BorderSide(
-                    color: context.borderColor,
-                    width: AppRadius.hairline,
-                  ),
-                ),
-              ),
-        child: Row(
+    final c = context.yc;
+    final gutter = context.yomiGutter;
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(gutter, 26, gutter, 0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Icon tile
+            SumiOverline(title),
+            const SizedBox(height: 8),
             Container(
-              width: 30,
-              height: 30,
+              clipBehavior: Clip.antiAlias,
               decoration: BoxDecoration(
-                color: iconBgColor,
-                borderRadius: BorderRadius.circular(7),
+                border: Border.all(color: c.line),
+                borderRadius: BorderRadius.circular(6),
               ),
-              child: Icon(icon, size: 16, color: CupertinoColors.white),
-            ),
-            const SizedBox(width: 14),
-            // Label
-            Expanded(
-              child: Text(
-                label,
-                style: AppTextStyles.bodyMedium.copyWith(
-                  color: context.textPrimaryColor,
-                ),
+              child: Column(
+                children: [
+                  for (var i = 0; i < rows.length; i++) ...[
+                    if (i > 0) Container(height: 1, color: c.line),
+                    rows[i],
+                  ],
+                ],
               ),
             ),
-            // Trailing control
-            trailing,
           ],
         ),
       ),
@@ -840,17 +737,110 @@ class _SettingRow extends StatelessWidget {
   }
 }
 
-// ── Chevron ───────────────────────────────────────────────────────────────
+/// 14×16 padding, 14px label, 13px `fg2` value, optional trailing control.
+/// No chevrons: the whole row is the tap target.
+class _Row extends StatelessWidget {
+  const _Row({
+    required this.label,
+    this.value,
+    this.trailing,
+    this.onTap,
+  });
 
-class _Chevron extends StatelessWidget {
-  const _Chevron();
+  final String label;
+  final String? value;
+  final Widget? trailing;
+  final VoidCallback? onTap;
 
   @override
-  Widget build(BuildContext context) => Icon(
-        CupertinoIcons.chevron_right,
-        size: 14,
-        color: context.textTertiaryColor,
-      );
+  Widget build(BuildContext context) {
+    final c = context.yc;
+    return Semantics(
+      button: onTap != null,
+      label: value == null ? label : '$label, $value',
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap == null
+            ? null
+            : () {
+                HapticFeedback.selectionClick();
+                onTap!();
+              },
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Row(
+            children: [
+              Expanded(child: Text(label, style: YomiText.ui(14, color: c.fg))),
+              if (value != null)
+                Flexible(
+                  child: Text(value!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.right,
+                      style: YomiText.ui(13, color: c.fg2)),
+                ),
+              if (trailing != null) ...[
+                const SizedBox(width: 8),
+                trailing!,
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Four 22px swatches from the look's curated set; selected gets a `fg` ring.
+class _AccentSwatches extends StatelessWidget {
+  const _AccentSwatches({required this.selected, required this.onChanged});
+  final int selected;
+  final ValueChanged<int> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final spec = context.yomi.spec;
+    final c = context.yc;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (var i = 0; i < spec.accents.length; i++)
+          Semantics(
+            button: true,
+            selected: i == selected,
+            label: spec.accentNames[i],
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () {
+                HapticFeedback.selectionClick();
+                onChanged(i);
+              },
+              child: AnimatedContainer(
+                duration: AppMotion.fast,
+                curve: AppMotion.snap,
+                width: 28,
+                height: 28,
+                margin: const EdgeInsets.only(left: 6),
+                padding: const EdgeInsets.all(3),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: i == selected ? c.fg : const Color(0x00000000),
+                    width: 1.5,
+                  ),
+                ),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: spec.accents[i],
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
 }
 
 // ── Update dialog ─────────────────────────────────────────────────────────
@@ -878,7 +868,7 @@ class _UpdateDialogState extends State<_UpdateDialog> {
     }
     setState(() {
       _downloading = true;
-      _progress    = 0;
+      _progress = 0;
     });
     try {
       await UpdateService.downloadAndInstall(

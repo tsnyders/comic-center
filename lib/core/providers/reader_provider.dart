@@ -1,7 +1,8 @@
-import 'dart:io';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../database/models/chapter_entry.dart';
+import '../services/downloaded_chapter_files.dart';
+import 'database_provider.dart';
 import 'preferences_provider.dart';
 import 'provider_cache.dart';
 import 'source_registry_provider.dart';
@@ -19,24 +20,23 @@ final chapterPagesProvider = FutureProvider.autoDispose
   // afterwards the page list ages out instead of accumulating per chapter.
   ref.cacheFor(const Duration(minutes: 15));
 
-  // Serve from local storage when the chapter is downloaded
-  if (key.downloadPath != null) {
-    final dir = Directory(key.downloadPath!);
-    if (await dir.exists()) {
-      final pages = await dir
-          .list()
-          .where((e) => e is File && e.path.contains('page_'))
-          .map((e) => e.path)
-          .toList()
-        ..sort();
-      if (pages.isNotEmpty) return pages;
-    }
-  }
+  // Re-read durable state instead of trusting the navigation-time snapshot.
+  // A background worker may have completed after the reader route was built.
+  final isar = ref.watch(isarProvider);
+  final chapter = await isar.chapterEntrys.get(key.databaseChapterId);
+  final downloadPath = chapter?.downloadPath ?? key.downloadPath;
+  final isMarkedDownloaded = chapter?.isDownloaded ?? false;
 
-  // Fall back to network fetch
-  final source = ref.watch(sourceByIdProvider(key.sourceId));
-  if (source == null) throw Exception('Source ${key.sourceId} not found');
-  final pages = await source.fetchPageUrls(key.chapterId);
+  final pages = await resolveChapterPagePaths(
+    downloadPath: downloadPath,
+    isMarkedDownloaded: isMarkedDownloaded,
+    expectedPageCount: chapter?.pageCount ?? 0,
+    fetchNetworkPages: () async {
+      final source = ref.watch(sourceByIdProvider(key.sourceId));
+      if (source == null) throw Exception('Source ${key.sourceId} not found');
+      return source.fetchPageUrls(key.sourceChapterId);
+    },
+  );
   if (pages.isEmpty) {
     throw Exception(
         'No pages were found for this chapter. The source may have removed it.');
@@ -46,37 +46,42 @@ final chapterPagesProvider = FutureProvider.autoDispose
 
 class ChapterKey {
   const ChapterKey({
+    required this.databaseChapterId,
     required this.sourceId,
-    required this.chapterId,
+    required this.sourceChapterId,
     this.downloadPath,
   });
+  final int databaseChapterId;
   final String sourceId;
-  final String chapterId;
+  final String sourceChapterId;
   final String? downloadPath;
 
   @override
   bool operator ==(Object other) =>
       other is ChapterKey &&
+      other.databaseChapterId == databaseChapterId &&
       other.sourceId == sourceId &&
-      other.chapterId == chapterId &&
+      other.sourceChapterId == sourceChapterId &&
       other.downloadPath == downloadPath;
 
   @override
-  int get hashCode => Object.hash(sourceId, chapterId, downloadPath);
+  int get hashCode =>
+      Object.hash(databaseChapterId, sourceId, sourceChapterId, downloadPath);
 }
-
 
 // ── Reading options ───────────────────────────────────────────────────────────
 
 enum ReadingDirection { ltr, rtl, vertical }
-enum PageScaleMode    { fitWidth, fitHeight, original }
+
+enum PageScaleMode { fitWidth, fitHeight, original }
+
 enum ReaderBackground { black, white, sepia }
 
 final readingDirectionProvider = StateProvider<ReadingDirection>((ref) {
   final prefs = ref.watch(sharedPreferencesProvider);
   ref.listenSelf((_, next) => prefs.setInt('reader.direction', next.index));
-  return readEnumPref(prefs, 'reader.direction', ReadingDirection.values,
-      ReadingDirection.ltr);
+  return readEnumPref(
+      prefs, 'reader.direction', ReadingDirection.values, ReadingDirection.ltr);
 });
 
 /// Per-title reading direction override. `null` means "use the global
@@ -125,23 +130,23 @@ final readerBackgroundProvider = StateProvider<ReaderBackground>((ref) {
 
 class ReaderState {
   const ReaderState({
-    this.currentPage  = 0,
-    this.totalPages   = 0,
+    this.currentPage = 0,
+    this.totalPages = 0,
     this.chromeVisible = false,
   });
 
-  final int  currentPage;
-  final int  totalPages;
+  final int currentPage;
+  final int totalPages;
   final bool chromeVisible;
 
-  double get progress =>
-      totalPages == 0 ? 0.0 : (currentPage + 1) / totalPages;
+  double get progress => totalPages == 0 ? 0.0 : (currentPage + 1) / totalPages;
 
-  ReaderState copyWith({int? currentPage, int? totalPages, bool? chromeVisible}) =>
+  ReaderState copyWith(
+          {int? currentPage, int? totalPages, bool? chromeVisible}) =>
       ReaderState(
-        currentPage   : currentPage   ?? this.currentPage,
-        totalPages    : totalPages    ?? this.totalPages,
-        chromeVisible : chromeVisible ?? this.chromeVisible,
+        currentPage: currentPage ?? this.currentPage,
+        totalPages: totalPages ?? this.totalPages,
+        chromeVisible: chromeVisible ?? this.chromeVisible,
       );
 
   @override
@@ -174,3 +179,46 @@ class ReaderNotifier extends Notifier<ReaderState> {
 
 final readerProvider =
     NotifierProvider<ReaderNotifier, ReaderState>(ReaderNotifier.new);
+
+// ── Reader mode (Page · 頁 / Strip · 縦) ──────────────────────────────────────
+
+/// `auto` follows the title's webtoon detection; `page` / `strip` force it.
+enum ReaderMode { auto, page, strip }
+
+final defaultReaderModeProvider = StateProvider<ReaderMode>((ref) {
+  final prefs = ref.watch(sharedPreferencesProvider);
+  ref.listenSelf((_, next) => prefs.setInt('reader.mode', next.index));
+  return readEnumPref(prefs, 'reader.mode', ReaderMode.values, ReaderMode.auto);
+});
+
+/// Per-title override. `null` means "use [defaultReaderModeProvider]".
+final mangaReaderModeProvider =
+    StateProvider.family<ReaderMode?, int>((ref, mangaId) {
+  final prefs = ref.watch(sharedPreferencesProvider);
+  final key = 'reader.mode.manga.$mangaId';
+  ref.listenSelf((_, next) {
+    if (next == null) {
+      prefs.remove(key);
+    } else {
+      prefs.setInt(key, next.index);
+    }
+  });
+  final i = prefs.getInt(key);
+  if (i == null || i < 0 || i >= ReaderMode.values.length) return null;
+  return ReaderMode.values[i];
+});
+
+/// Whether [mangaId] reads as a continuous strip. [detectedWebtoon] is the
+/// source / genre detection used when the effective mode is `auto`.
+bool resolveStripMode(ReaderMode effective, {required bool detectedWebtoon}) =>
+    switch (effective) {
+      ReaderMode.auto => detectedWebtoon,
+      ReaderMode.page => false,
+      ReaderMode.strip => true,
+    };
+
+final effectiveReaderModeProvider =
+    Provider.family<ReaderMode, int>((ref, mangaId) {
+  final override = ref.watch(mangaReaderModeProvider(mangaId));
+  return override ?? ref.watch(defaultReaderModeProvider);
+});

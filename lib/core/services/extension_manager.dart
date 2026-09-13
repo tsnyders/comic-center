@@ -8,10 +8,8 @@ import '../extensions/source_interface.dart';
 abstract final class ExtensionManager {
   /// Load all enabled sources from the DB and instantiate them.
   static Future<List<MangaSource>> loadInstalled(Isar isar) async {
-    final entries = await isar.sourceEntrys
-        .filter()
-        .isEnabledEqualTo(true)
-        .findAll();
+    final entries =
+        await isar.sourceEntrys.filter().isEnabledEqualTo(true).findAll();
     return entries
         .map((e) => ExtensionFactory.create(e.sourceId))
         .whereType<MangaSource>()
@@ -60,10 +58,7 @@ abstract final class ExtensionManager {
   /// Remove an extension from the DB.
   static Future<void> uninstall(Isar isar, String sourceId) async {
     await isar.writeTxn(() async {
-      await isar.sourceEntrys
-          .filter()
-          .sourceIdEqualTo(sourceId)
-          .deleteAll();
+      await isar.sourceEntrys.filter().sourceIdEqualTo(sourceId).deleteAll();
     });
   }
 
@@ -89,6 +84,51 @@ abstract final class ExtensionManager {
   static Future<void> initializeIfEmpty(Isar isar) async {
     final count = await isar.sourceEntrys.count();
     if (count == 0) await seedDefaults(isar);
+    await ensureRequiredSources(isar);
+  }
+
+  /// Ensures the three supported first-party sources are present after an
+  /// upgrade as well as on a clean install.
+  static Future<void> ensureRequiredSources(Isar isar) async {
+    const requiredSources = [
+      (
+        sourceId: 'mangapill_en',
+        name: 'MangaPill',
+        version: '1.0.0',
+        language: 'en',
+        hasNsfw: false,
+      ),
+      (
+        sourceId: 'mangataro_en',
+        name: 'MangaTaro',
+        version: '1.0.0',
+        language: 'en',
+        hasNsfw: false,
+      ),
+      (
+        sourceId: 'asurascans_en',
+        name: 'AsuraScans',
+        version: '1.1.0',
+        language: 'en',
+        hasNsfw: false,
+      ),
+    ];
+
+    for (final source in requiredSources) {
+      final existing = await isar.sourceEntrys
+          .filter()
+          .sourceIdEqualTo(source.sourceId)
+          .findFirst();
+      if (existing != null) continue;
+      await install(
+        isar,
+        sourceId: source.sourceId,
+        name: source.name,
+        version: source.version,
+        language: source.language,
+        hasNsfw: source.hasNsfw,
+      );
+    }
   }
 
   /// Fix manga entries whose sourceMangaId contains percent-encoded characters
@@ -162,6 +202,27 @@ abstract final class ExtensionManager {
         sourceId: 'demonicscans_en',
         name: 'DemonicScans',
         version: '1.0.0',
+        language: 'en',
+        hasNsfw: false,
+      ),
+      (
+        sourceId: 'mangapill_en',
+        name: 'MangaPill',
+        version: '1.0.0',
+        language: 'en',
+        hasNsfw: false,
+      ),
+      (
+        sourceId: 'mangataro_en',
+        name: 'MangaTaro',
+        version: '1.0.0',
+        language: 'en',
+        hasNsfw: false,
+      ),
+      (
+        sourceId: 'asurascans_en',
+        name: 'AsuraScans',
+        version: '1.1.0',
         language: 'en',
         hasNsfw: false,
       ),

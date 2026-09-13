@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<!-- @template name="Redesign · Pastel" description="Soft pastel direction: cream canvas, blush pink lead, 24px rounded rects, handwritten Gaegu headlines, floating rounded tab bar. Tappable 6-screen flow." -->
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Gaegu:wght@400;700&family=Quicksand:wght@500;600;700&display=swap" rel="stylesheet">
+<style>html,body{margin:0;background:#EFE6E1}@keyframes pasRise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}a{color:inherit}a:hover{color:#D9788F}</style>
+</helmet>
+<div style="--fw:{{fw}};--fh:{{fh}};--bg:{{bg}};--fg:{{fg}};--fg2:{{fg2}};--line:{{line}};--card:{{card}};--ac:{{ac}};--ac2:{{ac2}};--pad:{{pad}};--gap:{{gap}};--cols:{{cols}};min-height:100vh;display:flex;flex-wrap:wrap;gap:40px;align-items:flex-start;justify-content:center;padding:40px 24px;box-sizing:border-box;font-family:'Quicksand',sans-serif;color:#3A2E33">
+<div style="position:relative;width:var(--fw,390px);height:var(--fh,844px);flex:none;transition:width .3s,height .3s;border-radius:44px;background:var(--bg,#FBF6F3);color:var(--fg,#3A2E33);overflow:hidden;box-shadow:0 30px 80px rgba(80,50,60,.25),inset 0 0 0 1px rgba(0,0,0,.05)">
+<div style="position:absolute;top:0;left:0;right:0;height:52px;display:flex;justify-content:space-between;align-items:center;padding:0 28px;font-size:14px;font-weight:700;z-index:5"><span>9:41</span><span style="font-size:11px;letter-spacing:1px">●●● ▮</span></div>
+
+<sc-if value="{{ isOnboarding }}" hint-placeholder-val="{{ true }}">
+<div style="position:absolute;inset:0;display:flex;flex-direction:column;padding:80px var(--pad,20px) 40px;box-sizing:border-box;animation:pasRise .5s ease-out">
+<div style="position:absolute;top:-80px;left:-60px;width:260px;height:260px;border-radius:50%;background:var(--ac,#F6C1CC);opacity:.6"></div><div style="position:absolute;top:40px;right:-90px;width:220px;height:220px;border-radius:50%;background:#BFD8F0;opacity:.5"></div>
+<div style="position:relative;width:72px;height:72px;border-radius:24px;background:var(--card,#FFFFFF);display:flex;align-items:center;justify-content:center;font-family:'Gaegu',cursive;font-weight:700;font-size:40px;color:var(--fg,#3A2E33);box-shadow:0 8px 24px rgba(80,50,60,.12)">よ</div>
+<div style="position:relative;font-family:'Gaegu',cursive;font-weight:700;font-size:48px;line-height:1;margin-top:22px">Hi, reader!<br>What's your thing?</div>
+<div style="position:relative;font-size:14px;color:var(--fg2,#8A7A80);margin-top:10px;font-weight:600">Pick a few. We'll keep your shelf cosy.</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--gap,14px);margin-top:26px">
+<sc-for list="{{ genres }}" as="g" hint-placeholder-count="4">
+<div onClick="{{ g.toggle }}" style="position:relative;height:124px;border-radius:24px;background:{{ g.bgc }};border:2px solid {{ g.border }};padding:16px;box-sizing:border-box;cursor:pointer;transition:all .18s cubic-bezier(.16,1,.3,1);transform:{{ g.tilt }}"><div style="font-family:'Gaegu',cursive;font-weight:700;font-size:34px;line-height:1">{{ g.k }}</div><div style="position:absolute;left:16px;bottom:14px;font-size:15px;font-weight:700">{{ g.name }}</div><div style="position:absolute;right:14px;top:14px;width:24px;height:24px;border-radius:50%;background:{{ g.dot }};display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:#3A2E33;fill:none;stroke-width:3;opacity:{{ g.checkOp }}"><path d="M5 12l5 5L20 7"/></svg></div></div>
+</sc-for>
+</div>
+<div style="flex:1"></div>
+<div onClick="{{ goLibrary }}" style="height:58px;border-radius:24px;background:var(--fg,#3A2E33);color:var(--bg,#FBF6F3);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px;cursor:pointer">Start reading</div>
+<div onClick="{{ goSettings }}" style="text-align:center;font-size:13px;font-weight:600;color:var(--fg2,#8A7A80);margin-top:14px;cursor:pointer">I have an account</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isLibrary }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;inset:0;overflow-y:auto;padding:60px 0 130px;box-sizing:border-box;animation:pasRise .4s ease-out">
+<div style="display:flex;justify-content:space-between;align-items:flex-end;padding:0 var(--pad,20px)"><div><div style="font-size:13px;font-weight:600;color:var(--fg2,#8A7A80)">Good evening</div><div style="font-family:'Gaegu',cursive;font-weight:700;font-size:40px;line-height:1">My shelf</div></div><div style="width:44px;height:44px;border-radius:16px;background:var(--card,#FFFFFF);display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(80,50,60,.08)"><svg viewBox="0 0 24 24" style="width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2.2"><circle cx="10" cy="10" r="7"/><path d="M21 21l-6-6"/></svg></div></div>
+<div onClick="{{ goReader }}" style="margin:18px var(--pad,20px) 0;border-radius:24px;background:var(--ac,#F6C1CC);padding:18px;display:flex;gap:16px;cursor:pointer"><div style="width:84px;height:120px;flex:none;border-radius:16px;background:var(--card,#FFFFFF);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;letter-spacing:1px;color:var(--fg2,#8A7A80);transform:rotate(-3deg);box-shadow:0 8px 20px rgba(80,50,60,.15)">COVER</div><div style="flex:1;display:flex;flex-direction:column;justify-content:center"><div style="font-size:12px;font-weight:700;color:#3A2E33;opacity:.7">Where you left off</div><div style="font-family:'Gaegu',cursive;font-weight:700;font-size:28px;line-height:1;margin-top:4px;color:#3A2E33">Little Nemo</div><div style="font-size:12px;font-weight:600;margin-top:4px;color:#3A2E33;opacity:.7">Page 12 of 24 · Sunday strip</div><div style="height:10px;border-radius:5px;background:rgba(255,255,255,.6);margin-top:12px;overflow:hidden"><div style="width:50%;height:100%;border-radius:5px;background:#3A2E33"></div></div></div></div>
+<div style="display:flex;gap:8px;padding:0 var(--pad,20px);margin-top:20px;overflow-x:auto"><span style="padding:8px 16px;border-radius:16px;background:var(--fg,#3A2E33);color:var(--bg,#FBF6F3);font-size:13px;font-weight:700;white-space:nowrap">All</span><span style="padding:8px 16px;border-radius:16px;background:var(--card,#FFFFFF);font-size:13px;font-weight:700;white-space:nowrap">Reading</span><span style="padding:8px 16px;border-radius:16px;background:var(--card,#FFFFFF);font-size:13px;font-weight:700;white-space:nowrap">Finished</span><span style="padding:8px 16px;border-radius:16px;background:var(--card,#FFFFFF);font-size:13px;font-weight:700;white-space:nowrap">Saved</span></div>
+<div style="display:grid;grid-template-columns:repeat(var(--cols,3),1fr);gap:var(--gap,14px);padding:0 var(--pad,20px);margin-top:20px">
+<sc-for list="{{ shelf }}" as="t" hint-placeholder-count="6">
+<div onClick="{{ goDetail }}" style="cursor:pointer"><div style="aspect-ratio:2/3;border-radius:18px;background:{{ t.tint }};position:relative;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;letter-spacing:1px;color:var(--fg2,#8A7A80)">COVER<sc-if value="{{ t.unread }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;right:-6px;top:-6px;min-width:24px;height:24px;border-radius:12px;background:var(--fg,#3A2E33);color:var(--bg,#FBF6F3);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 7px;font-family:'Gaegu',cursive">{{ t.unread }}</div></sc-if></div><div style="font-size:12px;font-weight:700;margin-top:8px;line-height:1.25">{{ t.name }}</div><div style="font-size:11px;color:var(--fg2,#8A7A80);font-weight:600;margin-top:1px">{{ t.by }}</div></div>
+</sc-for>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isDiscover }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;inset:0;overflow-y:auto;padding:60px 0 130px;box-sizing:border-box;animation:pasRise .4s ease-out">
+<div style="padding:0 var(--pad,20px)"><div style="font-size:13px;font-weight:600;color:var(--fg2,#8A7A80)">Handpicked this week</div><div style="font-family:'Gaegu',cursive;font-weight:700;font-size:40px;line-height:1">Discover</div></div>
+<div style="margin:14px var(--pad,20px) 0;height:48px;border-radius:18px;background:var(--card,#FFFFFF);display:flex;align-items:center;gap:10px;padding:0 16px;font-size:14px;font-weight:600;color:var(--fg2,#8A7A80);box-shadow:0 4px 14px rgba(80,50,60,.06)"><svg viewBox="0 0 24 24" style="width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2.2"><circle cx="10" cy="10" r="7"/><path d="M21 21l-6-6"/></svg>Search for something</div>
+<div onClick="{{ goDetail }}" style="margin:20px var(--pad,20px) 0;position:relative;border-radius:24px;overflow:hidden;background:#BFD8F0;padding:22px;cursor:pointer;min-height:280px;box-sizing:border-box"><div style="position:absolute;right:-40px;bottom:-40px;width:200px;height:200px;border-radius:50%;background:var(--ac,#F6C1CC);opacity:.7"></div><div style="position:absolute;right:26px;top:26px;width:110px;height:156px;border-radius:16px;background:var(--card,#FFFFFF);transform:rotate(6deg);box-shadow:0 10px 24px rgba(80,50,60,.15);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;letter-spacing:1px;color:var(--fg2,#8A7A80)">COVER</div><div style="position:relative;display:inline-block;padding:5px 12px;border-radius:12px;background:var(--card,#FFFFFF);font-size:11px;font-weight:700;color:#3A2E33">Editor's pick</div><div style="position:relative;font-family:'Gaegu',cursive;font-weight:700;font-size:38px;line-height:1;margin-top:90px;color:#3A2E33;max-width:200px">Chōjū-giga</div><div style="position:relative;font-size:13px;font-weight:600;line-height:1.45;margin-top:8px;color:#3A2E33;opacity:.75;max-width:230px">Rabbits, frogs and monkeys having the best day. Twelfth-century scrolls.</div></div>
+<div style="padding:0 var(--pad,20px);margin-top:26px;font-family:'Gaegu',cursive;font-weight:700;font-size:26px;line-height:1">More we love</div>
+<div style="padding:0 var(--pad,20px);margin-top:10px;display:flex;flex-direction:column;gap:10px">
+<sc-for list="{{ picks }}" as="p" hint-placeholder-count="3">
+<div onClick="{{ goDetail }}" style="display:flex;gap:14px;padding:12px;border-radius:22px;background:var(--card,#FFFFFF);cursor:pointer;box-shadow:0 4px 14px rgba(80,50,60,.06)"><div style="width:56px;height:76px;flex:none;border-radius:14px;background:{{ p.tint }}"></div><div style="flex:1"><div style="font-size:15px;font-weight:700">{{ p.name }}</div><div style="font-size:12px;color:var(--fg2,#8A7A80);font-weight:600;margin-top:1px">{{ p.by }}</div><div style="font-size:12px;margin-top:6px;line-height:1.4;color:var(--fg2,#8A7A80);font-weight:600">{{ p.note }}</div></div><div style="align-self:center;font-family:'Gaegu',cursive;font-weight:700;font-size:22px;color:var(--fg2,#8A7A80)">{{ p.k }}</div></div>
+</sc-for>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isDetail }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;inset:0;overflow-y:auto;padding:0 0 130px;box-sizing:border-box;animation:pasRise .4s ease-out">
+<div style="position:relative;height:360px;background:var(--ac,#F6C1CC);border-radius:0 0 40px 40px"><div style="position:absolute;left:-40px;bottom:-30px;width:180px;height:180px;border-radius:50%;background:#F3E1B8;opacity:.8"></div>
+<div onClick="{{ goLibrary }}" style="position:absolute;left:16px;top:56px;width:40px;height:40px;border-radius:14px;background:var(--card,#FFFFFF);display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:2;color:#3A2E33"><svg viewBox="0 0 24 24" style="width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2.5"><path d="M15 6l-6 6l6 6"/></svg></div>
+<div style="position:absolute;left:50%;top:80px;transform:translateX(-50%) rotate(-3deg);width:160px;height:230px;border-radius:20px;background:var(--card,#FFFFFF);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;letter-spacing:1px;color:var(--fg2,#8A7A80);box-shadow:0 20px 40px rgba(80,50,60,.2)">COVER</div>
+</div>
+<div style="padding:22px var(--pad,20px) 0">
+<div style="display:flex;gap:6px"><span style="padding:5px 12px;border-radius:12px;background:#BFD8F0;font-size:11px;font-weight:700;color:#3A2E33">Fantasy</span><span style="padding:5px 12px;border-radius:12px;background:#CFE8D2;font-size:11px;font-weight:700;color:#3A2E33">Sunday strips</span></div>
+<div style="font-family:'Gaegu',cursive;font-weight:700;font-size:44px;line-height:1;margin-top:12px">Little Nemo in Slumberland</div>
+<div style="font-size:13px;color:var(--fg2,#8A7A80);font-weight:600;margin-top:6px">Winsor McCay · 1905–1926</div>
+<div style="display:flex;align-items:center;gap:10px;margin-top:14px"><div style="display:flex;gap:3px"><span style="font-family:'Gaegu',cursive;font-size:22px;line-height:1;color:#D9788F">♥</span><span style="font-family:'Gaegu',cursive;font-size:22px;line-height:1;color:#D9788F">♥</span><span style="font-family:'Gaegu',cursive;font-size:22px;line-height:1;color:#D9788F">♥</span><span style="font-family:'Gaegu',cursive;font-size:22px;line-height:1;color:#D9788F">♥</span><span style="font-family:'Gaegu',cursive;font-size:22px;line-height:1;color:var(--line,#EADDD8)">♥</span></div><span style="font-size:14px;font-weight:700">4.7</span><span style="font-size:12px;color:var(--fg2,#8A7A80);font-weight:600">3,210 readers</span></div>
+<div style="display:flex;gap:10px;margin-top:20px"><div onClick="{{ goReader }}" style="flex:1;height:54px;border-radius:22px;background:var(--fg,#3A2E33);color:var(--bg,#FBF6F3);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px;cursor:pointer">Keep reading · p. 12</div><div style="width:54px;height:54px;border-radius:22px;background:var(--card,#FFFFFF);display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(80,50,60,.08)"><svg viewBox="0 0 24 24" style="width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2.2"><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2M7 11l5 5l5-5M12 4v12"/></svg></div></div>
+<div style="font-size:12px;color:var(--fg2,#8A7A80);font-weight:600;margin-top:8px;text-align:center">Save for offline · 640 MB</div>
+<div style="margin-top:26px;padding:18px;border-radius:24px;background:var(--card,#FFFFFF);box-shadow:0 4px 14px rgba(80,50,60,.06)"><div style="font-family:'Gaegu',cursive;font-weight:700;font-size:24px;line-height:1">About Winsor</div><div style="font-size:13px;line-height:1.5;margin-top:8px;color:var(--fg2,#8A7A80);font-weight:600">Winsor McCay (1869–1934), American cartoonist and animator. Little Nemo ran as a full-page Sunday strip; every episode ends with Nemo waking up in bed.</div></div>
+<div style="margin-top:26px;display:flex;justify-content:space-between;align-items:baseline"><span style="font-family:'Gaegu',cursive;font-weight:700;font-size:26px;line-height:1">Strips</span><span style="font-size:12px;font-weight:700;color:var(--fg2,#8A7A80)">Newest first</span></div>
+<div style="margin-top:10px;display:flex;flex-direction:column;gap:8px">
+<sc-for list="{{ chapters }}" as="c" hint-placeholder-count="5">
+<div onClick="{{ goReader }}" style="display:flex;align-items:center;gap:14px;padding:12px 14px;border-radius:20px;background:var(--card,#FFFFFF);cursor:pointer;opacity:{{ c.op }};box-shadow:0 4px 14px rgba(80,50,60,.05)"><div style="width:44px;height:56px;border-radius:12px;background:{{ c.tint }};flex:none"></div><div style="flex:1"><div style="font-size:14px;font-weight:700">{{ c.name }}</div><div style="font-size:11px;color:var(--fg2,#8A7A80);font-weight:600;margin-top:2px">{{ c.meta }}</div></div><div style="width:10px;height:10px;border-radius:50%;background:{{ c.dot }}"></div></div>
+</sc-for>
+</div>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isReader }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;inset:0;background:#FBF6F3;color:#3A2E33">
+<div onClick="{{ toggleChrome }}" style="position:absolute;inset:0;overflow-y:auto;cursor:pointer">
+<sc-if value="{{ isPage }}" hint-placeholder-val="{{ true }}">
+<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:80px 16px 110px;box-sizing:border-box"><div style="width:100%;height:100%;background:#fff;border-radius:24px;box-shadow:0 20px 50px rgba(80,50,60,.15);display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1.2fr 1fr 1fr;gap:8px;padding:12px;box-sizing:border-box"><div style="grid-column:1/3;border-radius:14px;background:#F3EAE6;display:flex;align-items:center;justify-content:center;color:#B0A0A6;font-size:10px;font-weight:700;letter-spacing:1px">PAGE {{ page }}</div><div style="border-radius:14px;background:#F3EAE6"></div><div style="border-radius:14px;background:#F3EAE6"></div><div style="grid-column:1/3;border-radius:14px;background:#F3EAE6"></div></div></div>
+</sc-if>
+<sc-if value="{{ isStrip }}" hint-placeholder-val="{{ false }}">
+<div style="padding:70px 16px 110px;display:flex;flex-direction:column;gap:12px;min-height:100%;box-sizing:border-box"><div style="height:300px;border-radius:20px;background:#fff;display:flex;align-items:center;justify-content:center;color:#B0A0A6;font-size:10px;font-weight:700;letter-spacing:1px">STRIP · PANEL 1</div><div style="height:440px;border-radius:20px;background:#fff"></div><div style="height:240px;border-radius:20px;background:#fff"></div><div style="height:400px;border-radius:20px;background:#fff"></div></div>
+</sc-if>
+</div>
+<div style="position:absolute;top:0;left:0;right:0;padding:52px 16px 14px;display:flex;align-items:center;gap:12px;background:linear-gradient(#FBF6F3 60%,rgba(251,246,243,0));transition:opacity .25s,transform .25s cubic-bezier(.16,1,.3,1);opacity:{{ chromeOp }};transform:translateY({{ chromeTopY }});pointer-events:{{ chromePE }}"><div onClick="{{ goDetail }}" style="width:40px;height:40px;border-radius:14px;background:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 4px 14px rgba(80,50,60,.08)"><svg viewBox="0 0 24 24" style="width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2.5"><path d="M15 6l-6 6l6 6"/></svg></div><div style="flex:1"><div style="font-family:'Gaegu',cursive;font-weight:700;font-size:22px;line-height:1">Little Nemo</div><div style="font-size:12px;color:#8A7A80;font-weight:600;margin-top:2px">Page {{ page }} of 24</div></div><div style="width:40px;height:40px;border-radius:14px;background:var(--ac,#F6C1CC);display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" style="width:18px;height:18px;stroke:#3A2E33;fill:none;stroke-width:2.2"><path d="M18 7v14l-6-4l-6 4V7a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4z"/></svg></div></div>
+<div style="position:absolute;bottom:20px;left:16px;right:16px;padding:14px 16px;border-radius:24px;background:#fff;box-shadow:0 12px 40px rgba(80,50,60,.15);transition:opacity .25s,transform .25s cubic-bezier(.16,1,.3,1);opacity:{{ chromeOp }};transform:translateY({{ chromeBotY }});pointer-events:{{ chromePE }}">
+<div style="display:flex;align-items:center;gap:12px"><span style="font-family:'Gaegu',cursive;font-weight:700;font-size:18px;width:28px">{{ page }}</span><div onClick="{{ scrub }}" style="flex:1;height:28px;display:flex;align-items:center;cursor:pointer"><div style="width:100%;height:10px;border-radius:5px;background:#F3EAE6;position:relative"><div style="position:absolute;left:0;top:0;height:100%;width:{{ progressW }};border-radius:5px;background:var(--ac,#F6C1CC)"></div><div style="position:absolute;left:{{ progressW }};top:-6px;width:22px;height:22px;border-radius:50%;background:#3A2E33;transform:translateX(-11px)"></div></div></div><span style="font-family:'Gaegu',cursive;font-weight:700;font-size:18px;width:28px;text-align:right">24</span></div>
+<div style="display:flex;gap:6px;margin-top:12px;padding:4px;border-radius:16px;background:#F3EAE6"><div onClick="{{ setPage }}" style="flex:1;padding:8px 0;border-radius:12px;font-size:13px;font-weight:700;cursor:pointer;text-align:center;background:{{ pageBtnBg }};color:{{ pageBtnFg }}">Pages</div><div onClick="{{ setStrip }}" style="flex:1;padding:8px 0;border-radius:12px;font-size:13px;font-weight:700;cursor:pointer;text-align:center;background:{{ stripBtnBg }};color:{{ stripBtnFg }}">Scroll</div></div>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isSettings }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;inset:0;overflow-y:auto;padding:60px 0 130px;box-sizing:border-box;animation:pasRise .4s ease-out">
+<div style="padding:0 var(--pad,20px)"><div style="font-size:13px;font-weight:600;color:var(--fg2,#8A7A80)">Make it yours</div><div style="font-family:'Gaegu',cursive;font-weight:700;font-size:40px;line-height:1">Settings</div></div>
+<div style="margin:18px var(--pad,20px) 0;padding:16px;border-radius:24px;background:var(--ac,#F6C1CC);display:flex;align-items:center;gap:14px"><div style="width:52px;height:52px;border-radius:18px;background:var(--card,#FFFFFF);display:flex;align-items:center;justify-content:center;font-family:'Gaegu',cursive;font-weight:700;font-size:26px;color:#3A2E33">:)</div><div style="flex:1"><div style="font-size:16px;font-weight:700;color:#3A2E33">Guest</div><div style="font-size:12px;font-weight:600;color:#3A2E33;opacity:.7">Sign in to keep your shelf everywhere</div></div><div style="padding:8px 14px;border-radius:14px;background:#3A2E33;color:#FBF6F3;font-size:12px;font-weight:700">Sign in</div></div>
+<sc-for list="{{ settingGroups }}" as="grp" hint-placeholder-count="3">
+<div style="padding:0 var(--pad,20px);margin-top:24px;font-family:'Gaegu',cursive;font-weight:700;font-size:24px;line-height:1">{{ grp.title }}</div>
+<div style="margin:8px var(--pad,20px) 0;border-radius:24px;background:var(--card,#FFFFFF);overflow:hidden;box-shadow:0 4px 14px rgba(80,50,60,.06)">
+<sc-for list="{{ grp.rows }}" as="r" hint-placeholder-count="3">
+<div onClick="{{ r.onTap }}" style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--line,#EADDD8);font-size:14px;font-weight:700;cursor:pointer"><span>{{ r.name }}</span><span style="font-size:13px;color:var(--fg2,#8A7A80);display:flex;align-items:center;gap:8px;font-weight:600">{{ r.value }}<sc-if value="{{ r.isToggle }}" hint-placeholder-val="{{ false }}"><span style="width:46px;height:28px;border-radius:14px;background:{{ r.togBg }};position:relative;display:inline-block;transition:background .18s"><span style="position:absolute;top:3px;left:{{ r.knob }};width:22px;height:22px;border-radius:50%;background:#fff;transition:left .18s;box-shadow:0 2px 6px rgba(0,0,0,.15)"></span></span></sc-if></span></div>
+</sc-for>
+</div>
+</sc-for>
+<div style="text-align:center;margin-top:28px;font-size:11px;font-weight:700;color:var(--fg2,#8A7A80);letter-spacing:1px">YOMI 4.0 · PASTEL</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ showNav }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;left:16px;right:16px;bottom:20px;height:72px;border-radius:24px;background:var(--card,#FFFFFF);box-shadow:0 12px 40px rgba(80,50,60,.15);display:flex;align-items:center;justify-content:space-around;padding:0 8px">
+<sc-for list="{{ nav }}" as="nv" hint-placeholder-count="4">
+<div onClick="{{ nv.go }}" style="display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;padding:8px 14px;border-radius:16px;background:{{ nv.bg }};color:var(--fg,#3A2E33);transition:background .2s"><svg viewBox="0 0 24 24" style="width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round"><path d="{{ nv.icon }}"/></svg><span style="font-size:10px;font-weight:700">{{ nv.name }}</span></div>
+</sc-for>
+</div>
+</sc-if>
+</div>
+
+<aside style="width:300px;max-width:100%;flex:1 1 260px;display:flex;flex-direction:column;gap:14px;padding-top:8px">
+<div style="font-size:11px;letter-spacing:2px;color:#8A7A80;font-weight:700">DIRECTION 04 · PASTEL</div>
+<div style="font-family:'Gaegu',cursive;font-weight:700;font-size:44px;line-height:1">Soft &amp; cosy</div>
+<div style="font-size:13px;line-height:1.55;color:#6E5F66;font-weight:600">Cream canvas, blush pink as the lead with sky, mint and butter as supporting tints. Everything is a 24px rounded rect; covers tilt a few degrees like stickers. Headlines are handwritten, body is a friendly rounded sans.</div>
+<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">
+<sc-for list="{{ screensList }}" as="s" hint-placeholder-count="6"><div onClick="{{ s.go }}" style="padding:6px 12px;border-radius:14px;font-size:12px;font-weight:700;cursor:pointer;border:1px solid #D9CCC7;background:{{ s.bg }};color:{{ s.fg }}">{{ s.name }}</div></sc-for>
+</div>
+<div style="margin-top:12px;font-size:11px;letter-spacing:2px;color:#8A7A80;font-weight:700">NOTES · {{ screenTitle }}</div>
+<sc-for list="{{ notes }}" as="n" hint-placeholder-count="3">
+<div style="display:flex;gap:12px;font-size:13px;line-height:1.5;color:#3A2E33;font-weight:600"><span style="flex:none;width:22px;height:22px;border-radius:50%;background:#F6C1CC;color:#3A2E33;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center">{{ n.k }}</span><span>{{ n.t }}</span></div>
+</sc-for>
+<div style="margin-top:18px;font-size:12px;color:#8A7A80;line-height:1.6;font-weight:600">Other directions: <a href="../redesign-sumi/RedesignSumi.dc.html">Sumi</a> · <a href="../redesign-neon/RedesignNeon.dc.html">Neon</a> · <a href="../redesign-cinema/RedesignCinema.dc.html">Cinema</a></div>
+</aside>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;device&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;phone&quot;,&quot;tablet&quot;],&quot;default&quot;:&quot;phone&quot;,&quot;tsType&quot;:&quot;'phone'|'tablet'&quot;,&quot;section&quot;:&quot;Device&quot;},&quot;theme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;light&quot;,&quot;dark&quot;],&quot;default&quot;:&quot;light&quot;,&quot;tsType&quot;:&quot;'light'|'dark'&quot;,&quot;section&quot;:&quot;Appearance&quot;},&quot;accent&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;options&quot;:[&quot;#F6C1CC&quot;,&quot;#BFD8F0&quot;,&quot;#CFE8D2&quot;,&quot;#F3E1B8&quot;],&quot;default&quot;:&quot;#F6C1CC&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Appearance&quot;},&quot;density&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;comfortable&quot;,&quot;compact&quot;],&quot;default&quot;:&quot;comfortable&quot;,&quot;tsType&quot;:&quot;'comfortable'|'compact'&quot;,&quot;section&quot;:&quot;Layout&quot;},&quot;coverSize&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;small&quot;,&quot;medium&quot;,&quot;large&quot;],&quot;default&quot;:&quot;medium&quot;,&quot;tsType&quot;:&quot;'small'|'medium'|'large'&quot;,&quot;section&quot;:&quot;Layout&quot;}}">
+class Component extends DCLogic {
+  state = { screen: 'onboarding', mode: 'page', chrome: true, page: 12, genres: ['Comedy'], toggles: { night: false, haptics: true, wifi: true } };
+  go(screen) { return () => this.setState({ screen, chrome: true }); }
+  renderVals() {
+    const p = this.props, s = this.state;
+    const dark = (p.theme ?? 'light') === 'dark';
+    const ac = p.accent ?? '#F6C1CC';
+    const compact = (p.density ?? 'comfortable') === 'compact';
+    const tablet = (p.device ?? 'phone') === 'tablet';
+    const cols = { small: 4, medium: 3, large: 2 }[p.coverSize ?? 'medium'];
+    const fg = dark ? '#F4ECEF' : '#3A2E33', fg2 = dark ? '#B7A9B0' : '#8A7A80', card = dark ? '#372F3B' : '#FFFFFF', line = dark ? '#4A4150' : '#EADDD8';
+    const TINTS = ['#F6C1CC', '#BFD8F0', '#CFE8D2', '#F3E1B8'];
+    const GENRES = [['Action', 'Pow!', 0], ['Isekai', 'Poof', 1], ['Comedy', 'Haha', 3], ['Sci-fi', 'Beep', 2]];
+    const genres = GENRES.map(([name, k, ti], i) => { const on = s.genres.includes(name); return { name, k, border: on ? fg : 'transparent', bgc: TINTS[ti], dot: on ? fg : 'rgba(255,255,255,.6)', checkOp: on ? 1 : 0, tilt: on ? 'rotate(0deg) scale(1.02)' : (i % 2 ? 'rotate(1.5deg)' : 'rotate(-1.5deg)'), toggle: () => this.setState(st => ({ genres: on ? st.genres.filter(g => g !== name) : [...st.genres, name] })) }; });
+    const shelf = [['Little Nemo', 'Winsor McCay', 0], ['Chōjū-giga', 'Toba Sōjō', 2], ['Krazy Kat', 'George Herriman', 5], ['Nonkina Tōsan', 'Asō Yutaka', 0], ['Sho-chan no Bōken', 'Kabashima Katsuichi', 0], ['Hokusai Manga', 'Katsushika Hokusai', 0], ['Journey to the West', 'Wu Cheng\'en', 1], ['Kwaidan', 'Lafcadio Hearn', 0]].map(([name, by, unread], i) => ({ name, by, unread, tint: TINTS[i % 4] }));
+    const picks = [{ name: 'Nonkina Tōsan', by: 'Asō Yutaka · 1923', k: 'ha', tint: TINTS[3], note: 'Easy-going Dad. Four panels, one gentle joke a day.' }, { name: 'Krazy Kat', by: 'George Herriman · 1913', k: 'aw', tint: TINTS[1], note: 'A cat, a mouse, a brick, and a lot of love.' }, { name: 'Sho-chan no Bōken', by: 'Kabashima Katsuichi · 1923', k: 'go', tint: TINTS[2], note: 'Boy and squirrel go adventuring. Cosy in scroll mode.' }];
+    const chapters = ['Nemo and the walking bed', 'The palace of ice', 'Flip arrives', 'The candy kingdom', 'A very long staircase'].map((name, i) => ({ name, meta: i < 2 ? 'New this week' : i === 2 ? 'Halfway · p. 12' : 'Finished', dot: i < 2 ? '#D9788F' : i === 2 ? fg : 'transparent', tint: TINTS[(i + 1) % 4], op: i > 2 ? .55 : 1 }));
+    const tog = (key) => ({ isToggle: true, value: '', togBg: s.toggles[key] ? '#D9788F' : (dark ? '#4A4150' : '#EADDD8'), knob: s.toggles[key] ? '21px' : '3px', onTap: () => this.setState(st => ({ toggles: { ...st.toggles, [key]: !st.toggles[key] } })) });
+    const row = (name, value, extra = {}) => ({ name, value, isToggle: false, onTap: () => {}, ...extra });
+    const settingGroups = [
+      { title: 'Reading', rows: [row('Night mode after 9pm', '', tog('night')), row('Default mode', s.mode === 'page' ? 'Pages' : 'Scroll'), row('Page turn', 'Slide'), row('Little buzz on tap', '', tog('haptics'))] },
+      { title: 'Look', rows: [row('Theme', dark ? 'Plum' : 'Cream'), row('Cover size', p.coverSize ?? 'medium'), row('Density', p.density ?? 'comfortable')] },
+      { title: 'Account & storage', rows: [row('Reminders', 'Sundays'), row('Download on Wi-Fi only', '', tog('wifi')), row('Downloaded', '1.6 GB · 3 titles')] },
+    ];
+    const ICONS = { library: 'M4 19V5a2 2 0 0 1 2-2h3v18H6a2 2 0 0 1-2-2zM9 3h3v18H9M12 5l5-2 3 16-5 2z', discover: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM8 16l2-6 6-2-2 6z', saved: 'M18 7v14l-6-4-6 4V7a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4z', settings: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z' };
+    const NAV = [['Shelf', 'library', 'library'], ['Discover', 'discover', 'discover'], ['Saved', 'library', 'saved'], ['You', 'settings', 'settings']];
+    const nav = NAV.map(([name, k, ic], i) => { const on = s.screen === k && i !== 2; return { name, go: this.go(k), icon: ICONS[ic], bg: on ? ac : 'transparent' }; });
+    const NOTES = {
+      onboarding: [{ k: 1, t: 'Two soft discs (blush, sky) bleed off the corners. The app mark is よ (yo) in a white 24px-radius tile.' }, { k: 2, t: 'Genre tiles each take a pastel tint and a comic sound word; unselected tiles tilt 1.5° like stickers, selected ones straighten and gain an ink outline.' }, { k: 3, t: 'CTA is the ink colour, not the accent, so pink stays decorative. Guest by default.' }],
+      library: [{ k: 1, t: 'Greeting line above a handwritten "My shelf". Search is a white tile, not a bar.' }, { k: 2, t: 'Continue card is the only blush-filled block; the cover tilts 3° and the progress bar is ink on frosted white.' }, { k: 3, t: 'Covers cycle four tints as placeholders; unread counts are ink pills hanging off the corner. Columns follow Cover size.' }, { k: 4, t: 'Floating 24px tab bar with icon + label; active item gets a blush pill behind it.' }],
+      discover: [{ k: 1, t: 'Editor pick is a sky-blue card with a blush disc and a tilted cover; the title is handwritten at 38px.' }, { k: 2, t: '"More we love" cards: white tiles with tinted thumbnails and a two-letter handwritten tag.' }],
+      detail: [{ k: 1, t: 'Blush header with a 40px bottom radius; butter disc peeks from the corner; cover tilts −3°.' }, { k: 2, t: 'Rating is five hand-drawn hearts. Keep reading is ink; save-for-offline is a white tile with size beneath.' }, { k: 3, t: 'Strips are white cards with tinted thumbs; new ones get a rose dot, finished ones fade to 55%.' }],
+      reader: [{ k: 1, t: 'Reader keeps the cream canvas; the page is a white card with a soft drop shadow. Tap toggles chrome.' }, { k: 2, t: 'Bottom controls float in a white 24px card: fat blush progress track, ink knob, Pages / Scroll segmented pill.' }, { k: 3, t: 'Header bookmark tile is blush; back is white. Both 40px.' }],
+      settings: [{ k: 1, t: 'Guest card in blush with a smiley tile; Sign in is an ink pill.' }, { k: 2, t: 'Groups titled in handwriting; rows in white cards. Toggles are rose when on, 46px wide.' }, { k: 3, t: 'Theme (Cream / Plum), cover size and density mirror the Tweaks panel.' }],
+    };
+    const names = { onboarding: 'Onboarding', library: 'Library', discover: 'Discover', detail: 'Title detail', reader: 'Reader', settings: 'Settings' };
+    const screensList = Object.keys(names).map(k => ({ name: names[k], go: this.go(k), bg: s.screen === k ? '#3A2E33' : 'transparent', fg: s.screen === k ? '#FBF6F3' : '#6E5F66' }));
+    const chromeOn = s.chrome;
+    return {
+      bg: dark ? '#2A2530' : '#FBF6F3', fg, fg2, line, card, ac, ac2: '#BFD8F0',
+      pad: compact ? (tablet ? '24px' : '14px') : (tablet ? '36px' : '20px'), gap: compact ? '8px' : (tablet ? '20px' : '14px'), cols: tablet ? cols * 2 : cols, fw: tablet ? '834px' : '390px', fh: tablet ? '1112px' : '844px',
+      isOnboarding: s.screen === 'onboarding', isLibrary: s.screen === 'library', isDiscover: s.screen === 'discover', isDetail: s.screen === 'detail', isReader: s.screen === 'reader', isSettings: s.screen === 'settings',
+      showNav: ['library', 'discover', 'settings'].includes(s.screen), nav,
+      goLibrary: this.go('library'), goDiscover: this.go('discover'), goDetail: this.go('detail'), goReader: this.go('reader'), goSettings: this.go('settings'),
+      genres, shelf, picks, chapters, settingGroups, screensList, notes: NOTES[s.screen], screenTitle: names[s.screen].toUpperCase(),
+      isPage: s.mode === 'page', isStrip: s.mode === 'strip', page: s.page, progressW: Math.round(s.page / 24 * 100) + '%',
+      chromeOp: chromeOn ? 1 : 0, chromeTopY: chromeOn ? '0' : '-20px', chromeBotY: chromeOn ? '0' : '20px', chromePE: chromeOn ? 'auto' : 'none',
+      toggleChrome: () => this.setState(st => ({ chrome: !st.chrome })),
+      setPage: (e) => { e.stopPropagation(); this.setState({ mode: 'page' }); }, setStrip: (e) => { e.stopPropagation(); this.setState({ mode: 'strip' }); },
+      scrub: (e) => { e.stopPropagation(); this.setState({ page: 1 + Math.floor(Math.random() * 24) }); },
+      pageBtnBg: s.mode === 'page' ? '#fff' : 'transparent', pageBtnFg: s.mode === 'page' ? '#3A2E33' : '#8A7A80', stripBtnBg: s.mode === 'strip' ? '#fff' : 'transparent', stripBtnFg: s.mode === 'strip' ? '#3A2E33' : '#8A7A80',
+    };
+  }
+}
+</script>
+</body>
+</html>

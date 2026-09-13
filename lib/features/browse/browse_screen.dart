@@ -3,366 +3,365 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/extensions/source_interface.dart';
 import '../../core/providers/source_registry_provider.dart';
-import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
-import '../../core/theme/app_text_styles.dart';
+import '../../core/theme/yomi_theme.dart';
 import '../../shared/widgets/empty_state.dart';
+import '../../shared/widgets/sumi.dart';
 import 'extensions_screen.dart';
 import 'source_manga_screen.dart';
-import 'widgets/featured_source_card.dart';
-import 'widgets/source_row.dart';
 
-// Accent gradients per source ID.
-final _sourceGradients = <String, LinearGradient>{
-  'mangadex_en_v5': const LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-    colors: AppColors.gradViolet,
-  ),
-  'demonicscans_en': const LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-    colors: AppColors.gradEmber,
-  ),
-  'asurascans_en': const LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-    colors: AppColors.gradTeal,
-  ),
-  'reaperscans_en': const LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-    colors: AppColors.gradRose,
-  ),
-  'readcomiconline_en': const LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-    colors: AppColors.gradEmber,
-  ),
-  'comicextra_en': const LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-    colors: AppColors.gradTeal,
-  ),
-};
-
-LinearGradient _gradientFor(MangaSource source) {
-  final known = _sourceGradients[source.id];
-  if (known != null) return known;
-  final seeds = [
-    AppColors.gradEmber,
-    AppColors.gradViolet,
-    AppColors.gradTeal,
-    AppColors.gradRose,
-  ];
-  final colors = seeds[source.id.hashCode.abs() % 4];
-  return LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-    colors: colors,
-  );
-}
-
+/// ============================================================================
+/// Discover — search, a featured source plate with the sumi splatter, then
+/// the installed sources as curated rows with a kanji language tag.
+/// ============================================================================
 class BrowseScreen extends ConsumerWidget {
   const BrowseScreen({super.key});
 
-  void _openSource(BuildContext context, String sourceId) {
+  void _openSource(BuildContext context, String sourceId,
+      {bool search = false}) {
     Navigator.of(context).push(
       CupertinoPageRoute<void>(
-        builder: (_) => SourceMangaScreen(sourceId: sourceId),
+        builder: (_) =>
+            SourceMangaScreen(sourceId: sourceId, initialSearch: search),
       ),
     );
   }
 
   void _openExtensions(BuildContext context) {
     Navigator.of(context).push(
-      CupertinoPageRoute<void>(
-        builder: (_) => const ExtensionsScreen(),
-      ),
+      CupertinoPageRoute<void>(builder: (_) => const ExtensionsScreen()),
     );
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final c = context.yc;
     final sources = ref.watch(sourceRegistryProvider);
-    final topPadding = MediaQuery.of(context).padding.top;
-    final bottomPadding = MediaQuery.of(context).padding.bottom;
+    final insets = MediaQuery.paddingOf(context);
+    final gutter = context.yomiGutter;
 
     return CupertinoPageScaffold(
-      backgroundColor: CupertinoTheme.of(context).scaffoldBackgroundColor,
+      backgroundColor: c.bg,
       child: CustomScrollView(
         physics: const BouncingScrollPhysics(),
         slivers: [
-          SliverToBoxAdapter(child: SizedBox(height: topPadding + 8)),
+          SliverToBoxAdapter(child: SizedBox(height: insets.top + 12)),
 
-          // ── Kicker + title + search ───────────────────────────────────────
+          // ── Header ────────────────────────────────────────────────────────
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 14),
+              padding: EdgeInsets.symmetric(horizontal: gutter),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'DISCOVER',
-                    style: AppTextStyles.metaMono.copyWith(
-                      color: context.accentColor,
-                      letterSpacing: 2.5,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Browse',
-                    style: AppTextStyles.displayM.copyWith(
-                      color: context.textPrimaryColor,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  _SearchBar(),
+                  const SumiOverline('DISCOVER · 探'),
+                  Text('Explore', style: YomiText.kanji(36, color: c.fg)),
                 ],
+              ),
+            ),
+          ),
+
+          // ── Search ────────────────────────────────────────────────────────
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(gutter, 16, gutter, 0),
+              child: _SearchField(
+                onTap: () => sources.isEmpty
+                    ? _openExtensions(context)
+                    : _openSource(context, sources.first.id, search: true),
               ),
             ),
           ),
 
           if (sources.isEmpty)
-            // ── Empty state ────────────────────────────────────────────────
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 48, 20, 32),
+                padding: const EdgeInsets.fromLTRB(0, 48, 0, 32),
                 child: EmptyState(
                   icon: CupertinoIcons.square_grid_2x2,
-                  title: 'No extensions installed',
-                  message: 'Install an extension to start browsing manga.',
-                  actionLabel: 'Browse Extensions',
+                  title: 'No sources installed',
+                  message: 'Install an extension to start exploring.',
+                  actionLabel: 'Browse extensions',
                   onAction: () => _openExtensions(context),
                 ),
               ),
             )
           else ...[
-            // ── Featured carousel ──────────────────────────────────────────
-            SliverToBoxAdapter(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 4, 20, 14),
-                    child: Row(
-                      children: [
-                        Text(
-                          'Featured',
-                          style: AppTextStyles.sectionTitle.copyWith(
-                            color: context.textPrimaryColor,
-                          ),
-                        ),
-                        const Spacer(),
-                      ],
-                    ),
-                  ),
-                  SizedBox(
-                    height: 140,
-                    child: ListView.separated(
-                      scrollDirection: Axis.horizontal,
-                      physics: const BouncingScrollPhysics(),
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      itemCount: sources.length,
-                      separatorBuilder: (_, __) => const SizedBox(width: 12),
-                      itemBuilder: (_, i) => SizedBox(
-                        width: 248,
-                        child: FeaturedSourceCard(
-                          source: sources[i],
-                          gradient: _gradientFor(sources[i]),
-                          onTap: () => _openSource(context, sources[i].id),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            const SliverToBoxAdapter(child: SizedBox(height: 24)),
-
-            // ── Installed sources header ───────────────────────────────────
+            // ── Featured plate ──────────────────────────────────────────────
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
-                child: Row(
-                  children: [
-                    Text(
-                      'Installed',
-                      style: AppTextStyles.sectionTitle.copyWith(
-                        color: context.textPrimaryColor,
-                      ),
-                    ),
-                    const Spacer(),
-                    GestureDetector(
-                      onTap: () => _openExtensions(context),
-                      child: Text(
-                        'Manage',
-                        style: AppTextStyles.labelMedium.copyWith(
-                          color: context.accentColor,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
+                padding: EdgeInsets.fromLTRB(gutter, 22, gutter, 0),
+                child: _FeaturedPlate(
+                  source: sources.first,
+                  onTap: () => _openSource(context, sources.first.id),
                 ),
               ),
             ),
 
-            // ── Installed sources list ─────────────────────────────────────
+            // ── Curated rows ────────────────────────────────────────────────
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(gutter, 26, gutter, 10),
+                child: const SumiOverline('SOURCES · 源'),
+              ),
+            ),
             SliverPadding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
+              padding: EdgeInsets.symmetric(horizontal: gutter),
               sliver: SliverList.builder(
                 itemCount: sources.length,
-                itemBuilder: (context, i) => SourceRow(
-                  source: sources[i],
-                  action: SourceRowAction.open,
-                  gradient: _gradientFor(sources[i]),
-                  onTap: () => _openSource(context, sources[i].id),
+                itemBuilder: (context, i) => SumiStagger(
+                  index: i,
+                  child: _SourceRow(
+                    source: sources[i],
+                    onTap: () => _openSource(context, sources[i].id),
+                  ),
                 ),
               ),
             ),
           ],
 
-          // ── Extensions card ────────────────────────────────────────────────
+          // ── Extensions ────────────────────────────────────────────────────
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
-              child: Text(
-                'Extensions',
-                style: AppTextStyles.sectionTitle.copyWith(
-                  color: context.textPrimaryColor,
-                ),
+              padding: EdgeInsets.symmetric(horizontal: gutter),
+              child: _PlainRow(
+                kanji: '拡',
+                title: 'Extensions',
+                subtitle: 'Install, update and remove sources',
+                onTap: () => _openExtensions(context),
               ),
             ),
           ),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: _ExtensionsCard(onTap: () => _openExtensions(context)),
-            ),
-          ),
 
-          SliverToBoxAdapter(child: SizedBox(height: bottomPadding + 90)),
+          SliverToBoxAdapter(child: SizedBox(height: insets.bottom + 120)),
         ],
       ),
     );
   }
 }
 
-// ── Search bar (solid LUMEN surface) ──────────────────────────────────────────
+// ── Search field (44 tall, 1px line, radius 4) ────────────────────────────────
 
-class _SearchBar extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 50,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        color: context.surfaceColor,
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(
-          color: context.borderColor,
-          width: AppRadius.hairline,
-        ),
-      ),
-      child: Row(
-        children: [
-          Icon(CupertinoIcons.search,
-              size: 18, color: context.textTertiaryColor),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              'Search all sources…',
-              style: AppTextStyles.bodyMedium.copyWith(
-                color: context.textTertiaryColor,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Extensions card ───────────────────────────────────────────────────────────
-
-class _ExtensionsCard extends StatefulWidget {
-  const _ExtensionsCard({required this.onTap});
+class _SearchField extends StatelessWidget {
+  const _SearchField({required this.onTap});
   final VoidCallback onTap;
 
   @override
-  State<_ExtensionsCard> createState() => _ExtensionsCardState();
-}
-
-class _ExtensionsCardState extends State<_ExtensionsCard> {
-  bool _pressed = false;
-
-  @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: widget.onTap,
-      onTapDown: (_) => setState(() => _pressed = true),
-      onTapUp: (_) => setState(() => _pressed = false),
-      onTapCancel: () => setState(() => _pressed = false),
-      child: AnimatedScale(
-        scale: _pressed ? AppMotion.pressScale : 1.0,
-        duration: AppMotion.fast,
-        curve: AppMotion.easeOut,
+    final c = context.yc;
+    return Semantics(
+      button: true,
+      label: 'Search titles, authors',
+      child: SumiPress(
+        onTap: onTap,
+        scale: AppMotion.activeScale,
         child: Container(
-          padding: const EdgeInsets.all(18),
+          height: 44,
+          padding: const EdgeInsets.symmetric(horizontal: 14),
           decoration: BoxDecoration(
-            color: context.surfaceColor,
-            borderRadius: BorderRadius.circular(AppRadius.lg),
-            border: Border.all(
-              color: context.accentLineColor,
-              width: AppRadius.hairline,
-            ),
+            border: Border.all(color: c.line),
+            borderRadius: BorderRadius.circular(4),
           ),
           child: Row(
             children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: context.accentSubtleColor,
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                ),
-                child: const Icon(
-                  CupertinoIcons.square_grid_2x2,
-                  color: AppColors.accent,
-                  size: 20,
+              Icon(CupertinoIcons.search, size: 18, color: c.fg2),
+              const SizedBox(width: 10),
+              Text('Search titles, authors',
+                  style: YomiText.ui(14, color: c.fg2)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Featured plate (300 tall, splatter, vertical kanji) ───────────────────────
+
+class _FeaturedPlate extends StatelessWidget {
+  const _FeaturedPlate({required this.source, required this.onTap});
+  final MangaSource source;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.yc;
+    return Semantics(
+      button: true,
+      label: 'Featured source ${source.name}',
+      child: SumiPress(
+        onTap: onTap,
+        scale: AppMotion.activeScale,
+        child: Container(
+          height: 300,
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            color: c.card,
+            border: Border.all(color: c.line),
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              const SumiSplatter(),
+              Positioned(
+                right: 18,
+                top: 18,
+                child: RotatedBox(
+                  quarterTurns: 1,
+                  child: Text('探索',
+                      style: YomiText.kanji(22, color: c.bg, letterSpacing: 4)),
                 ),
               ),
-              const SizedBox(width: 14),
-              Expanded(
+              Positioned(
+                left: 18,
+                right: 120,
+                bottom: 18,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
+                    SumiOverline('FEATURED SOURCE', color: c.ac),
+                    const SizedBox(height: 6),
+                    Text(source.name,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: YomiText.kanji(28, color: c.fg)),
+                    const SizedBox(height: 6),
                     Text(
-                      'Extension Catalogue',
-                      style: AppTextStyles.bodyMedium.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: context.textPrimaryColor,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      'Install, uninstall and update extensions',
-                      style: AppTextStyles.bodySmall.copyWith(
-                        color: context.textTertiaryColor,
-                      ),
+                      '${source.language.toUpperCase()} · ${_host(source.baseUrl)} · v${source.version}',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: YomiText.ui(13, color: c.fg2, height: 1.4),
                     ),
                   ],
                 ),
               ),
-              Icon(
-                CupertinoIcons.chevron_right,
-                color: context.textTertiaryColor,
-                size: 16,
-              ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+String _host(String url) {
+  final u = Uri.tryParse(url);
+  return (u?.host.isNotEmpty ?? false) ? u!.host : url;
+}
+
+// ── Source row: 56px icon, name 15/700, meta 12, kanji tag ────────────────────
+
+class _SourceRow extends StatelessWidget {
+  const _SourceRow({required this.source, required this.onTap});
+  final MangaSource source;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.yc;
+    return SumiPress(
+      onTap: onTap,
+      scale: AppMotion.activeScale,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        decoration: BoxDecoration(
+          border: Border(bottom: BorderSide(color: c.line)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 56,
+              height: 56,
+              clipBehavior: Clip.antiAlias,
+              decoration: BoxDecoration(
+                color: c.card,
+                border: Border.all(color: c.line),
+                borderRadius: BorderRadius.circular(3),
+              ),
+              child: source.iconBytes.isEmpty
+                  ? Center(
+                      child: Text(kanjiTag(source.name),
+                          style: YomiText.kanji(22, color: c.fg2)))
+                  : Image.memory(source.iconBytes, fit: BoxFit.cover),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(source.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: YomiText.ui(15,
+                          weight: FontWeight.w700, color: c.fg)),
+                  const SizedBox(height: 2),
+                  Text(_host(source.baseUrl),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: YomiText.ui(12, color: c.fg2)),
+                  const SizedBox(height: 8),
+                  Text('Popular · Latest · Search · v${source.version}',
+                      style: YomiText.ui(12, color: c.fg2, height: 1.4)),
+                ],
+              ),
+            ),
+            const SizedBox(width: 14),
+            Text(languageKanji(source.language),
+                style: YomiText.kanji(22, color: c.ac)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PlainRow extends StatelessWidget {
+  const _PlainRow({
+    required this.kanji,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+  final String kanji;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.yc;
+    return SumiPress(
+      onTap: onTap,
+      scale: AppMotion.activeScale,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        decoration: BoxDecoration(
+          border: Border(bottom: BorderSide(color: c.line)),
+        ),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 56,
+              child: Center(
+                child: Text(kanji, style: YomiText.kanji(26, color: c.fg)),
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title,
+                      style: YomiText.ui(15,
+                          weight: FontWeight.w700, color: c.fg)),
+                  const SizedBox(height: 2),
+                  Text(subtitle, style: YomiText.ui(12, color: c.fg2)),
+                ],
+              ),
+            ),
+            Icon(CupertinoIcons.chevron_right, size: 16, color: c.fg2),
+          ],
         ),
       ),
     );

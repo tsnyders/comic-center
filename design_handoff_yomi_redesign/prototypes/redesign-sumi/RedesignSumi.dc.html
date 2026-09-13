@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<!-- @template name="Redesign · Sumi" description="Japanese ink direction: black sumi, white ink, brush calligraphy, yin-yang nav, washi grain. Tappable 6-screen flow." -->
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Yuji+Syuku&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet">
+<style>html,body{margin:0;background:#141311}@keyframes sumiRise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}a{color:inherit}a:hover{color:#B7282E}</style>
+</helmet>
+<div style="--fw:{{fw}};--fh:{{fh}};--bg:{{bg}};--fg:{{fg}};--fg2:{{fg2}};--line:{{line}};--card:{{card}};--ac:{{ac}};--pad:{{pad}};--gap:{{gap}};--cols:{{cols}};min-height:100vh;display:flex;flex-wrap:wrap;gap:40px;align-items:flex-start;justify-content:center;padding:40px 24px;box-sizing:border-box;font-family:'Zen Kaku Gothic New',sans-serif;color:#E9E4D8">
+<div style="position:relative;width:var(--fw,390px);height:var(--fh,844px);flex:none;transition:width .3s,height .3s;border-radius:44px;background:var(--bg,#0B0B0A);color:var(--fg,#F2EDE3);overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,.6),inset 0 0 0 1px rgba(255,255,255,.06)">
+<div style="position:absolute;inset:0;pointer-events:none;opacity:.35;mix-blend-mode:overlay;background-image:url(&quot;data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .5 0 0 0 0 .5 0 0 0 0 .5 0 0 0 .6 0'/></filter><rect width='200' height='200' filter='url(%23n)'/></svg>&quot;)"></div>
+<div style="position:absolute;top:0;left:0;right:0;height:52px;display:flex;justify-content:space-between;align-items:center;padding:0 28px;font-size:14px;font-weight:700;z-index:5"><span>9:41</span><span style="font-size:11px;letter-spacing:1px">●●● ▮</span></div>
+
+<sc-if value="{{ isOnboarding }}" hint-placeholder-val="{{ true }}">
+<div style="position:absolute;inset:0;display:flex;flex-direction:column;padding:96px var(--pad,20px) 40px;box-sizing:border-box;animation:sumiRise .5s ease-out">
+<svg viewBox="0 0 200 200" style="width:160px;height:160px;align-self:center"><path d="M100 22c46-6 82 30 78 74-4 46-44 82-88 76-38-5-70-40-66-80 3-30 24-56 52-64" fill="none" stroke="var(--fg,#F2EDE3)" stroke-width="9" stroke-linecap="round" opacity=".9"/><path d="M104 20c44-2 78 34 74 74" fill="none" stroke="var(--fg,#F2EDE3)" stroke-width="3" stroke-linecap="round" opacity=".5"/><text x="100" y="128" text-anchor="middle" font-family="'Yuji Syuku',serif" font-size="78" fill="var(--fg,#F2EDE3)">読</text></svg>
+<div style="text-align:center;margin-top:8px"><div style="font-family:'Yuji Syuku',serif;font-size:44px;line-height:1">Yomi</div><div style="font-size:13px;color:var(--fg2,#A9A399);margin-top:6px;letter-spacing:2px">読む · READ</div></div>
+<div style="margin-top:40px;font-size:13px;color:var(--fg2,#A9A399);letter-spacing:1px">WHAT DO YOU READ?</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--gap,14px);margin-top:14px">
+<sc-for list="{{ genres }}" as="g" hint-placeholder-count="4">
+<div onClick="{{ g.toggle }}" style="position:relative;height:112px;border:1px solid {{ g.border }};background:{{ g.bgc }};border-radius:6px;padding:14px;box-sizing:border-box;cursor:pointer;transition:all .18s cubic-bezier(.16,1,.3,1)"><div style="font-family:'Yuji Syuku',serif;font-size:40px;line-height:1;color:{{ g.kc }}">{{ g.k }}</div><div style="position:absolute;left:14px;bottom:12px;font-size:14px;font-weight:700">{{ g.name }}</div><div style="position:absolute;right:12px;top:12px;width:22px;height:22px;border-radius:50%;border:1.5px solid {{ g.border }};background:{{ g.dot }}"></div></div>
+</sc-for>
+</div>
+<div style="flex:1"></div>
+<div onClick="{{ goLibrary }}" style="height:54px;border-radius:6px;background:var(--fg,#F2EDE3);color:var(--bg,#0B0B0A);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px;cursor:pointer">Continue as guest</div>
+<div onClick="{{ goSettings }}" style="text-align:center;font-size:13px;color:var(--fg2,#A9A399);margin-top:14px;cursor:pointer">Sign in to sync across devices</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isLibrary }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;inset:0;overflow-y:auto;padding:60px 0 120px;box-sizing:border-box;animation:sumiRise .4s ease-out">
+<div style="display:flex;justify-content:space-between;align-items:flex-end;padding:0 var(--pad,20px)"><div><div style="font-size:11px;letter-spacing:2px;color:var(--fg2,#A9A399)">LIBRARY · 庫</div><div style="font-family:'Yuji Syuku',serif;font-size:36px;line-height:1.1">Your shelf</div></div><div style="width:40px;height:40px;border:2px solid var(--ac,#B7282E);color:var(--ac,#B7282E);border-radius:4px;display:flex;align-items:center;justify-content:center;font-family:'Yuji Syuku',serif;font-size:22px;transform:rotate(-6deg)">読</div></div>
+<div onClick="{{ goReader }}" style="margin:22px var(--pad,20px) 0;display:flex;gap:16px;cursor:pointer">
+<div style="width:96px;height:140px;flex:none;border-radius:4px;background:var(--card,#1A1917);border:1px solid var(--line,#2A2825);display:flex;align-items:center;justify-content:center;font-size:10px;letter-spacing:1px;color:var(--fg2,#A9A399)">COVER</div>
+<div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end"><div style="font-size:11px;letter-spacing:2px;color:var(--ac,#B7282E)">続 · CONTINUE</div><div style="font-family:'Yuji Syuku',serif;font-size:26px;line-height:1.1;margin-top:6px">Hokusai Manga</div><div style="font-size:13px;color:var(--fg2,#A9A399);margin-top:4px">Vol. 3 · Sketch 41 of 62</div><svg viewBox="0 0 220 12" style="width:100%;height:12px;margin-top:14px"><path d="M2 7c40-4 80 2 120-1s60-3 96 0" stroke="var(--line,#2A2825)" stroke-width="3" fill="none" stroke-linecap="round"/><path d="M2 7c40-4 80 2 120-1" stroke="var(--ac,#B7282E)" stroke-width="5" fill="none" stroke-linecap="round"/></svg></div>
+</div>
+<div style="display:flex;gap:8px;padding:0 var(--pad,20px);margin-top:26px;overflow-x:auto">
+<span style="padding:7px 14px;border-radius:2px;background:var(--fg,#F2EDE3);color:var(--bg,#0B0B0A);font-size:13px;font-weight:700;white-space:nowrap">All 8</span><span style="padding:7px 14px;border-radius:2px;border:1px solid var(--line,#2A2825);font-size:13px;white-space:nowrap">Reading</span><span style="padding:7px 14px;border-radius:2px;border:1px solid var(--line,#2A2825);font-size:13px;white-space:nowrap">Finished</span><span style="padding:7px 14px;border-radius:2px;border:1px solid var(--line,#2A2825);font-size:13px;white-space:nowrap">Downloaded</span>
+</div>
+<div style="display:grid;grid-template-columns:repeat(var(--cols,3),1fr);gap:var(--gap,14px);padding:0 var(--pad,20px);margin-top:22px">
+<sc-for list="{{ shelf }}" as="t" hint-placeholder-count="6">
+<div onClick="{{ goDetail }}" style="cursor:pointer"><div style="aspect-ratio:2/3;border-radius:4px;background:var(--card,#1A1917);border:1px solid var(--line,#2A2825);position:relative;display:flex;align-items:center;justify-content:center;font-size:9px;letter-spacing:1px;color:var(--fg2,#A9A399)">COVER<div style="position:absolute;left:8px;top:8px;font-family:'Yuji Syuku',serif;font-size:20px;color:var(--fg,#F2EDE3);opacity:.7">{{ t.k }}</div><sc-if value="{{ t.unread }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;right:6px;top:6px;min-width:18px;height:18px;border-radius:50%;background:var(--ac,#B7282E);color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 5px">{{ t.unread }}</div></sc-if></div><div style="font-size:12px;font-weight:700;margin-top:8px;line-height:1.25">{{ t.name }}</div><div style="font-size:11px;color:var(--fg2,#A9A399);margin-top:2px">{{ t.by }}</div></div>
+</sc-for>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isDiscover }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;inset:0;overflow-y:auto;padding:60px 0 120px;box-sizing:border-box;animation:sumiRise .4s ease-out">
+<div style="padding:0 var(--pad,20px)"><div style="font-size:11px;letter-spacing:2px;color:var(--fg2,#A9A399)">DISCOVER · 探</div><div style="font-family:'Yuji Syuku',serif;font-size:36px;line-height:1.1">Editor's picks</div></div>
+<div style="margin:16px var(--pad,20px) 0;height:44px;border:1px solid var(--line,#2A2825);border-radius:4px;display:flex;align-items:center;gap:10px;padding:0 14px;font-size:14px;color:var(--fg2,#A9A399)"><svg viewBox="0 0 24 24" style="width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2"><circle cx="10" cy="10" r="7"/><path d="M21 21l-6-6"/></svg>Search titles, authors</div>
+<div onClick="{{ goDetail }}" style="margin:22px var(--pad,20px) 0;position:relative;height:300px;border-radius:6px;overflow:hidden;background:var(--card,#1A1917);border:1px solid var(--line,#2A2825);cursor:pointer">
+<svg viewBox="0 0 390 300" style="position:absolute;inset:0;width:100%;height:100%;opacity:.55"><filter id="spl"><feTurbulence baseFrequency=".04" numOctaves="3" seed="7"/><feDisplacementMap in="SourceGraphic" scale="40"/></filter><g filter="url(#spl)" fill="var(--fg,#F2EDE3)"><ellipse cx="300" cy="90" rx="80" ry="60"/><ellipse cx="250" cy="180" rx="30" ry="22"/><circle cx="345" cy="190" r="10"/><circle cx="210" cy="60" r="6"/></g></svg>
+<div style="position:absolute;right:18px;top:18px;writing-mode:vertical-rl;font-family:'Yuji Syuku',serif;font-size:22px;color:var(--bg,#0B0B0A);letter-spacing:4px">鳥獣戯画</div>
+<div style="position:absolute;left:18px;bottom:18px;right:120px"><div style="font-size:11px;letter-spacing:2px;color:var(--ac,#B7282E)">PICK OF THE WEEK</div><div style="font-family:'Yuji Syuku',serif;font-size:28px;line-height:1.1;margin-top:6px">Chōjū-giga</div><div style="font-size:13px;color:var(--fg2,#A9A399);margin-top:6px;line-height:1.4">Frogs and rabbits at play. Twelfth-century scrolls, often called the first manga.</div></div>
+</div>
+<div style="padding:0 var(--pad,20px);margin-top:26px;font-size:11px;letter-spacing:2px;color:var(--fg2,#A9A399)">CURATED · 選</div>
+<div style="padding:0 var(--pad,20px);margin-top:10px;display:flex;flex-direction:column">
+<sc-for list="{{ picks }}" as="p" hint-placeholder-count="3">
+<div onClick="{{ goDetail }}" style="display:flex;gap:14px;padding:14px 0;border-bottom:1px solid var(--line,#2A2825);cursor:pointer"><div style="width:56px;height:80px;flex:none;border-radius:3px;background:var(--card,#1A1917);border:1px solid var(--line,#2A2825)"></div><div style="flex:1"><div style="font-size:15px;font-weight:700">{{ p.name }}</div><div style="font-size:12px;color:var(--fg2,#A9A399);margin-top:2px">{{ p.by }}</div><div style="font-size:12px;margin-top:8px;line-height:1.4;color:var(--fg2,#A9A399)">{{ p.note }}</div></div><div style="font-family:'Yuji Syuku',serif;font-size:22px;color:var(--ac,#B7282E);align-self:center">{{ p.k }}</div></div>
+</sc-for>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isDetail }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;inset:0;overflow-y:auto;padding:0 0 120px;box-sizing:border-box;animation:sumiRise .4s ease-out">
+<div style="position:relative;height:340px;background:var(--card,#1A1917);border-bottom:1px solid var(--line,#2A2825)">
+<div onClick="{{ goLibrary }}" style="position:absolute;left:16px;top:56px;width:36px;height:36px;border-radius:50%;background:var(--bg,#0B0B0A);display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:2"><svg viewBox="0 0 24 24" style="width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2"><path d="M15 6l-6 6l6 6"/></svg></div>
+<div style="position:absolute;left:50%;top:70px;transform:translateX(-50%);width:150px;height:220px;border-radius:4px;background:var(--bg,#0B0B0A);border:1px solid var(--line,#2A2825);display:flex;align-items:center;justify-content:center;font-size:10px;letter-spacing:1px;color:var(--fg2,#A9A399);box-shadow:0 20px 40px rgba(0,0,0,.5)">COVER</div>
+<div style="position:absolute;right:16px;top:64px;writing-mode:vertical-rl;font-family:'Yuji Syuku',serif;font-size:20px;letter-spacing:3px;color:var(--fg2,#A9A399)">北斎漫画</div>
+</div>
+<div style="padding:20px var(--pad,20px) 0">
+<div style="font-family:'Yuji Syuku',serif;font-size:32px;line-height:1.1">Hokusai Manga</div>
+<div style="font-size:13px;color:var(--fg2,#A9A399);margin-top:4px">Katsushika Hokusai · 15 volumes · 1814–1878</div>
+<div style="display:flex;align-items:center;gap:10px;margin-top:12px"><div style="display:flex;gap:3px"><i style="width:10px;height:10px;border-radius:50%;background:var(--ac,#B7282E)"></i><i style="width:10px;height:10px;border-radius:50%;background:var(--ac,#B7282E)"></i><i style="width:10px;height:10px;border-radius:50%;background:var(--ac,#B7282E)"></i><i style="width:10px;height:10px;border-radius:50%;background:var(--ac,#B7282E)"></i><i style="width:10px;height:10px;border-radius:50%;border:1px solid var(--ac,#B7282E);box-sizing:border-box"></i></div><span style="font-size:13px;font-weight:700">4.8</span><span style="font-size:12px;color:var(--fg2,#A9A399)">2,140 ratings</span></div>
+<div style="display:flex;gap:10px;margin-top:18px"><div onClick="{{ goReader }}" style="flex:1;height:50px;border-radius:4px;background:var(--fg,#F2EDE3);color:var(--bg,#0B0B0A);display:flex;align-items:center;justify-content:center;font-weight:700;cursor:pointer">Read · Vol. 3</div><div style="width:50px;height:50px;border-radius:4px;border:1px solid var(--line,#2A2825);display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" style="width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2"><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2M7 11l5 5l5-5M12 4v12"/></svg></div></div>
+<div style="font-size:11px;color:var(--fg2,#A9A399);margin-top:8px">Download for offline · 1.2 GB · 15 volumes</div>
+<div style="margin-top:26px;font-size:11px;letter-spacing:2px;color:var(--fg2,#A9A399)">ABOUT THE AUTHOR · 作</div>
+<div style="font-size:13px;line-height:1.55;margin-top:8px;color:var(--fg2,#A9A399)">Katsushika Hokusai (1760–1849) was a Japanese ukiyo-e artist of the Edo period. His sketchbooks, published as Hokusai Manga, gather thousands of studies of people, animals, plants and the supernatural.</div>
+<div style="margin-top:26px;display:flex;justify-content:space-between;align-items:baseline"><span style="font-size:11px;letter-spacing:2px;color:var(--fg2,#A9A399)">VOLUMES · 巻</span><span style="font-size:12px;color:var(--fg2,#A9A399)">Newest first</span></div>
+<div style="margin-top:6px">
+<sc-for list="{{ chapters }}" as="c" hint-placeholder-count="5">
+<div onClick="{{ goReader }}" style="display:flex;align-items:center;gap:14px;padding:14px 0;border-bottom:1px solid var(--line,#2A2825);cursor:pointer;opacity:{{ c.op }}"><span style="font-family:'Yuji Syuku',serif;font-size:20px;width:28px;color:var(--fg2,#A9A399)">{{ c.k }}</span><div style="flex:1"><div style="font-size:14px;font-weight:700">{{ c.name }}</div><div style="font-size:11px;color:var(--fg2,#A9A399);margin-top:2px">{{ c.meta }}</div></div><div style="width:8px;height:8px;border-radius:50%;background:{{ c.dot }}"></div></div>
+</sc-for>
+</div>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isReader }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;inset:0;background:#000;color:#F2EDE3">
+<div onClick="{{ toggleChrome }}" style="position:absolute;inset:0;overflow-y:auto;cursor:pointer">
+<sc-if value="{{ isPage }}" hint-placeholder-val="{{ true }}">
+<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:70px 14px 90px;box-sizing:border-box"><div style="width:100%;height:100%;background:#F4EFE4;border-radius:2px;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1.2fr 1fr 1fr;gap:6px;padding:8px;box-sizing:border-box"><div style="grid-column:1/3;border:3px solid #111;display:flex;align-items:center;justify-content:center;color:#888;font-size:10px;letter-spacing:1px">PAGE 41 · PANEL</div><div style="border:3px solid #111"></div><div style="border:3px solid #111"></div><div style="grid-column:1/3;border:3px solid #111"></div></div></div>
+</sc-if>
+<sc-if value="{{ isStrip }}" hint-placeholder-val="{{ false }}">
+<div style="padding:60px 0 100px;display:flex;flex-direction:column;gap:2px;background:#F4EFE4;min-height:100%"><div style="height:280px;border-bottom:3px solid #111;display:flex;align-items:center;justify-content:center;color:#888;font-size:10px;letter-spacing:1px">STRIP · PANEL 1</div><div style="height:420px;border-bottom:3px solid #111"></div><div style="height:220px;border-bottom:3px solid #111"></div><div style="height:380px"></div></div>
+</sc-if>
+</div>
+<div style="position:absolute;top:0;left:0;right:0;height:2px;background:#222;z-index:3"><div style="height:100%;width:{{ progressW }};background:var(--ac,#B7282E);transition:width .3s"></div></div>
+<div style="position:absolute;top:0;left:0;right:0;padding:52px 16px 12px;display:flex;align-items:center;gap:12px;background:linear-gradient(#000,rgba(0,0,0,0));transition:opacity .25s,transform .25s cubic-bezier(.16,1,.3,1);opacity:{{ chromeOp }};transform:translateY({{ chromeTopY }});pointer-events:{{ chromePE }}"><div onClick="{{ goDetail }}" style="width:36px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer"><svg viewBox="0 0 24 24" style="width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:2"><path d="M15 6l-6 6l6 6"/></svg></div><div style="flex:1"><div style="font-size:14px;font-weight:700">Hokusai Manga</div><div style="font-size:11px;color:#A9A399">Vol. 3 · Sketch {{ page }} / 62</div></div><div style="font-family:'Yuji Syuku',serif;font-size:22px;color:var(--ac,#B7282E)">巻三</div></div>
+<div style="position:absolute;bottom:0;left:0;right:0;padding:14px 16px 32px;background:linear-gradient(rgba(0,0,0,0),#000);transition:opacity .25s,transform .25s cubic-bezier(.16,1,.3,1);opacity:{{ chromeOp }};transform:translateY({{ chromeBotY }});pointer-events:{{ chromePE }}">
+<div style="display:flex;align-items:center;gap:12px"><span style="font-size:11px;color:#A9A399;width:24px">{{ page }}</span><div onClick="{{ scrub }}" style="flex:1;height:24px;display:flex;align-items:center;cursor:pointer"><div style="width:100%;height:2px;background:#333;position:relative"><div style="position:absolute;left:0;top:0;height:100%;width:{{ progressW }};background:#F2EDE3"></div><div style="position:absolute;left:{{ progressW }};top:-7px;width:16px;height:16px;border-radius:50%;background:#F2EDE3;transform:translateX(-8px)"></div></div></div><span style="font-size:11px;color:#A9A399;width:24px;text-align:right">62</span></div>
+<div style="display:flex;justify-content:center;gap:6px;margin-top:14px"><div onClick="{{ setPage }}" style="padding:8px 16px;border-radius:2px;font-size:12px;font-weight:700;cursor:pointer;background:{{ pageBtnBg }};color:{{ pageBtnFg }};border:1px solid #444">Page · 頁</div><div onClick="{{ setStrip }}" style="padding:8px 16px;border-radius:2px;font-size:12px;font-weight:700;cursor:pointer;background:{{ stripBtnBg }};color:{{ stripBtnFg }};border:1px solid #444">Strip · 縦</div></div>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isSettings }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;inset:0;overflow-y:auto;padding:60px 0 120px;box-sizing:border-box;animation:sumiRise .4s ease-out">
+<div style="padding:0 var(--pad,20px)"><div style="font-size:11px;letter-spacing:2px;color:var(--fg2,#A9A399)">SETTINGS · 設</div><div style="font-family:'Yuji Syuku',serif;font-size:36px;line-height:1.1">You</div></div>
+<div style="margin:18px var(--pad,20px) 0;padding:16px;border:1px solid var(--line,#2A2825);border-radius:6px;display:flex;align-items:center;gap:14px"><div style="width:52px;height:52px;border-radius:50%;background:var(--fg,#F2EDE3);color:var(--bg,#0B0B0A);display:flex;align-items:center;justify-content:center;font-family:'Yuji Syuku',serif;font-size:26px">客</div><div style="flex:1"><div style="font-size:16px;font-weight:700">Guest reader</div><div style="font-size:12px;color:var(--fg2,#A9A399)">Sign in to sync progress</div></div><div style="padding:8px 14px;border-radius:2px;background:var(--ac,#B7282E);color:#fff;font-size:12px;font-weight:700">Sign in</div></div>
+<sc-for list="{{ settingGroups }}" as="grp" hint-placeholder-count="3">
+<div style="padding:0 var(--pad,20px);margin-top:26px;font-size:11px;letter-spacing:2px;color:var(--fg2,#A9A399)">{{ grp.title }}</div>
+<div style="margin:8px var(--pad,20px) 0;border:1px solid var(--line,#2A2825);border-radius:6px;overflow:hidden">
+<sc-for list="{{ grp.rows }}" as="r" hint-placeholder-count="3">
+<div onClick="{{ r.onTap }}" style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--line,#2A2825);font-size:14px;cursor:pointer"><span>{{ r.name }}</span><span style="font-size:13px;color:var(--fg2,#A9A399);display:flex;align-items:center;gap:8px">{{ r.value }}<sc-if value="{{ r.isToggle }}" hint-placeholder-val="{{ false }}"><span style="width:40px;height:24px;border-radius:12px;background:{{ r.togBg }};position:relative;display:inline-block;transition:background .18s"><span style="position:absolute;top:3px;left:{{ r.knob }};width:18px;height:18px;border-radius:50%;background:#fff;transition:left .18s"></span></span></sc-if></span></div>
+</sc-for>
+</div>
+</sc-for>
+<div style="text-align:center;margin-top:30px;font-size:11px;color:var(--fg2,#A9A399);letter-spacing:1px">YOMI 4.0 · SUMI</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ showNav }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;left:0;right:0;bottom:0;height:92px;padding:0 40px 22px;box-sizing:border-box;display:flex;align-items:center;justify-content:space-between;background:linear-gradient(rgba(0,0,0,0),var(--bg,#0B0B0A) 45%)">
+<div onClick="{{ goDiscover }}" style="display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;color:{{ navDiscoverC }}"><span style="font-family:'Yuji Syuku',serif;font-size:26px;line-height:1">探</span><span style="font-size:10px;letter-spacing:1px">Discover</span></div>
+<div onClick="{{ goLibrary }}" style="width:64px;height:64px;border-radius:50%;cursor:pointer;transform:translateY(-14px) rotate({{ yyRot }});transition:transform .6s cubic-bezier(.34,1.56,.64,1);box-shadow:0 10px 30px rgba(0,0,0,.5);opacity:{{ navLibraryOp }}"><svg viewBox="0 0 100 100" style="width:100%;height:100%"><circle cx="50" cy="50" r="48" fill="#F2EDE3"/><path d="M50 2a48 48 0 0 1 0 96a24 24 0 0 1 0-48a24 24 0 0 0 0-48z" fill="#0B0B0A"/><circle cx="50" cy="26" r="7" fill="#0B0B0A"/><circle cx="50" cy="74" r="7" fill="#F2EDE3"/></svg></div>
+<div onClick="{{ goSettings }}" style="display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;color:{{ navSettingsC }}"><span style="font-family:'Yuji Syuku',serif;font-size:26px;line-height:1">設</span><span style="font-size:10px;letter-spacing:1px">Settings</span></div>
+</div>
+</sc-if>
+</div>
+
+<aside style="width:300px;max-width:100%;flex:1 1 260px;display:flex;flex-direction:column;gap:14px;padding-top:8px">
+<div style="font-size:11px;letter-spacing:2px;color:#8B857A">DIRECTION 01 · SUMI</div>
+<div style="font-family:'Yuji Syuku',serif;font-size:34px;line-height:1.1">墨 Sumi</div>
+<div style="font-size:13px;line-height:1.55;color:#B5AFA3">Black sumi ink and white paper. Kanji brush marks label each surface; a yin-yang is the home button; vermilion appears only as a seal. Washi grain sits over every surface.</div>
+<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">
+<sc-for list="{{ screensList }}" as="s" hint-placeholder-count="6"><div onClick="{{ s.go }}" style="padding:6px 12px;border-radius:2px;font-size:12px;cursor:pointer;border:1px solid #3A3733;background:{{ s.bg }};color:{{ s.fg }}">{{ s.name }}</div></sc-for>
+</div>
+<div style="margin-top:12px;font-size:11px;letter-spacing:2px;color:#8B857A">NOTES · {{ screenTitle }}</div>
+<sc-for list="{{ notes }}" as="n" hint-placeholder-count="3">
+<div style="display:flex;gap:12px;font-size:13px;line-height:1.5;color:#D6D0C4"><span style="flex:none;width:22px;height:22px;border-radius:50%;border:1px solid #B7282E;color:#B7282E;font-size:11px;display:flex;align-items:center;justify-content:center">{{ n.k }}</span><span>{{ n.t }}</span></div>
+</sc-for>
+<div style="margin-top:18px;font-size:12px;color:#8B857A;line-height:1.6">Other directions: <a href="../redesign-neon/RedesignNeon.dc.html">Neon</a> · <a href="../redesign-cinema/RedesignCinema.dc.html">Cinema</a> · <a href="../redesign-pastel/RedesignPastel.dc.html">Pastel</a></div>
+</aside>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;device&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;phone&quot;,&quot;tablet&quot;],&quot;default&quot;:&quot;phone&quot;,&quot;tsType&quot;:&quot;'phone'|'tablet'&quot;,&quot;section&quot;:&quot;Device&quot;},&quot;theme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;dark&quot;,&quot;light&quot;],&quot;default&quot;:&quot;dark&quot;,&quot;tsType&quot;:&quot;'dark'|'light'&quot;,&quot;section&quot;:&quot;Appearance&quot;},&quot;accent&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;options&quot;:[&quot;#B7282E&quot;,&quot;#2B4A7A&quot;,&quot;#B8892E&quot;,&quot;#3F7A5E&quot;],&quot;default&quot;:&quot;#B7282E&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Appearance&quot;},&quot;density&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;comfortable&quot;,&quot;compact&quot;],&quot;default&quot;:&quot;comfortable&quot;,&quot;tsType&quot;:&quot;'comfortable'|'compact'&quot;,&quot;section&quot;:&quot;Layout&quot;},&quot;coverSize&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;small&quot;,&quot;medium&quot;,&quot;large&quot;],&quot;default&quot;:&quot;medium&quot;,&quot;tsType&quot;:&quot;'small'|'medium'|'large'&quot;,&quot;section&quot;:&quot;Layout&quot;}}">
+class Component extends DCLogic {
+  state = { screen: 'onboarding', mode: 'page', chrome: true, page: 41, genres: ['Action'], toggles: { rtl: true, haptics: true, wifi: true } };
+  go(screen) { return () => this.setState({ screen, chrome: true }); }
+  renderVals() {
+    const p = this.props, s = this.state;
+    const light = (p.theme ?? 'dark') === 'light';
+    const ac = p.accent ?? '#B7282E';
+    const compact = (p.density ?? 'comfortable') === 'compact';
+    const tablet = (p.device ?? 'phone') === 'tablet';
+    const cols = { small: 4, medium: 3, large: 2 }[p.coverSize ?? 'medium'];
+    const fg = light ? '#0B0B0A' : '#F2EDE3', fg2 = light ? '#6B665C' : '#A9A399';
+    const GENRES = [['Action', '闘'], ['Isekai', '異'], ['Comedy', '笑'], ['Sci-fi', '宇']];
+    const genres = GENRES.map(([name, k]) => { const on = s.genres.includes(name); return { name, k, border: on ? ac : (light ? '#D8D2C6' : '#2A2825'), bgc: on ? (light ? '#FBEFEF' : '#1C1213') : 'transparent', kc: on ? ac : fg, dot: on ? ac : 'transparent', toggle: () => this.setState(st => ({ genres: on ? st.genres.filter(g => g !== name) : [...st.genres, name] })) }; });
+    const shelf = [['Hokusai Manga', 'Katsushika Hokusai', '北', 3], ['Chōjū-giga', 'Toba Sōjō', '鳥', 0], ['Sho-chan no Bōken', 'Kabashima Katsuichi', '正', 2], ['Nonkina Tōsan', 'Asō Yutaka', '父', 0], ['Little Nemo', 'Winsor McCay', '夢', 0], ['Krazy Kat', 'George Herriman', '猫', 12], ['Kwaidan', 'Lafcadio Hearn', '怪', 0], ['Journey to the West', 'Wu Cheng\'en', '西', 1]].map(([name, by, k, unread]) => ({ name, by, k, unread }));
+    const picks = [{ name: 'Sho-chan no Bōken', by: 'Kabashima Katsuichi · 1923', k: '正', note: 'The first Japanese comic to use speech balloons throughout.' }, { name: 'Little Nemo in Slumberland', by: 'Winsor McCay · 1905', k: '夢', note: 'Full-page dream architecture. Read it in page mode.' }, { name: 'Krazy Kat', by: 'George Herriman · 1913', k: '猫', note: 'Shifting desert backgrounds, one running joke, 31 years.' }];
+    const chapters = [15, 14, 13, 12, 11].map((n, i) => ({ k: ['十五', '十四', '十三', '十二', '十一'][i], name: 'Volume ' + n, meta: i < 2 ? '62 sketches · Unread' : '62 sketches · Read', dot: i < 2 ? ac : 'transparent', op: i < 2 ? 1 : .55 }));
+    const tog = (key) => ({ isToggle: true, value: '', togBg: s.toggles[key] ? ac : (light ? '#D8D2C6' : '#3A3733'), knob: s.toggles[key] ? '19px' : '3px', onTap: () => this.setState(st => ({ toggles: { ...st.toggles, [key]: !st.toggles[key] } })) });
+    const row = (name, value, extra = {}) => ({ name, value, isToggle: false, onTap: () => {}, ...extra });
+    const settingGroups = [
+      { title: 'READING · 読', rows: [row('Reading direction', 'Right to left', tog('rtl')), row('Default mode', s.mode === 'page' ? 'Page' : 'Strip'), row('Brightness', 'Follow system'), row('Haptics on page turn', '', tog('haptics'))] },
+      { title: 'APPEARANCE · 姿', rows: [row('Theme', light ? 'Paper' : 'Sumi'), row('Cover size', p.coverSize ?? 'medium'), row('Density', p.density ?? 'comfortable')] },
+      { title: 'STORAGE · 蔵', rows: [row('Download over Wi-Fi only', '', tog('wifi')), row('Downloaded', '3.4 GB · 4 titles'), row('Clear cache', '212 MB')] },
+    ];
+    const NOTES = {
+      onboarding: [{ k: 1, t: 'Enso circle drawn with two brush strokes; 読 (read) sits inside as the app mark.' }, { k: 2, t: 'Genre cards are ink stamps: a single kanji, selection fills with a seal-red hairline. Tap to toggle, multi-select.' }, { k: 3, t: 'Guest continues straight in. Sign-in is a quiet text link, never a wall.' }],
+      library: [{ k: 1, t: 'Continue block: cover, kanji 続, hand-drawn progress stroke in seal red. Tap opens the reader at the last page.' }, { k: 2, t: 'Grid columns follow the Cover size tweak (2, 3 or 4). Unread count is the only solid red fill.' }, { k: 3, t: 'Nav: 探 Discover, yin-yang Library, 設 Settings. The yin-yang rotates 180° on each visit; press scales to 0.94.' }],
+      discover: [{ k: 1, t: 'Editorial pick fills a 300px plate; a sumi splatter (turbulence-displaced blobs) is the only decoration, with the title set vertically.' }, { k: 2, t: 'Curated rows carry a one-line editor note and a single kanji tag instead of genre chips.' }],
+      detail: [{ k: 1, t: 'Cover floats on a charcoal plate with the title in vertical kanji at the right edge.' }, { k: 2, t: 'Ratings are five seal dots. Download for offline is a secondary square button with size shown below.' }, { k: 3, t: 'Volumes list uses kanji numerals; read volumes drop to 55% opacity. Author bio sits above the list.' }],
+      reader: [{ k: 1, t: 'Tap anywhere on the page to hide or show chrome. Top and bottom bars slide out over 250ms.' }, { k: 2, t: 'Page · 頁 shows a single page; Strip · 縦 switches to a continuous vertical strip for manhwa.' }, { k: 3, t: 'Progress is a 2px seal-red line at the top edge; the scrubber is tappable (jumps to a random sketch here).' }],
+      settings: [{ k: 1, t: 'Guest card first with a seal-red Sign in. Full account appears here after sign-in.' }, { k: 2, t: 'Toggles use the accent for on-state only; rows have no chevrons, the whole row is the tap target (44px+).' }, { k: 3, t: 'Theme, cover size and density mirror the Tweaks panel values.' }],
+    };
+    const names = { onboarding: 'Onboarding', library: 'Library', discover: 'Discover', detail: 'Title detail', reader: 'Reader', settings: 'Settings' };
+    const screensList = Object.keys(names).map(k => ({ name: names[k], go: this.go(k), bg: s.screen === k ? '#F2EDE3' : 'transparent', fg: s.screen === k ? '#0B0B0A' : '#B5AFA3' }));
+    const chromeOn = s.chrome;
+    return {
+      bg: light ? '#F2EDE3' : '#0B0B0A', fg, fg2, line: light ? '#D8D2C6' : '#2A2825', card: light ? '#E7E1D5' : '#1A1917', ac,
+      pad: compact ? (tablet ? '24px' : '14px') : (tablet ? '36px' : '20px'), gap: compact ? '8px' : (tablet ? '20px' : '14px'), cols: tablet ? cols * 2 : cols, fw: tablet ? '834px' : '390px', fh: tablet ? '1112px' : '844px',
+      isOnboarding: s.screen === 'onboarding', isLibrary: s.screen === 'library', isDiscover: s.screen === 'discover', isDetail: s.screen === 'detail', isReader: s.screen === 'reader', isSettings: s.screen === 'settings',
+      showNav: ['library', 'discover', 'settings'].includes(s.screen),
+      goLibrary: this.go('library'), goDiscover: this.go('discover'), goDetail: this.go('detail'), goReader: this.go('reader'), goSettings: this.go('settings'),
+      navDiscoverC: s.screen === 'discover' ? fg : fg2, navSettingsC: s.screen === 'settings' ? fg : fg2, navLibraryOp: s.screen === 'library' ? 1 : .7, yyRot: s.screen === 'library' ? '0deg' : '180deg',
+      genres, shelf, picks, chapters, settingGroups, screensList, notes: NOTES[s.screen], screenTitle: names[s.screen].toUpperCase(),
+      isPage: s.mode === 'page', isStrip: s.mode === 'strip', page: s.page, progressW: Math.round(s.page / 62 * 100) + '%',
+      chromeOp: chromeOn ? 1 : 0, chromeTopY: chromeOn ? '0' : '-20px', chromeBotY: chromeOn ? '0' : '20px', chromePE: chromeOn ? 'auto' : 'none',
+      toggleChrome: () => this.setState(st => ({ chrome: !st.chrome })),
+      setPage: (e) => { e.stopPropagation(); this.setState({ mode: 'page' }); }, setStrip: (e) => { e.stopPropagation(); this.setState({ mode: 'strip' }); },
+      scrub: (e) => { e.stopPropagation(); this.setState({ page: 1 + Math.floor(Math.random() * 62) }); },
+      pageBtnBg: s.mode === 'page' ? '#F2EDE3' : 'transparent', pageBtnFg: s.mode === 'page' ? '#000' : '#F2EDE3', stripBtnBg: s.mode === 'strip' ? '#F2EDE3' : 'transparent', stripBtnFg: s.mode === 'strip' ? '#000' : '#F2EDE3',
+    };
+  }
+}
+</script>
+</body>
+</html>

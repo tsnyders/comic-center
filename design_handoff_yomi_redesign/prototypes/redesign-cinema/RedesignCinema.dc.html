@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<!-- @template name="Redesign · Cinema" description="Cinematic direction: warm charcoal, full-bleed 9:16 hero, condensed uppercase type, film-strip bottom bar. Tappable 6-screen flow." -->
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;700;800&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<style>html,body{margin:0;background:#120F0D}@keyframes cinRise{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}a{color:inherit}a:hover{color:#E8A33D}</style>
+</helmet>
+<div style="--fw:{{fw}};--fh:{{fh}};--bg:{{bg}};--fg:{{fg}};--fg2:{{fg2}};--line:{{line}};--card:{{card}};--ac:{{ac}};--pad:{{pad}};--gap:{{gap}};--cols:{{cols}};min-height:100vh;display:flex;flex-wrap:wrap;gap:40px;align-items:flex-start;justify-content:center;padding:40px 24px;box-sizing:border-box;font-family:'Barlow',sans-serif;color:#E8E1D8">
+<div style="position:relative;width:var(--fw,390px);height:var(--fh,844px);flex:none;transition:width .3s,height .3s;border-radius:44px;background:var(--bg,#1C1917);color:var(--fg,#F1EBE2);overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,.7),inset 0 0 0 1px rgba(255,255,255,.06)">
+<div style="position:absolute;top:0;left:0;right:0;height:52px;display:flex;justify-content:space-between;align-items:center;padding:0 28px;font-size:14px;font-weight:600;z-index:5;font-family:'Barlow Condensed',sans-serif"><span>9:41</span><span style="font-size:11px;letter-spacing:1px">●●● ▮</span></div>
+
+<sc-if value="{{ isOnboarding }}" hint-placeholder-val="{{ true }}">
+<div style="position:absolute;inset:0;display:flex;flex-direction:column;box-sizing:border-box;animation:cinRise .5s ease-out">
+<div style="position:absolute;inset:0;background:linear-gradient(180deg,#3A302A 0%,var(--bg,#1C1917) 70%)"></div>
+<div style="position:absolute;top:88px;left:var(--pad,20px);right:var(--pad,20px)"><div style="font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:4px;color:var(--ac,#E8A33D)">YOMI · EST. 2026</div><div style="font-family:'Barlow Condensed',sans-serif;font-size:72px;font-weight:800;line-height:.9;text-transform:uppercase;margin-top:12px;letter-spacing:-1px">Set the<br>scene.</div><div style="font-size:15px;color:var(--fg2,#B3A99C);margin-top:16px;max-width:280px;line-height:1.45">Choose the genres you want in your opening reel. You can recut it later.</div></div>
+<div style="position:absolute;left:var(--pad,20px);right:var(--pad,20px);top:340px;display:flex;flex-direction:column;border-top:1px solid var(--line,#33302B)">
+<sc-for list="{{ genres }}" as="g" hint-placeholder-count="4">
+<div onClick="{{ g.toggle }}" style="display:flex;align-items:center;justify-content:space-between;height:64px;border-bottom:1px solid var(--line,#33302B);cursor:pointer;color:{{ g.kc }};transition:color .18s"><div style="display:flex;align-items:baseline;gap:14px"><span style="font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;color:var(--fg2,#B3A99C);width:24px">{{ g.k }}</span><span style="font-family:'Barlow Condensed',sans-serif;font-size:30px;font-weight:700;text-transform:uppercase;letter-spacing:1px">{{ g.name }}</span></div><div style="width:28px;height:28px;border:1.5px solid {{ g.border }};background:{{ g.dot }};display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:#1C1917;fill:none;stroke-width:3;opacity:{{ g.checkOp }}"><path d="M5 12l5 5L20 7"/></svg></div></div>
+</sc-for>
+</div>
+<div style="position:absolute;left:var(--pad,20px);right:var(--pad,20px);bottom:40px"><div onClick="{{ goLibrary }}" style="height:56px;background:var(--ac,#E8A33D);color:#1C1917;display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:20px;letter-spacing:2px;text-transform:uppercase;cursor:pointer">Roll · continue as guest</div><div onClick="{{ goSettings }}" style="text-align:center;font-size:13px;color:var(--fg2,#B3A99C);margin-top:14px;cursor:pointer;letter-spacing:.5px">Sign in to sync</div></div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isLibrary }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;inset:0;overflow-y:auto;padding:0 0 110px;box-sizing:border-box;animation:cinRise .4s ease-out">
+<div onClick="{{ goReader }}" style="position:relative;height:560px;background:linear-gradient(180deg,#4A3B32 0%,#2A231F 55%,var(--bg,#1C1917) 100%);cursor:pointer">
+<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-size:11px;letter-spacing:3px;color:rgba(255,255,255,.25)">FULL-BLEED COVER · 9:16</div>
+<div style="position:absolute;top:60px;left:var(--pad,20px);right:var(--pad,20px);display:flex;justify-content:space-between;align-items:center"><span style="font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:800;letter-spacing:5px">YOMI</span><svg viewBox="0 0 24 24" style="width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:2"><circle cx="10" cy="10" r="7"/><path d="M21 21l-6-6"/></svg></div>
+<div style="position:absolute;left:var(--pad,20px);right:var(--pad,20px);bottom:28px"><div style="font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:4px;color:var(--ac,#E8A33D)">NOW SHOWING · CH. 08</div><div style="font-family:'Barlow Condensed',sans-serif;font-size:64px;font-weight:800;line-height:.9;text-transform:uppercase;margin-top:8px;letter-spacing:-1px">Journey to<br>the West</div><div style="display:flex;align-items:center;gap:12px;margin-top:16px"><div style="flex:1;height:2px;background:rgba(255,255,255,.2)"><div style="width:38%;height:100%;background:var(--ac,#E8A33D)"></div></div><span style="font-family:'Barlow Condensed',sans-serif;font-size:13px;letter-spacing:1px;color:var(--fg2,#B3A99C)">38% · 22 MIN LEFT</span></div><div style="display:flex;gap:10px;margin-top:18px"><div style="flex:1;height:48px;background:var(--fg,#F1EBE2);color:#1C1917;display:flex;align-items:center;justify-content:center;gap:8px;font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:18px;letter-spacing:2px"><svg viewBox="0 0 24 24" style="width:16px;height:16px;fill:#1C1917"><path d="M7 4v16l13-8z"/></svg>RESUME</div><div style="width:48px;height:48px;border:1px solid rgba(255,255,255,.35);display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" style="width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2"><path d="M18 7v14l-6-4l-6 4V7a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4z"/></svg></div></div></div>
+</div>
+<div style="display:flex;justify-content:space-between;align-items:baseline;padding:0 var(--pad,20px);margin-top:26px"><span style="font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:700;text-transform:uppercase;letter-spacing:1px">Your reel</span><span style="font-family:'Barlow Condensed',sans-serif;font-size:12px;letter-spacing:2px;color:var(--fg2,#B3A99C)">8 TITLES · 3 UNREAD</span></div>
+<div style="display:flex;gap:8px;padding:0 var(--pad,20px);margin-top:12px;overflow-x:auto"><span style="padding:6px 12px;border:1px solid var(--fg,#F1EBE2);font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:1.5px;white-space:nowrap">ALL</span><span style="padding:6px 12px;border:1px solid var(--line,#33302B);color:var(--fg2,#B3A99C);font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:1.5px;white-space:nowrap">READING</span><span style="padding:6px 12px;border:1px solid var(--line,#33302B);color:var(--fg2,#B3A99C);font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:1.5px;white-space:nowrap">FINISHED</span><span style="padding:6px 12px;border:1px solid var(--line,#33302B);color:var(--fg2,#B3A99C);font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:1.5px;white-space:nowrap">OFFLINE</span></div>
+<div style="display:grid;grid-template-columns:repeat(var(--cols,3),1fr);gap:var(--gap,14px);padding:0 var(--pad,20px);margin-top:18px">
+<sc-for list="{{ shelf }}" as="t" hint-placeholder-count="6">
+<div onClick="{{ goDetail }}" style="cursor:pointer"><div style="aspect-ratio:2/3;background:var(--card,#2A2521);position:relative;display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-size:10px;letter-spacing:2px;color:var(--fg2,#B3A99C)">COVER<sc-if value="{{ t.unread }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;left:0;top:0;padding:3px 7px;background:var(--ac,#E8A33D);color:#1C1917;font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:800;letter-spacing:1px">{{ t.unread }} NEW</div></sc-if></div><div style="font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-top:8px;line-height:1.1">{{ t.name }}</div><div style="font-size:11px;color:var(--fg2,#B3A99C);margin-top:2px">{{ t.by }}</div></div>
+</sc-for>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isDiscover }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;inset:0;overflow-y:auto;padding:64px 0 110px;box-sizing:border-box;animation:cinRise .4s ease-out">
+<div style="padding:0 var(--pad,20px);display:flex;justify-content:space-between;align-items:flex-end"><div><div style="font-family:'Barlow Condensed',sans-serif;font-size:12px;letter-spacing:4px;color:var(--ac,#E8A33D);font-weight:700">PROGRAMME · WEEK 37</div><div style="font-family:'Barlow Condensed',sans-serif;font-size:44px;font-weight:800;text-transform:uppercase;line-height:.95;margin-top:6px">Editor's<br>picks</div></div><svg viewBox="0 0 24 24" style="width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:2;margin-bottom:6px"><circle cx="10" cy="10" r="7"/><path d="M21 21l-6-6"/></svg></div>
+<div onClick="{{ goDetail }}" style="margin-top:22px;position:relative;height:420px;background:linear-gradient(180deg,#3B2F3F 0%,#1E1A1F 60%,var(--bg,#1C1917) 100%);cursor:pointer"><div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-size:11px;letter-spacing:3px;color:rgba(255,255,255,.2)">FULL-BLEED STILL</div><div style="position:absolute;left:var(--pad,20px);top:20px;padding:4px 10px;border:1px solid var(--ac,#E8A33D);color:var(--ac,#E8A33D);font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px">FEATURE</div><div style="position:absolute;left:var(--pad,20px);right:var(--pad,20px);bottom:24px"><div style="font-family:'Barlow Condensed',sans-serif;font-size:52px;font-weight:800;text-transform:uppercase;line-height:.9;letter-spacing:-1px">Kwaidan</div><div style="font-family:'Barlow Condensed',sans-serif;font-size:13px;letter-spacing:2px;color:var(--fg2,#B3A99C);margin-top:8px">LAFCADIO HEARN · 1904 · 17 STORIES</div><div style="font-size:14px;line-height:1.45;color:var(--fg2,#B3A99C);margin-top:10px;max-width:300px">Ghost stories collected in Meiji Japan. Read one per night, lights low.</div></div></div>
+<div style="padding:0 var(--pad,20px);margin-top:28px;font-family:'Barlow Condensed',sans-serif;font-size:12px;letter-spacing:4px;color:var(--fg2,#B3A99C);font-weight:700">ALSO SHOWING</div>
+<div style="padding:0 var(--pad,20px);margin-top:8px;display:flex;flex-direction:column">
+<sc-for list="{{ picks }}" as="p" hint-placeholder-count="3">
+<div onClick="{{ goDetail }}" style="display:flex;gap:16px;padding:16px 0;border-top:1px solid var(--line,#33302B);cursor:pointer"><span style="font-family:'Barlow Condensed',sans-serif;font-size:36px;font-weight:800;color:var(--line,#33302B);line-height:1;width:36px">{{ p.k }}</span><div style="width:56px;height:80px;flex:none;background:var(--card,#2A2521)"></div><div style="flex:1"><div style="font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:700;text-transform:uppercase;line-height:1">{{ p.name }}</div><div style="font-family:'Barlow Condensed',sans-serif;font-size:12px;letter-spacing:1.5px;color:var(--fg2,#B3A99C);margin-top:4px">{{ p.by }}</div><div style="font-size:13px;margin-top:8px;line-height:1.4;color:var(--fg2,#B3A99C)">{{ p.note }}</div></div></div>
+</sc-for>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isDetail }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;inset:0;overflow-y:auto;padding:0 0 110px;box-sizing:border-box;animation:cinRise .4s ease-out">
+<div style="position:relative;height:480px;background:linear-gradient(180deg,#4A3B32 0%,#2A231F 60%,var(--bg,#1C1917) 100%)"><div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-size:11px;letter-spacing:3px;color:rgba(255,255,255,.2)">FULL-BLEED COVER</div>
+<div onClick="{{ goLibrary }}" style="position:absolute;left:16px;top:56px;width:40px;height:40px;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:2"><svg viewBox="0 0 24 24" style="width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2"><path d="M15 6l-6 6l6 6"/></svg></div>
+<div style="position:absolute;left:var(--pad,20px);right:var(--pad,20px);bottom:0"><div style="display:flex;gap:8px"><span style="padding:3px 8px;border:1px solid var(--ac,#E8A33D);color:var(--ac,#E8A33D);font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:2px">ISEKAI</span><span style="padding:3px 8px;border:1px solid var(--line,#33302B);color:var(--fg2,#B3A99C);font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:2px">100 CH</span></div><div style="font-family:'Barlow Condensed',sans-serif;font-size:60px;font-weight:800;text-transform:uppercase;line-height:.9;letter-spacing:-1px;margin-top:12px">Journey to the West</div><div style="font-family:'Barlow Condensed',sans-serif;font-size:13px;letter-spacing:2px;color:var(--fg2,#B3A99C);margin-top:8px">WU CHENG'EN · 1592</div></div>
+</div>
+<div style="padding:16px var(--pad,20px) 0">
+<div style="display:flex;align-items:center;gap:12px"><span style="font-family:'Barlow Condensed',sans-serif;font-size:34px;font-weight:800;color:var(--ac,#E8A33D);line-height:1">4.9</span><div style="display:flex;gap:2px"><i style="width:12px;height:12px;background:var(--ac,#E8A33D)"></i><i style="width:12px;height:12px;background:var(--ac,#E8A33D)"></i><i style="width:12px;height:12px;background:var(--ac,#E8A33D)"></i><i style="width:12px;height:12px;background:var(--ac,#E8A33D)"></i><i style="width:12px;height:12px;background:var(--ac,#E8A33D)"></i></div><span style="font-family:'Barlow Condensed',sans-serif;font-size:12px;letter-spacing:1.5px;color:var(--fg2,#B3A99C)">8,902 RATINGS</span></div>
+<div style="display:flex;gap:10px;margin-top:18px"><div onClick="{{ goReader }}" style="flex:1;height:52px;background:var(--fg,#F1EBE2);color:#1C1917;display:flex;align-items:center;justify-content:center;gap:8px;font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:18px;letter-spacing:2px;cursor:pointer"><svg viewBox="0 0 24 24" style="width:16px;height:16px;fill:#1C1917"><path d="M7 4v16l13-8z"/></svg>RESUME CH. 08</div><div style="width:52px;height:52px;border:1px solid var(--line,#33302B);display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" style="width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2"><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2M7 11l5 5l5-5M12 4v12"/></svg></div></div>
+<div style="font-family:'Barlow Condensed',sans-serif;font-size:12px;letter-spacing:1.5px;color:var(--fg2,#B3A99C);margin-top:8px">DOWNLOAD ALL · 2.6 GB · 100 CHAPTERS</div>
+<div style="margin-top:26px;font-family:'Barlow Condensed',sans-serif;font-size:12px;letter-spacing:4px;color:var(--fg2,#B3A99C);font-weight:700">THE AUTHOR</div>
+<div style="font-size:14px;line-height:1.55;margin-top:8px;color:var(--fg2,#B3A99C)">Wu Cheng'en (c. 1500–1582), Ming dynasty novelist. Journey to the West follows the monk Xuanzang and his three disciples, the Monkey King among them, on a pilgrimage to India.</div>
+<div style="margin-top:26px;display:flex;justify-content:space-between;align-items:baseline"><span style="font-family:'Barlow Condensed',sans-serif;font-size:12px;letter-spacing:4px;color:var(--fg2,#B3A99C);font-weight:700">CHAPTERS</span><span style="font-family:'Barlow Condensed',sans-serif;font-size:12px;letter-spacing:1.5px;color:var(--ac,#E8A33D)">NEWEST FIRST</span></div>
+<div style="margin-top:6px;border-top:1px solid var(--line,#33302B)">
+<sc-for list="{{ chapters }}" as="c" hint-placeholder-count="5">
+<div onClick="{{ goReader }}" style="display:flex;align-items:center;gap:14px;padding:14px 0;border-bottom:1px solid var(--line,#33302B);cursor:pointer;opacity:{{ c.op }}"><span style="font-family:'Barlow Condensed',sans-serif;font-size:24px;font-weight:800;width:40px;color:var(--fg2,#B3A99C)">{{ c.k }}</span><div style="flex:1"><div style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:700;text-transform:uppercase;line-height:1">{{ c.name }}</div><div style="font-size:11px;color:var(--fg2,#B3A99C);margin-top:3px">{{ c.meta }}</div></div><div style="width:10px;height:10px;background:{{ c.dot }}"></div></div>
+</sc-for>
+</div>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isReader }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;inset:0;background:#000;color:#F1EBE2">
+<div onClick="{{ toggleChrome }}" style="position:absolute;inset:0;overflow-y:auto;cursor:pointer">
+<sc-if value="{{ isPage }}" hint-placeholder-val="{{ true }}">
+<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:80px 0 100px;box-sizing:border-box"><div style="width:100%;height:100%;background:#F4EFE6;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1.2fr 1fr 1fr;gap:6px;padding:8px;box-sizing:border-box"><div style="grid-column:1/3;border:2px solid #111;display:flex;align-items:center;justify-content:center;color:#888;font-family:'Barlow Condensed',sans-serif;font-size:11px;letter-spacing:2px">PAGE {{ page }}</div><div style="border:2px solid #111"></div><div style="border:2px solid #111"></div><div style="grid-column:1/3;border:2px solid #111"></div></div></div>
+</sc-if>
+<sc-if value="{{ isStrip }}" hint-placeholder-val="{{ false }}">
+<div style="padding:60px 0 100px;display:flex;flex-direction:column;background:#F4EFE6;min-height:100%"><div style="height:300px;border-bottom:2px solid #111;display:flex;align-items:center;justify-content:center;color:#888;font-family:'Barlow Condensed',sans-serif;font-size:11px;letter-spacing:2px">STRIP · PANEL 1</div><div style="height:440px;border-bottom:2px solid #111"></div><div style="height:240px;border-bottom:2px solid #111"></div><div style="height:400px"></div></div>
+</sc-if>
+</div>
+<div style="position:absolute;top:0;left:0;right:0;padding:52px 16px 14px;display:flex;align-items:center;gap:12px;background:linear-gradient(#000,rgba(0,0,0,0));transition:opacity .25s,transform .25s cubic-bezier(.16,1,.3,1);opacity:{{ chromeOp }};transform:translateY({{ chromeTopY }});pointer-events:{{ chromePE }}"><div onClick="{{ goDetail }}" style="width:36px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer"><svg viewBox="0 0 24 24" style="width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:2"><path d="M15 6l-6 6l6 6"/></svg></div><div style="flex:1"><div style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:700;text-transform:uppercase;letter-spacing:1px;line-height:1">Journey to the West</div><div style="font-family:'Barlow Condensed',sans-serif;font-size:12px;letter-spacing:1.5px;color:#B3A99C;margin-top:3px">CH. 08 · PAGE {{ page }} / 62</div></div><span style="font-family:'Barlow Condensed',sans-serif;font-size:12px;letter-spacing:2px;color:var(--ac,#E8A33D);font-weight:700">RTL</span></div>
+<div style="position:absolute;bottom:0;left:0;right:0;padding:14px 16px 30px;background:linear-gradient(rgba(0,0,0,0),#000 60%);transition:opacity .25s,transform .25s cubic-bezier(.16,1,.3,1);opacity:{{ chromeOp }};transform:translateY({{ chromeBotY }});pointer-events:{{ chromePE }}">
+<div onClick="{{ scrub }}" style="display:flex;gap:2px;height:28px;align-items:flex-end;cursor:pointer">
+<sc-for list="{{ ticks }}" as="tk" hint-placeholder-count="31"><div style="flex:1;height:{{ tk.h }};background:{{ tk.c }}"></div></sc-for>
+</div>
+<div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px"><span style="font-family:'Barlow Condensed',sans-serif;font-size:13px;letter-spacing:2px;color:#B3A99C">{{ page }} / 62</span><div style="display:flex;border:1px solid #3A3532"><div onClick="{{ setPage }}" style="padding:7px 16px;font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;cursor:pointer;background:{{ pageBtnBg }};color:{{ pageBtnFg }}">PAGES</div><div onClick="{{ setStrip }}" style="padding:7px 16px;font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;cursor:pointer;background:{{ stripBtnBg }};color:{{ stripBtnFg }}">STRIP</div></div><span style="font-family:'Barlow Condensed',sans-serif;font-size:13px;letter-spacing:2px;color:#B3A99C">{{ progressW }}</span></div>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isSettings }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;inset:0;overflow-y:auto;padding:64px 0 110px;box-sizing:border-box;animation:cinRise .4s ease-out">
+<div style="padding:0 var(--pad,20px)"><div style="font-family:'Barlow Condensed',sans-serif;font-size:12px;letter-spacing:4px;color:var(--ac,#E8A33D);font-weight:700">CONTROL ROOM</div><div style="font-family:'Barlow Condensed',sans-serif;font-size:44px;font-weight:800;text-transform:uppercase;line-height:.95;margin-top:6px">Settings</div></div>
+<div style="margin:20px var(--pad,20px) 0;padding:16px 0;border-top:1px solid var(--line,#33302B);border-bottom:1px solid var(--line,#33302B);display:flex;align-items:center;gap:14px"><div style="width:52px;height:52px;background:var(--card,#2A2521);display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:800">G</div><div style="flex:1"><div style="font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:700;text-transform:uppercase">Guest</div><div style="font-size:12px;color:var(--fg2,#B3A99C)">Progress kept on this device</div></div><div style="padding:8px 14px;background:var(--ac,#E8A33D);color:#1C1917;font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:800;letter-spacing:2px">SIGN IN</div></div>
+<sc-for list="{{ settingGroups }}" as="grp" hint-placeholder-count="3">
+<div style="padding:0 var(--pad,20px);margin-top:26px;font-family:'Barlow Condensed',sans-serif;font-size:12px;letter-spacing:4px;color:var(--fg2,#B3A99C);font-weight:700">{{ grp.title }}</div>
+<div style="margin:6px var(--pad,20px) 0;border-top:1px solid var(--line,#33302B)">
+<sc-for list="{{ grp.rows }}" as="r" hint-placeholder-count="3">
+<div onClick="{{ r.onTap }}" style="display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px solid var(--line,#33302B);font-size:15px;cursor:pointer"><span>{{ r.name }}</span><span style="font-family:'Barlow Condensed',sans-serif;font-size:13px;letter-spacing:1.5px;color:var(--fg2,#B3A99C);display:flex;align-items:center;gap:8px;text-transform:uppercase">{{ r.value }}<sc-if value="{{ r.isToggle }}" hint-placeholder-val="{{ false }}"><span style="width:44px;height:22px;background:{{ r.togBg }};position:relative;display:inline-block;transition:background .18s"><span style="position:absolute;top:3px;left:{{ r.knob }};width:16px;height:16px;background:#F1EBE2;transition:left .18s"></span></span></sc-if></span></div>
+</sc-for>
+</div>
+</sc-for>
+<div style="text-align:center;margin-top:30px;font-family:'Barlow Condensed',sans-serif;font-size:12px;letter-spacing:3px;color:var(--fg2,#B3A99C)">YOMI 4.0 · CINEMA</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ showNav }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;left:0;right:0;bottom:0;height:84px;padding:0 0 18px;box-sizing:border-box;display:flex;align-items:stretch;background:var(--bg,#1C1917);border-top:1px solid var(--line,#33302B)">
+<sc-for list="{{ nav }}" as="nv" hint-placeholder-count="4">
+<div onClick="{{ nv.go }}" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;cursor:pointer;color:{{ nv.c }};position:relative"><div style="position:absolute;top:-1px;left:20%;right:20%;height:2px;background:{{ nv.bar }}"></div><span style="font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:3px">{{ nv.name }}</span></div>
+</sc-for>
+</div>
+</sc-if>
+</div>
+
+<aside style="width:300px;max-width:100%;flex:1 1 260px;display:flex;flex-direction:column;gap:14px;padding-top:8px">
+<div style="font-family:'Barlow Condensed',sans-serif;font-size:12px;letter-spacing:4px;color:#8C8378;font-weight:700">DIRECTION 03 · CINEMA</div>
+<div style="font-family:'Barlow Condensed',sans-serif;font-size:44px;font-weight:800;line-height:.95;text-transform:uppercase">Full bleed</div>
+<div style="font-size:13px;line-height:1.55;color:#B3A99C">Warm charcoal chrome, covers run edge to edge in 9:16, condensed uppercase type set tight. One amber accent for state. Nav is a film-strip bar: words only, a 2px rule marks the active reel.</div>
+<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">
+<sc-for list="{{ screensList }}" as="s" hint-placeholder-count="6"><div onClick="{{ s.go }}" style="padding:6px 12px;font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;cursor:pointer;border:1px solid #3A3532;background:{{ s.bg }};color:{{ s.fg }}">{{ s.name }}</div></sc-for>
+</div>
+<div style="margin-top:12px;font-family:'Barlow Condensed',sans-serif;font-size:12px;letter-spacing:4px;color:#8C8378;font-weight:700">NOTES · {{ screenTitle }}</div>
+<sc-for list="{{ notes }}" as="n" hint-placeholder-count="3">
+<div style="display:flex;gap:12px;font-size:13px;line-height:1.5;color:#D9D1C6"><span style="flex:none;width:22px;height:22px;background:#E8A33D;color:#1C1917;font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center">{{ n.k }}</span><span>{{ n.t }}</span></div>
+</sc-for>
+<div style="margin-top:18px;font-size:12px;color:#8C8378;line-height:1.6">Other directions: <a href="../redesign-sumi/RedesignSumi.dc.html">Sumi</a> · <a href="../redesign-neon/RedesignNeon.dc.html">Neon</a> · <a href="../redesign-pastel/RedesignPastel.dc.html">Pastel</a></div>
+</aside>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;device&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;phone&quot;,&quot;tablet&quot;],&quot;default&quot;:&quot;phone&quot;,&quot;tsType&quot;:&quot;'phone'|'tablet'&quot;,&quot;section&quot;:&quot;Device&quot;},&quot;theme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;dark&quot;,&quot;light&quot;],&quot;default&quot;:&quot;dark&quot;,&quot;tsType&quot;:&quot;'dark'|'light'&quot;,&quot;section&quot;:&quot;Appearance&quot;},&quot;accent&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;options&quot;:[&quot;#E8A33D&quot;,&quot;#C8412B&quot;,&quot;#8FB8C9&quot;,&quot;#F1EBE2&quot;],&quot;default&quot;:&quot;#E8A33D&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Appearance&quot;},&quot;density&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;comfortable&quot;,&quot;compact&quot;],&quot;default&quot;:&quot;comfortable&quot;,&quot;tsType&quot;:&quot;'comfortable'|'compact'&quot;,&quot;section&quot;:&quot;Layout&quot;},&quot;coverSize&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;small&quot;,&quot;medium&quot;,&quot;large&quot;],&quot;default&quot;:&quot;medium&quot;,&quot;tsType&quot;:&quot;'small'|'medium'|'large'&quot;,&quot;section&quot;:&quot;Layout&quot;}}">
+class Component extends DCLogic {
+  state = { screen: 'onboarding', mode: 'page', chrome: true, page: 24, genres: ['Isekai'], toggles: { rtl: true, haptics: false, wifi: true } };
+  go(screen) { return () => this.setState({ screen, chrome: true }); }
+  renderVals() {
+    const p = this.props, s = this.state;
+    const light = (p.theme ?? 'dark') === 'light';
+    const ac = p.accent ?? '#E8A33D';
+    const compact = (p.density ?? 'comfortable') === 'compact';
+    const tablet = (p.device ?? 'phone') === 'tablet';
+    const cols = { small: 4, medium: 3, large: 2 }[p.coverSize ?? 'medium'];
+    const fg = light ? '#1C1917' : '#F1EBE2', fg2 = light ? '#6E645A' : '#B3A99C', card = light ? '#DED6CA' : '#2A2521', line = light ? '#CFC6B8' : '#33302B';
+    const GENRES = [['Action', '01'], ['Isekai', '02'], ['Comedy', '03'], ['Sci-fi', '04']];
+    const genres = GENRES.map(([name, k]) => { const on = s.genres.includes(name); return { name, k, border: on ? ac : line, dot: on ? ac : 'transparent', kc: on ? fg : fg2, checkOp: on ? 1 : 0, toggle: () => this.setState(st => ({ genres: on ? st.genres.filter(g => g !== name) : [...st.genres, name] })) }; });
+    const shelf = [['Journey to the West', 'Wu Cheng\'en', 1], ['Kwaidan', 'Lafcadio Hearn', 0], ['Hokusai Manga', 'Katsushika Hokusai', 3], ['Little Nemo', 'Winsor McCay', 0], ['Krazy Kat', 'George Herriman', 0], ['Chōjū-giga', 'Toba Sōjō', 0], ['Sho-chan no Bōken', 'Kabashima Katsuichi', 2], ['Nonkina Tōsan', 'Asō Yutaka', 0]].map(([name, by, unread]) => ({ name, by, unread }));
+    const picks = [{ name: 'Little Nemo', by: 'WINSOR McCAY · 1905', k: '02', note: 'Full-page dream architecture. Best in page mode, phone sideways.' }, { name: 'Chōjū-giga', by: 'TOBA SŌJŌ · 12TH C.', k: '03', note: 'Animals at play across four scrolls. The strip mode was made for this.' }, { name: 'Hokusai Manga', by: 'KATSUSHIKA HOKUSAI · 1814', k: '04', note: 'Fifteen volumes of sketches. A new one every Friday.' }];
+    const chapters = [10, 9, 8, 7, 6].map((n, i) => ({ k: String(n).padStart(2, '0'), name: ['The Dragon King', 'Cloud Somersault', 'The Iron Rod', 'Five Elements Mountain', 'Golden Cicada'][i], meta: i < 2 ? 'Unread · 24 pages' : i === 2 ? 'In progress · 38%' : 'Read', dot: i < 2 ? ac : i === 2 ? fg : 'transparent', op: i > 2 ? .5 : 1 }));
+    const tog = (key) => ({ isToggle: true, value: '', togBg: s.toggles[key] ? ac : (light ? '#CFC6B8' : '#3A3532'), knob: s.toggles[key] ? '25px' : '3px', onTap: () => this.setState(st => ({ toggles: { ...st.toggles, [key]: !st.toggles[key] } })) });
+    const row = (name, value, extra = {}) => ({ name, value, isToggle: false, onTap: () => {}, ...extra });
+    const settingGroups = [
+      { title: 'PROJECTION', rows: [row('Right-to-left', '', tog('rtl')), row('Default mode', s.mode === 'page' ? 'Pages' : 'Strip'), row('Page transition', 'Cut'), row('Haptics', '', tog('haptics'))] },
+      { title: 'LOOK', rows: [row('Theme', light ? 'Paper' : 'Charcoal'), row('Cover size', p.coverSize ?? 'medium'), row('Density', p.density ?? 'comfortable')] },
+      { title: 'ACCOUNT & STORAGE', rows: [row('Notifications', 'Weekly reel'), row('Download on Wi-Fi only', '', tog('wifi')), row('Downloaded', '4.8 GB · 5 titles')] },
+    ];
+    const ticks = Array.from({ length: 31 }, (_, i) => { const pos = i / 30; const done = pos <= s.page / 62; return { h: (i % 5 === 0 ? 18 : 10) + 'px', c: done ? ac : '#3A3532' }; });
+    const NAV = [['LIBRARY', 'library'], ['DISCOVER', 'discover'], ['OFFLINE', 'library'], ['SETTINGS', 'settings']];
+    const nav = NAV.map(([name, k], i) => { const on = s.screen === k && !(i === 2); return { name, go: this.go(k), c: on ? fg : fg2, bar: on ? ac : 'transparent' }; });
+    const NOTES = {
+      onboarding: [{ k: 1, t: 'Title card: 72px condensed uppercase on a warm gradient. Copy borrows film language (scene, reel, recut).' }, { k: 2, t: 'Genres are a numbered list with square checkboxes, not tiles. Selected rows brighten to full ink; multi-select.' }, { k: 3, t: 'Single amber block button. Sign-in is a quiet line beneath.' }],
+      library: [{ k: 1, t: 'Hero is a 560px full-bleed cover (9:16 crop) with the title at 64px over a bottom gradient. Tap anywhere on it to resume.' }, { k: 2, t: 'Progress is a 2px rule plus "22 MIN LEFT" in tracked caps. Resume is an ivory block; bookmark is an outlined square.' }, { k: 3, t: 'Below: square-cornered grid (columns follow Cover size). NEW tags are amber blocks pinned to the top-left corner.' }, { k: 4, t: 'Film-strip nav: words only, 3px tracking, 2px amber rule above the active item.' }],
+      discover: [{ k: 1, t: 'Programme header with week number. Feature is a 420px full-bleed still, title at 52px, outlined FEATURE tag.' }, { k: 2, t: 'Also showing: numbered rows (02, 03, 04) in large muted condensed numerals, hairline rules between.' }],
+      detail: [{ k: 1, t: 'Cover fills the top 480px; title sits on the gradient at 60px uppercase, tags outlined above it.' }, { k: 2, t: 'Rating leads with a 34px amber number and square stars. Resume is ivory; download is an outlined square.' }, { k: 3, t: 'Chapters carry two-digit numerals; unread get an amber square, in-progress an ivory one, read fade to 50%.' }],
+      reader: [{ k: 1, t: 'Tap toggles chrome (250ms slide). Header shows the reading direction (RTL) in amber.' }, { k: 2, t: 'Scrubber is a tick ruler, 31 ticks, taller every fifth; read ticks fill amber. Tap the ruler to jump.' }, { k: 3, t: 'PAGES / STRIP is a bordered segmented control with no radius.' }],
+      settings: [{ k: 1, t: 'Guest row framed by hairlines; SIGN IN is an amber block.' }, { k: 2, t: 'Rows separated by hairlines, values in tracked condensed caps. Toggles are square, 44px, amber when on.' }, { k: 3, t: 'Theme, cover size and density mirror the Tweaks panel.' }],
+    };
+    const names = { onboarding: 'Onboarding', library: 'Library', discover: 'Discover', detail: 'Title detail', reader: 'Reader', settings: 'Settings' };
+    const screensList = Object.keys(names).map(k => ({ name: names[k], go: this.go(k), bg: s.screen === k ? '#F1EBE2' : 'transparent', fg: s.screen === k ? '#1C1917' : '#B3A99C' }));
+    const chromeOn = s.chrome;
+    return {
+      bg: light ? '#EDE6DC' : '#1C1917', fg, fg2, line, card, ac,
+      pad: compact ? (tablet ? '24px' : '14px') : (tablet ? '36px' : '20px'), gap: compact ? '8px' : (tablet ? '20px' : '14px'), cols: tablet ? cols * 2 : cols, fw: tablet ? '834px' : '390px', fh: tablet ? '1112px' : '844px',
+      isOnboarding: s.screen === 'onboarding', isLibrary: s.screen === 'library', isDiscover: s.screen === 'discover', isDetail: s.screen === 'detail', isReader: s.screen === 'reader', isSettings: s.screen === 'settings',
+      showNav: ['library', 'discover', 'settings'].includes(s.screen), nav,
+      goLibrary: this.go('library'), goDiscover: this.go('discover'), goDetail: this.go('detail'), goReader: this.go('reader'), goSettings: this.go('settings'),
+      genres, shelf, picks, chapters, settingGroups, screensList, ticks, notes: NOTES[s.screen], screenTitle: names[s.screen].toUpperCase(),
+      isPage: s.mode === 'page', isStrip: s.mode === 'strip', page: s.page, progressW: Math.round(s.page / 62 * 100) + '%',
+      chromeOp: chromeOn ? 1 : 0, chromeTopY: chromeOn ? '0' : '-20px', chromeBotY: chromeOn ? '0' : '20px', chromePE: chromeOn ? 'auto' : 'none',
+      toggleChrome: () => this.setState(st => ({ chrome: !st.chrome })),
+      setPage: (e) => { e.stopPropagation(); this.setState({ mode: 'page' }); }, setStrip: (e) => { e.stopPropagation(); this.setState({ mode: 'strip' }); },
+      scrub: (e) => { e.stopPropagation(); this.setState({ page: 1 + Math.floor(Math.random() * 62) }); },
+      pageBtnBg: s.mode === 'page' ? '#F1EBE2' : 'transparent', pageBtnFg: s.mode === 'page' ? '#1C1917' : '#B3A99C', stripBtnBg: s.mode === 'strip' ? '#F1EBE2' : 'transparent', stripBtnFg: s.mode === 'strip' ? '#1C1917' : '#B3A99C',
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,230 +1,240 @@
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/services.dart';
 
-import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_text_styles.dart';
+import '../../../core/providers/reader_provider.dart';
+import '../../../core/theme/app_spacing.dart';
+import '../../../core/theme/yomi_theme.dart';
+import '../../../shared/widgets/sumi.dart';
 
-/// Top + bottom chrome bars revealed by a tap on the reader canvas.
+/// Top + bottom chrome revealed by a tap on the page.
 ///
-/// [visible] drives the 200ms opacity + 8px translate animation:
-/// the top bar slides -8px (up) when hidden; the bottom bar slides +8px (down).
-///
-/// Bars use a dark gradient overlay — solid dark at the edge, fading to
-/// transparent toward the comic canvas for a cinematic immersive look.
+/// Hidden state: opacity 0, top bar −20px, bottom bar +20px, pointer-events
+/// none. 250ms opacity + transform on `--ease-snap`; exit as fast as enter.
 class ReaderChrome extends StatelessWidget {
   const ReaderChrome({
     super.key,
+    required this.mangaTitle,
     required this.chapterTitle,
+    required this.chapterNumber,
     required this.currentPage,
     required this.totalPages,
     required this.visible,
+    required this.isStrip,
     required this.onClose,
     required this.onSettings,
     required this.onSeek,
+    required this.onModeChanged,
   });
 
+  final String mangaTitle;
   final String chapterTitle;
+  final double? chapterNumber;
   final int currentPage;
   final int totalPages;
   final bool visible;
+  final bool isStrip;
   final VoidCallback onClose;
   final VoidCallback onSettings;
   final ValueChanged<int> onSeek;
+  final ValueChanged<ReaderMode> onModeChanged;
+
+  static const _duration = Duration(milliseconds: 250);
 
   @override
   Widget build(BuildContext context) {
+    final ac = context.yc.ac;
+    final title = mangaTitle.isNotEmpty ? mangaTitle : chapterTitle;
+    final chapterLabel =
+        chapterNumber == null ? chapterTitle : 'Ch. ${_num(chapterNumber!)}';
+    final sub = totalPages > 0
+        ? '$chapterLabel · Page ${currentPage + 1} / $totalPages'
+        : chapterLabel;
+    final kanji = chapterNumber == null ? '読' : kanjiNumeral(chapterNumber!);
+
     return Stack(
       children: [
-        _TopBar(
-          chapterTitle: chapterTitle,
-          visible: visible,
-          onClose: onClose,
-          onSettings: onSettings,
+        // ── Top ───────────────────────────────────────────────────────────
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          child: _Slide(
+            visible: visible,
+            hiddenDy: -20,
+            child: DecoratedBox(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [YomiReader.bg, Color(0x00000000)],
+                ),
+              ),
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(
+                    16, MediaQuery.paddingOf(context).top + 8, 16, 12),
+                child: Row(
+                  children: [
+                    Semantics(
+                      button: true,
+                      label: 'Back',
+                      child: SumiPress(
+                        onTap: onClose,
+                        haptic: false,
+                        child: const SizedBox(
+                          width: 36,
+                          height: 36,
+                          child: Icon(CupertinoIcons.chevron_left,
+                              size: 22, color: YomiReader.ink),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: YomiText.ui(14,
+                                  weight: FontWeight.w700,
+                                  color: YomiReader.ink)),
+                          Text(sub,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: YomiText.ui(11, color: YomiReader.ink2)),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Semantics(
+                      button: true,
+                      label: 'Reader settings',
+                      child: SumiPress(
+                        onTap: onSettings,
+                        haptic: false,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 4),
+                          child: Text(kanji,
+                              style: YomiText.kanji(22, color: ac)
+                                  .copyWith(height: 1)),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
         ),
-        _BottomBar(
-          currentPage: currentPage,
-          totalPages: totalPages,
-          visible: visible,
-          onSeek: onSeek,
+
+        // ── Bottom ────────────────────────────────────────────────────────
+        Positioned(
+          bottom: 0,
+          left: 0,
+          right: 0,
+          child: _Slide(
+            visible: visible,
+            hiddenDy: 20,
+            child: DecoratedBox(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Color(0x00000000), YomiReader.bg],
+                ),
+              ),
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(
+                    16, 14, 16, MediaQuery.paddingOf(context).bottom + 20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      children: [
+                        SizedBox(
+                          width: 28,
+                          child: Text('${currentPage + 1}',
+                              style: YomiText.ui(11, color: YomiReader.ink2)),
+                        ),
+                        Expanded(
+                          child: _Scrubber(
+                            current: currentPage,
+                            total: totalPages,
+                            onSeek: onSeek,
+                          ),
+                        ),
+                        SizedBox(
+                          width: 28,
+                          child: Text('$totalPages',
+                              textAlign: TextAlign.right,
+                              style: YomiText.ui(11, color: YomiReader.ink2)),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        _ModeButton(
+                          label: 'Page · 頁',
+                          active: !isStrip,
+                          onTap: () => onModeChanged(ReaderMode.page),
+                        ),
+                        const SizedBox(width: 6),
+                        _ModeButton(
+                          label: 'Strip · 縦',
+                          active: isStrip,
+                          onTap: () => onModeChanged(ReaderMode.strip),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
         ),
       ],
     );
   }
+
+  static String _num(double n) =>
+      n == n.roundToDouble() ? n.toStringAsFixed(0) : n.toString();
 }
 
-class _TopBar extends StatelessWidget {
-  const _TopBar({
-    required this.chapterTitle,
+/// 250ms opacity + translate; translate dropped under reduced motion.
+class _Slide extends StatelessWidget {
+  const _Slide({
     required this.visible,
-    required this.onClose,
-    required this.onSettings,
+    required this.hiddenDy,
+    required this.child,
   });
-
-  final String chapterTitle;
   final bool visible;
-  final VoidCallback onClose;
-  final VoidCallback onSettings;
+  final double hiddenDy;
+  final Widget child;
 
   @override
   Widget build(BuildContext context) {
-    final topPadding = MediaQuery.of(context).padding.top;
-
-    final content = Padding(
-      padding: EdgeInsets.only(
-        top: topPadding + 4,
-        left: 20,
-        right: 20,
-        bottom: 16,
-      ),
-      child: Row(
-        children: [
-          GestureDetector(
-            onTap: onClose,
-            child: const Icon(
-              CupertinoIcons.xmark,
-              color: CupertinoColors.white,
-              size: 20,
-            ),
-          ),
-          Expanded(
-            child: Text(
-              chapterTitle,
-              style: AppTextStyles.readerChapterTitle,
-              textAlign: TextAlign.center,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          GestureDetector(
-            onTap: onSettings,
-            child: const Icon(
-              CupertinoIcons.ellipsis,
-              color: CupertinoColors.white,
-              size: 20,
-            ),
-          ),
-        ],
-      ),
-    );
-
-    // Dark gradient — solid at top edge, fades to transparent toward canvas.
-    final bar = DecoratedBox(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            AppColors.scrimStrong, // 85% black at top
-            Color(0x00000000), // transparent at bottom
-          ],
-        ),
-      ),
-      child: content,
-    );
-
-    // 200ms opacity + 8px upward translate when hiding.
-    return Positioned(
-      top: 0,
-      left: 0,
-      right: 0,
-      child: AnimatedOpacity(
-        opacity: visible ? 1.0 : 0.0,
-        duration: const Duration(milliseconds: 200),
-        child: TweenAnimationBuilder<double>(
-          tween: Tween<double>(end: visible ? 0.0 : -8.0),
-          duration: const Duration(milliseconds: 200),
-          curve: Curves.easeOut,
-          builder: (_, dy, child) =>
-              Transform.translate(offset: Offset(0, dy), child: child),
-          child: bar,
-        ),
+    final dy = visible || reduceMotion(context) ? 0.0 : hiddenDy;
+    return AnimatedOpacity(
+      opacity: visible ? 1 : 0,
+      duration: ReaderChrome._duration,
+      curve: AppMotion.snap,
+      child: TweenAnimationBuilder<double>(
+        tween: Tween(end: dy),
+        duration: ReaderChrome._duration,
+        curve: AppMotion.snap,
+        builder: (_, v, child) =>
+            Transform.translate(offset: Offset(0, v), child: child),
+        child: child,
       ),
     );
   }
 }
 
-class _BottomBar extends StatelessWidget {
-  const _BottomBar({
-    required this.currentPage,
-    required this.totalPages,
-    required this.visible,
-    required this.onSeek,
-  });
-
-  final int currentPage;
-  final int totalPages;
-  final bool visible;
-  final ValueChanged<int> onSeek;
-
-  @override
-  Widget build(BuildContext context) {
-    final bottomPadding = MediaQuery.of(context).padding.bottom;
-
-    final content = Padding(
-      padding: EdgeInsets.only(
-        top: 16,
-        left: 24,
-        right: 24,
-        bottom: bottomPadding + 12,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _Scrubber(
-            current: currentPage,
-            total: totalPages,
-            onSeek: onSeek,
-          ),
-          const SizedBox(height: 10),
-          Center(
-            child: Text(
-              totalPages > 0
-                  ? 'PAGE ${currentPage + 1} / $totalPages'
-                  : 'LOADING…',
-              style: AppTextStyles.metaMono.copyWith(
-                color: const Color(0xCCF3F0E9),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-
-    // Dark gradient — solid at bottom edge, fades to transparent toward canvas.
-    final bar = DecoratedBox(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.bottomCenter,
-          end: Alignment.topCenter,
-          colors: [
-            AppColors.scrimStrong, // 85% black at bottom
-            Color(0x00000000), // transparent at top
-          ],
-        ),
-      ),
-      child: content,
-    );
-
-    // 200ms opacity + 8px downward translate when hiding.
-    return Positioned(
-      bottom: 0,
-      left: 0,
-      right: 0,
-      child: AnimatedOpacity(
-        opacity: visible ? 1.0 : 0.0,
-        duration: const Duration(milliseconds: 200),
-        child: TweenAnimationBuilder<double>(
-          tween: Tween<double>(end: visible ? 0.0 : 8.0),
-          duration: const Duration(milliseconds: 200),
-          curve: Curves.easeOut,
-          builder: (_, dy, child) =>
-              Transform.translate(offset: Offset(0, dy), child: child),
-          child: bar,
-        ),
-      ),
-    );
-  }
-}
-
+/// 2px track `#333`, ivory fill (300ms), 16px ivory knob. Tap or drag seeks.
 class _Scrubber extends StatefulWidget {
   const _Scrubber({
     required this.current,
@@ -253,8 +263,7 @@ class _ScrubberState extends State<_Scrubber> {
     if (widget.total <= 1) return;
     final pct = (x / width).clamp(0.0, 1.0);
     setState(() => _dragPct = pct);
-    final page = (pct * (widget.total - 1)).round();
-    widget.onSeek(page);
+    widget.onSeek((pct * (widget.total - 1)).round());
   }
 
   void _endDrag() => setState(() => _dragPct = null);
@@ -262,64 +271,103 @@ class _ScrubberState extends State<_Scrubber> {
   @override
   Widget build(BuildContext context) {
     final progress = _progress;
+    final animate = _dragPct == null;
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final w = constraints.maxWidth;
-        final thumbLeft = (w * progress - 10).clamp(-10.0, w - 10.0);
-
-        return GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTapDown: (d) => _seek(d.localPosition.dx, w),
-          onHorizontalDragUpdate: (d) => _seek(d.localPosition.dx, w),
-          onHorizontalDragEnd: (_) => _endDrag(),
-          onHorizontalDragCancel: _endDrag,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: Stack(
-              clipBehavior: Clip.none,
-              alignment: Alignment.centerLeft,
-              children: [
-                // Track
-                Container(
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: const Color(0x38FFFFFF),
-                    borderRadius: BorderRadius.circular(2),
+    return Semantics(
+      slider: true,
+      label: 'Page',
+      value: '${widget.current + 1} of ${widget.total}',
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final w = constraints.maxWidth;
+          return GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTapDown: (d) => _seek(d.localPosition.dx, w),
+            onTapUp: (_) => _endDrag(),
+            onHorizontalDragUpdate: (d) => _seek(d.localPosition.dx, w),
+            onHorizontalDragEnd: (_) => _endDrag(),
+            onHorizontalDragCancel: _endDrag,
+            child: SizedBox(
+              height: 24,
+              child: Stack(
+                clipBehavior: Clip.none,
+                alignment: Alignment.centerLeft,
+                children: [
+                  Container(height: 2, color: YomiReader.scrubTrack),
+                  AnimatedContainer(
+                    duration: animate
+                        ? const Duration(milliseconds: 300)
+                        : Duration.zero,
+                    curve: AppMotion.snap,
+                    height: 2,
+                    width: w * progress,
+                    color: YomiReader.ink,
                   ),
-                ),
-                // Fill
-                Container(
-                  height: 4,
-                  width: w * progress,
-                  decoration: BoxDecoration(
-                    color: AppColors.accent,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-                // Thumb
-                Positioned(
-                  left: thumbLeft,
-                  child: Container(
-                    width: 20,
-                    height: 20,
-                    decoration: BoxDecoration(
-                      color: AppColors.accent,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.accent.withValues(alpha: 0.5),
-                          blurRadius: 12,
-                        ),
-                      ],
+                  AnimatedPositioned(
+                    duration: animate
+                        ? const Duration(milliseconds: 300)
+                        : Duration.zero,
+                    curve: AppMotion.snap,
+                    left: (w * progress - 8).clamp(-8.0, w - 8.0),
+                    child: Container(
+                      width: 16,
+                      height: 16,
+                      decoration: const BoxDecoration(
+                        color: YomiReader.ink,
+                        shape: BoxShape.circle,
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+/// Mode switch button: 8×16 padding, radius 2, 12/700, 1px `#444` border;
+/// active = ivory fill, black text.
+class _ModeButton extends StatelessWidget {
+  const _ModeButton({
+    required this.label,
+    required this.active,
+    required this.onTap,
+  });
+  final String label;
+  final bool active;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      selected: active,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () {
+          HapticFeedback.selectionClick();
+          onTap();
+        },
+        child: AnimatedContainer(
+          duration: AppMotion.fast,
+          curve: AppMotion.snap,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: active ? YomiReader.ink : const Color(0x00000000),
+            borderRadius: BorderRadius.circular(2),
+            border: Border.all(color: YomiReader.buttonBorder),
           ),
-        );
-      },
+          child: Text(
+            label,
+            style: YomiText.ui(12,
+                weight: FontWeight.w700,
+                color: active ? YomiReader.bg : YomiReader.ink),
+          ),
+        ),
+      ),
     );
   }
 }

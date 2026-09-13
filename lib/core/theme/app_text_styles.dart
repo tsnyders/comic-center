@@ -30,10 +30,11 @@ abstract final class AppTextStyles {
   // ── Font family tokens (LUMEN) ──────────────────────────────────────────────
   // HankenGrotesk carries display + UI (weight differentiates the tiers).
   // SpaceMono is the technical voice: chapter numbers, ratings, metadata, labels.
-  static const serif   = 'HankenGrotesk';  // display titles (oversized editorial)
-  static const sans    = 'HankenGrotesk';  // UI chrome, labels, buttons
-  static const display = 'HankenGrotesk';
-  static const mono    = 'SpaceMono';      // metadata · numbers · technical labels
+  // Sumi: Yuji Syuku carries display / kanji; Zen Kaku Gothic New carries UI.
+  static const serif   = 'YujiSyuku';         // display titles (brush face)
+  static const sans    = 'ZenKakuGothicNew';  // UI chrome, labels, buttons
+  static const display = 'YujiSyuku';
+  static const mono    = 'ZenKakuGothicNew';  // metadata · overlines (tracked)
 
   /// LUMEN metadata voice — mono, tracked, used for "CH 142 · ONGOING · 9.3★".
   static const metaMono = TextStyle(
@@ -60,7 +61,7 @@ abstract final class AppTextStyles {
     fontFamily: serif,
     fontVariations: [FontVariation('wght', 700)],
     fontSize: 56, fontWeight: FontWeight.w700,
-    letterSpacing: -2.5, height: 0.92,
+    letterSpacing: 0, height: 1.1,
   );
 
   /// Hero section openers — title detail, featured banners. 44 pt.
@@ -68,7 +69,7 @@ abstract final class AppTextStyles {
     fontFamily: serif,
     fontVariations: [FontVariation('wght', 700)],
     fontSize: 44, fontWeight: FontWeight.w700,
-    letterSpacing: -2.0, height: 0.96,
+    letterSpacing: 0, height: 1.1,
   );
 
   /// Medium hero — 36 pt. Use for browse section heroes.
@@ -76,7 +77,7 @@ abstract final class AppTextStyles {
     fontFamily: serif,
     fontVariations: [FontVariation('wght', 700)],
     fontSize: 36, fontWeight: FontWeight.w700,
-    letterSpacing: -1.5, height: 1.0,
+    letterSpacing: 0, height: 1.1,
   );
 
   /// Sheet / panel / detail title — 28 pt.
@@ -84,7 +85,7 @@ abstract final class AppTextStyles {
     fontFamily: serif,
     fontVariations: [FontVariation('wght', 600)],
     fontSize: 28, fontWeight: FontWeight.w600,
-    letterSpacing: -1.0, height: 1.05,
+    letterSpacing: 0, height: 1.1,
   );
 
   /// Shelf section header ("Continue Reading") — 22 pt serif.
@@ -92,7 +93,7 @@ abstract final class AppTextStyles {
     fontFamily: serif,
     fontVariations: [FontVariation('wght', 700)],
     fontSize: 22, fontWeight: FontWeight.w700,
-    letterSpacing: -0.5, height: 1.1,
+    letterSpacing: 0, height: 1.1,
   );
 
   // Back-compat aliases
@@ -101,7 +102,7 @@ abstract final class AppTextStyles {
     fontFamily: serif,
     fontVariations: [FontVariation('wght', 600)],
     fontSize: 28, fontWeight: FontWeight.w600,
-    letterSpacing: -1.0, height: 1.05,
+    letterSpacing: 0, height: 1.1,
     color: AppColors.accent,
   );
 

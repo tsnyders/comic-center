@@ -1,0 +1,90 @@
+/* ==========================================================================
+   Yomi tokens: shared scale (all three directions)
+   Spacing, type scale, motion. Mirrors lib/core/theme/app_spacing.dart and
+   app_text_styles.dart in the Flutter app; values here are the source of truth
+   for designs, the Dart files are the source of truth for the build.
+   ========================================================================== */
+:root {
+  /* Spacing: 4pt grid. Names mirror AppSpacing.x1..x12 */
+  --space-1: 2px;
+  --space-2: 4px;
+  --space-3: 6px;
+  --space-4: 8px;
+  --space-5: 12px;
+  --space-6: 16px;
+  --space-7: 20px;
+  --space-8: 24px;
+  --space-9: 32px;
+  --space-10: 40px;
+  --space-11: 48px;
+  --space-12: 64px;
+  --gutter: 20px;       /* screen edge inset */
+  --grid-gap: 14px;     /* 2-col cover grid; 10px for 3-col */
+  --hairline: 0.75px;
+
+  /* Type families. One stack, three attitudes (see each theme file). */
+  --font-sans: "Hanken Grotesk", "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "Space Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --font-body: var(--font-sans);
+
+  /* Display tier (AppTextStyles.displayXL .. hero) */
+  --text-display-xl: 56px;  --leading-display-xl: 0.92; --tracking-display-xl: -2.5px;
+  --text-display-l: 44px;   --leading-display-l: 0.96;  --tracking-display-l: -2px;
+  --text-display-m: 36px;   --leading-display-m: 1.0;   --tracking-display-m: -1.5px;
+  --text-display-s: 28px;   --leading-display-s: 1.05;  --tracking-display-s: -1px;
+  --text-hero: 22px;        --leading-hero: 1.1;        --tracking-hero: -0.5px;
+
+  /* Interface tier */
+  --text-section: 22px;     --tracking-section: -0.5px;   /* sectionTitle 700 */
+  --text-title: 18px;       --tracking-title: -0.3px;     /* titleM 600 */
+  --text-nav: 17px;         --tracking-nav: -0.2px;       /* navTitle 600 */
+  --text-label-xl: 14px;    --tracking-label-xl: -0.1px;  /* labelXL 600 */
+  --text-label: 13px;                                     /* labelMedium 500 */
+  --text-label-sm: 11px;    --tracking-label-sm: 0.1px;   /* labelSmall 500 */
+  --text-overline: 10px;    --tracking-overline: 0.8px;   /* overline 600 upper */
+  --text-button: 14px;      --tracking-button: 0.1px;     /* buttonPrimary 600 */
+
+  /* Reading tier */
+  --text-body-l: 16px;  --leading-body-l: 1.65; --tracking-body-l: -0.1px;
+  --text-body: 15px;    --leading-body: 1.6;
+  --text-body-s: 13px;  --leading-body-s: 1.55;
+  --text-caption: 11px;
+
+  /* Mono metadata voice */
+  --text-meta: 11px;    --tracking-meta: 1.2px;
+  --text-meta-sm: 9px;  --tracking-meta-sm: 1px;
+
+  /* Motion durations (AppMotion). Names describe the feel. */
+  --dur-instant: 80ms; /* @kind other */   /* toggles, checkboxes, syncs with tap haptic */
+  --dur-micro: 120ms; /* @kind other */    /* icon swap, badge pop */
+  --dur-fast: 180ms; /* @kind other */     /* press, colour change, chip select */
+  --dur-base: 260ms; /* @kind other */     /* card reveal, panel open */
+  --dur-page: 380ms; /* @kind other */     /* push / pop, sheet */
+  --dur-hero: 520ms; /* @kind other */     /* hero entrance, cover zoom */
+  --dur-epic: 700ms; /* @kind other */     /* rare full-screen moments */
+
+  /* Motion curves */
+  --ease-snap: cubic-bezier(0.16, 1, 0.3, 1); /* @kind other */        /* default UI transition */
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1); /* @kind other */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1); /* @kind other */        /* panels, drawers settle */
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1); /* @kind other */  /* active icon pop, pill slide */
+  --ease-decelerate: cubic-bezier(0, 0, 0.2, 1); /* @kind other */     /* fling settle */
+
+  /* Scale feedback */
+  --scale-press: 0.94; /* @kind other */
+  --scale-active: 0.97; /* @kind other */
+  --scale-hover: 1.02; /* @kind other */
+
+  /* Stagger: 35ms per item, capped at 6 items */
+  --stagger-unit: 35ms; /* @kind other */
+  --stagger-max: 6; /* @kind other */
+
+  /* Cover art aspect */
+  --cover-ratio: 2 / 3; /* @kind other */
+
+  /* Z layers */
+  --z-sticky: 10; /* @kind other */
+  --z-nav: 20; /* @kind other */
+  --z-sheet: 30; /* @kind other */
+  --z-modal: 50; /* @kind other */
+}

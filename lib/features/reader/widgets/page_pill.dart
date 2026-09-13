@@ -1,9 +1,8 @@
 import 'package:flutter/cupertino.dart';
 
-import '../../../core/theme/app_text_styles.dart';
+import '../../../core/theme/yomi_theme.dart';
 
-/// Floating pill showing "current / total" in the LUMEN mono voice. Visible
-/// only when the chrome is hidden. Solid ink pill — no glass.
+/// Floating "current / total" pill, shown briefly while the chrome is hidden.
 class PagePill extends StatelessWidget {
   const PagePill({
     super.key,
@@ -23,18 +22,15 @@ class PagePill extends StatelessWidget {
       duration: const Duration(milliseconds: 200),
       child: Center(
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
           decoration: BoxDecoration(
-            color: const Color(0xCC0A0A0D),
-            borderRadius: BorderRadius.circular(999),
-            border: Border.all(color: const Color(0x1FFFFFFF), width: 0.75),
+            color: const Color(0xCC000000),
+            borderRadius: BorderRadius.circular(2),
+            border: Border.all(color: YomiReader.buttonBorder),
           ),
           child: Text(
             '$current / $total',
-            style: AppTextStyles.metaMono.copyWith(
-              color: const Color(0xFFF3F0E9),
-              letterSpacing: 1.6,
-            ),
+            style: YomiText.ui(11, color: YomiReader.ink, letterSpacing: 1),
           ),
         ),
       ),

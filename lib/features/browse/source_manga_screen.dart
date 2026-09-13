@@ -12,9 +12,16 @@ import '../../shared/widgets/cover_image.dart';
 import '../title_detail/title_detail_screen.dart';
 
 class SourceMangaScreen extends ConsumerStatefulWidget {
-  const SourceMangaScreen({super.key, required this.sourceId});
+  const SourceMangaScreen({
+    super.key,
+    required this.sourceId,
+    this.initialSearch = false,
+  });
 
   final String sourceId;
+
+  /// Open with the search bar already active (Discover's search field).
+  final bool initialSearch;
 
   @override
   ConsumerState<SourceMangaScreen> createState() => _SourceMangaScreenState();
@@ -22,7 +29,7 @@ class SourceMangaScreen extends ConsumerStatefulWidget {
 
 class _SourceMangaScreenState extends ConsumerState<SourceMangaScreen> {
   final _searchController = TextEditingController();
-  bool _searchActive = false;
+  late bool _searchActive = widget.initialSearch;
 
   @override
   void dispose() {
