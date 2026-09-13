@@ -65,7 +65,9 @@ class LibraryScreen extends ConsumerWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        SumiOverline(context.look.copy.libraryKicker ?? 'LIBRARY', kanji: '庫'),
+                        SumiOverline(
+                            context.look.copy.libraryKicker ?? 'LIBRARY',
+                            kanji: '庫'),
                         DisplayText(context.look.copy.libraryTitle, size: 36),
                       ],
                     ),
@@ -279,9 +281,11 @@ class _ContinueBlock extends StatelessWidget {
     final ink = pastel ? look.onAccent : c.fg;
     final ink2 = pastel ? look.onAccent.withValues(alpha: 0.7) : c.fg2;
 
+    final coverHeight = pastel ? 120.0 : 140.0;
+
     Widget cover = SizedBox(
       width: pastel ? 84 : 96,
-      height: pastel ? 120 : 140,
+      height: coverHeight,
       child: SumiCoverFrame(
         radius: pastel ? 16 : null,
         shadow: pastel,
@@ -293,32 +297,39 @@ class _ContinueBlock extends StatelessWidget {
       cover = Transform.rotate(angle: -3 * 3.14159265 / 180, child: cover);
     }
 
-    Widget row = Row(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        cover,
-        const SizedBox(width: 16),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment:
-                pastel ? MainAxisAlignment.center : MainAxisAlignment.end,
-            children: [
-              SumiOverline('CONTINUE', kanji: '続', color: pastel ? ink2 : c.ac),
-              const SizedBox(height: 6),
-              DisplayText(manga.title,
-                  size: look.isCinema ? 34 : 26,
-                  color: ink,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis),
-              const SizedBox(height: 4),
-              Text(meta, style: YomiText.ui(13, color: ink2)),
-              const SizedBox(height: 14),
-              LookProgress(progress: progress, onAccent: pastel),
-            ],
+    // The sliver gives this block unbounded height; `stretch` would hand every
+    // child a tight infinite height (blank shelf in release, assert in debug).
+    // The cover defines the block height — bound the row to it.
+    Widget row = SizedBox(
+      height: coverHeight,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          cover,
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment:
+                  pastel ? MainAxisAlignment.center : MainAxisAlignment.end,
+              children: [
+                SumiOverline('CONTINUE',
+                    kanji: '続', color: pastel ? ink2 : c.ac),
+                const SizedBox(height: 6),
+                DisplayText(manga.title,
+                    size: look.isCinema ? 34 : 26,
+                    color: ink,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis),
+                const SizedBox(height: 4),
+                Text(meta, style: YomiText.ui(13, color: ink2)),
+                const SizedBox(height: 14),
+                LookProgress(progress: progress, onAccent: pastel),
+              ],
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
     if (pastel) {
       row = Container(
