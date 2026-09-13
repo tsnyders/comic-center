@@ -1,0 +1,9 @@
+{
+  "projectId": "6811a594-1514-43d8-ae27-225ebb6371a3",
+  "projectName": "Yomi Design System",
+  "shape": "package",
+  "pkg": ".",
+  "offScript": true,
+  "readmeHeader": ".design-sync/conventions.md",
+  "note": "Flutter app: no React dist or Storybook. Layout is hand-produced (tokens, styles.css, fonts, guidelines, static HTML screen previews). No _ds_bundle.js is shipped."
+}

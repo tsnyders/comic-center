@@ -122,3 +122,7 @@ comic_center_linux_x64.zip
 
 /graphify-out
 /windowsartifacts/
+
+# design-sync build output and render checks
+ds-bundle/
+.design-sync/render/
