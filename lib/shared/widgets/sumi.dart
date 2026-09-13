@@ -6,9 +6,10 @@ import '../../core/theme/app_spacing.dart';
 import '../../core/theme/yomi_theme.dart';
 
 /// ============================================================================
-/// Sumi widget kit — the small vocabulary every redesigned screen shares.
-/// Overlines, entrance motion, press feedback, toggles, chips, buttons, the
-/// washi grain, the yin-yang mark, kanji helpers.
+/// Yomi widget kit — the small vocabulary every screen shares. Each widget
+/// reads the current look's radii, fonts and shadows, and branches on the
+/// look only where the three prototypes differ in shape (chips, marks,
+/// progress, back button). Names keep the Sumi prefix from the first look.
 /// ============================================================================
 
 // ── Motion helpers ────────────────────────────────────────────────────────────
@@ -170,27 +171,69 @@ class _SumiPressState extends State<SumiPress> {
 
 // ── Text ──────────────────────────────────────────────────────────────────────
 
-/// `LIBRARY · 庫` — 11px, tracked 2, secondary text (or [color]).
+/// Section overline. Pass the Latin label and its kanji pair; the look decides
+/// whether to show "LIBRARY · 庫", "LIBRARY" or "Library".
 class SumiOverline extends StatelessWidget {
-  const SumiOverline(this.text, {super.key, this.color});
-  final String text;
+  const SumiOverline(this.latin, {super.key, this.kanji, this.color});
+  final String latin;
+  final String? kanji;
   final Color? color;
 
   @override
-  Widget build(BuildContext context) =>
-      Text(text, style: YomiText.overline(color ?? context.yc.fg2));
+  Widget build(BuildContext context) => Text(
+        YomiText.label(latin, kanji),
+        style: YomiText.overline(color ?? context.yc.fg2),
+      );
+}
+
+/// Display-face text with the look's case rule applied (Cinema uppercases).
+class DisplayText extends StatelessWidget {
+  const DisplayText(
+    this.text, {
+    super.key,
+    required this.size,
+    this.color,
+    this.maxLines,
+    this.overflow,
+    this.textAlign,
+    this.letterSpacing,
+    this.height,
+  });
+
+  final String text;
+  final double size;
+  final Color? color;
+  final int? maxLines;
+  final TextOverflow? overflow;
+  final TextAlign? textAlign;
+  final double? letterSpacing;
+  final double? height;
+
+  @override
+  Widget build(BuildContext context) {
+    var style = YomiText.display(size,
+        color: color ?? context.yc.fg, letterSpacing: letterSpacing);
+    if (height != null) style = style.copyWith(height: height);
+    return Text(
+      YomiText.displayCase(text),
+      maxLines: maxLines,
+      overflow: overflow,
+      textAlign: textAlign,
+      style: style,
+    );
+  }
 }
 
 // ── Controls ──────────────────────────────────────────────────────────────────
 
-/// Primary button: fill `fg`, text `bg` 16/700, radius 6 (54 tall).
+/// Primary button: fill `fg`, text `bg` 16/700, look radius (54 tall).
 class SumiButton extends StatelessWidget {
   const SumiButton({
     super.key,
     required this.label,
     required this.onTap,
     this.height = 54,
-    this.radius = 6,
+    this.radius,
     this.fontSize = 16,
     this.enabled = true,
     this.child,
@@ -199,7 +242,7 @@ class SumiButton extends StatelessWidget {
   final String label;
   final VoidCallback? onTap;
   final double height;
-  final double radius;
+  final double? radius;
   final double fontSize;
   final bool enabled;
   final Widget? child;
@@ -207,6 +250,7 @@ class SumiButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.yc;
+    final cinema = context.look.isCinema;
     return SumiPress(
       onTap: enabled ? onTap : null,
       child: AnimatedContainer(
@@ -215,27 +259,34 @@ class SumiButton extends StatelessWidget {
         alignment: Alignment.center,
         decoration: BoxDecoration(
           color: enabled ? c.fg : c.card,
-          borderRadius: BorderRadius.circular(radius),
+          borderRadius: BorderRadius.circular(radius ?? context.radii.button),
         ),
         child: child ??
-            Text(
-              label,
-              style: YomiText.ui(fontSize,
-                  weight: FontWeight.w700, color: enabled ? c.bg : c.fg2),
-            ),
+            (cinema
+                ? Text(
+                    label.toUpperCase(),
+                    style: YomiText.display(fontSize + 2,
+                        color: enabled ? c.bg : c.fg2, letterSpacing: 2),
+                  )
+                : Text(
+                    label,
+                    style: YomiText.ui(fontSize,
+                        weight: FontWeight.w700, color: enabled ? c.bg : c.fg2),
+                  )),
       ),
     );
   }
 }
 
-/// 1px `line` square with an icon — download / categories buttons.
+/// Square icon button — 1px `line` (Sumi / Cinema) or a `card` tile with the
+/// look's soft shadow (Pastel).
 class SumiSquareButton extends StatelessWidget {
   const SumiSquareButton({
     super.key,
     required this.icon,
     required this.onTap,
     this.size = 50,
-    this.radius = 4,
+    this.radius,
     this.iconSize = 20,
     this.color,
   });
@@ -243,21 +294,24 @@ class SumiSquareButton extends StatelessWidget {
   final IconData icon;
   final VoidCallback? onTap;
   final double size;
-  final double radius;
+  final double? radius;
   final double iconSize;
   final Color? color;
 
   @override
   Widget build(BuildContext context) {
     final c = context.yc;
+    final look = context.look;
     return SumiPress(
       onTap: onTap,
       child: Container(
         width: size,
         height: size,
         decoration: BoxDecoration(
-          border: Border.all(color: c.line),
-          borderRadius: BorderRadius.circular(radius),
+          color: look.isPastel ? c.card : null,
+          border: look.isPastel ? null : Border.all(color: c.line),
+          borderRadius: BorderRadius.circular(radius ?? context.radii.button),
+          boxShadow: look.cardShadow,
         ),
         child: Icon(icon,
             size: iconSize, color: color ?? (onTap == null ? c.fg2 : c.fg)),
@@ -266,33 +320,48 @@ class SumiSquareButton extends StatelessWidget {
   }
 }
 
-/// 36px circle in `bg` with a chevron — sits on the detail plate.
+/// Back button on a plate: Sumi 36px circle in `bg`, Cinema 40px square
+/// scrim, Pastel 40px rounded `card` tile.
 class SumiBackButton extends StatelessWidget {
-  const SumiBackButton({super.key, this.onTap, this.icon});
+  const SumiBackButton({super.key, this.onTap, this.icon, this.color});
   final VoidCallback? onTap;
   final IconData? icon;
+  final Color? color;
 
   @override
   Widget build(BuildContext context) {
     final c = context.yc;
+    final look = context.look;
+    final (double size, Color bg, double radius) = switch (look.look) {
+      YomiLook.sumi => (36, c.bg, 18),
+      YomiLook.cinema => (40, const Color(0x66000000), 0),
+      YomiLook.pastel => (40, c.card, 14),
+    };
     return Semantics(
       button: true,
       label: 'Back',
       child: SumiPress(
         onTap: onTap ?? () => Navigator.of(context).maybePop(),
         child: Container(
-          width: 36,
-          height: 36,
-          decoration: BoxDecoration(color: c.bg, shape: BoxShape.circle),
-          child:
-              Icon(icon ?? CupertinoIcons.chevron_left, size: 20, color: c.fg),
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            color: bg,
+            borderRadius: BorderRadius.circular(radius),
+            boxShadow: look.cardShadow,
+          ),
+          child: Icon(icon ?? CupertinoIcons.chevron_left,
+              size: 20,
+              color: color ?? (look.isCinema ? const Color(0xFFF1EBE2) : c.fg)),
         ),
       ),
     );
   }
 }
 
-/// Filter chip: 7×14 padding, radius 2. Active = `fg` fill, `bg` text, 700.
+/// Filter chip. Sumi: 7×14, radius 2, active = `fg` fill. Cinema: uppercase
+/// condensed, active = `fg` border only. Pastel: `card` pill, radius 16,
+/// active = `fg` fill.
 class SumiChip extends StatelessWidget {
   const SumiChip({
     super.key,
@@ -308,6 +377,37 @@ class SumiChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.yc;
+    final look = context.look;
+    const clear = Color(0x00000000);
+    final (
+      Color fill,
+      Color border,
+      Color text,
+      TextStyle style,
+      EdgeInsets pad
+    ) = switch (look.look) {
+      YomiLook.sumi => (
+          active ? c.fg : clear,
+          active ? c.fg : c.line,
+          active ? c.bg : c.fg,
+          YomiText.ui(13, weight: active ? FontWeight.w700 : FontWeight.w400),
+          const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+        ),
+      YomiLook.cinema => (
+          clear,
+          active ? c.fg : c.line,
+          active ? c.fg : c.fg2,
+          YomiText.display(13, letterSpacing: 1.5),
+          const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        ),
+      YomiLook.pastel => (
+          active ? c.fg : c.card,
+          clear,
+          active ? c.bg : c.fg,
+          YomiText.ui(13, weight: FontWeight.w700),
+          const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        ),
+    };
     return Semantics(
       button: true,
       selected: active,
@@ -317,26 +417,22 @@ class SumiChip extends StatelessWidget {
         child: AnimatedContainer(
           duration: AppMotion.fast,
           curve: AppMotion.snap,
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+          padding: pad,
           decoration: BoxDecoration(
-            color: active ? c.fg : const Color(0x00000000),
-            borderRadius: BorderRadius.circular(2),
-            border: Border.all(color: active ? c.fg : c.line),
+            color: fill,
+            borderRadius: BorderRadius.circular(context.radii.chip),
+            border: Border.all(color: border),
           ),
-          child: Text(
-            label,
-            style: YomiText.ui(13,
-                weight: active ? FontWeight.w700 : FontWeight.w400,
-                color: active ? c.bg : c.fg),
-          ),
+          child: Text(YomiText.displayCase(label),
+              style: style.copyWith(color: text)),
         ),
       ),
     );
   }
 }
 
-/// 40×24 toggle. On = `ac`; off = Sumi grey. Knob 18px white slides 3 → 19
-/// over 180ms.
+/// 40×24 toggle. On = accent (Pastel: rose); off = look grey. Knob 18px
+/// white slides 3 → 19 over 180ms. Square in Cinema.
 class SumiToggle extends StatelessWidget {
   const SumiToggle({
     super.key,
@@ -351,7 +447,8 @@ class SumiToggle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = context.yc;
+    final t = context.yomi;
+    final r = context.look.isCinema ? 0.0 : 12.0;
     return Semantics(
       label: label,
       toggled: value,
@@ -367,8 +464,8 @@ class SumiToggle extends StatelessWidget {
           width: 40,
           height: 24,
           decoration: BoxDecoration(
-            color: value ? c.ac : context.yomi.toggleOff,
-            borderRadius: BorderRadius.circular(12),
+            color: value ? t.toggleOn : t.toggleOff,
+            borderRadius: BorderRadius.circular(r),
           ),
           child: Stack(
             children: [
@@ -380,9 +477,9 @@ class SumiToggle extends StatelessWidget {
                 child: Container(
                   width: 18,
                   height: 18,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFFFFFFF),
-                    shape: BoxShape.circle,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFFFFF),
+                    borderRadius: BorderRadius.circular(r == 0 ? 0 : 9),
                   ),
                 ),
               ),
@@ -413,39 +510,60 @@ class SumiSeal extends StatelessWidget {
           border: Border.all(color: c.ac, width: 2),
           borderRadius: BorderRadius.circular(4),
         ),
-        child: Text(kanji, style: YomiText.kanji(size * 0.55, color: c.ac)),
+        child: Text(kanji, style: YomiText.display(size * 0.55, color: c.ac)),
       ),
     );
   }
 }
 
-/// 2:3 cover frame — `card` fill, 1px `line`, radius 4. Same shape at every
+/// Header mark at the right of a screen title: Sumi seal · Cinema tracked
+/// wordmark · Pastel nothing.
+class LookMark extends StatelessWidget {
+  const LookMark({super.key});
+
+  @override
+  Widget build(BuildContext context) => switch (context.look.look) {
+        YomiLook.sumi => const SumiSeal(),
+        YomiLook.cinema => Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Text('YOMI',
+                style: YomiText.display(16,
+                    color: context.yc.fg, letterSpacing: 5)),
+          ),
+        YomiLook.pastel => const SizedBox.shrink(),
+      };
+}
+
+/// 2:3 cover frame — `card` fill, 1px `line`, look radius. Same shape at every
 /// Hero end (grid tile, continue block, detail plate).
 class SumiCoverFrame extends StatelessWidget {
   const SumiCoverFrame({
     super.key,
     required this.child,
-    this.radius = 4,
+    this.radius,
     this.shadow = false,
   });
   final Widget child;
-  final double radius;
+  final double? radius;
   final bool shadow;
 
   @override
   Widget build(BuildContext context) {
     final c = context.yc;
+    final look = context.look;
     return Container(
       decoration: BoxDecoration(
         color: c.card,
-        borderRadius: BorderRadius.circular(radius),
-        border: Border.all(color: c.line),
+        borderRadius: BorderRadius.circular(radius ?? context.radii.cover),
+        border: look.isPastel ? null : Border.all(color: c.line),
         boxShadow: shadow
-            ? const [
+            ? [
                 BoxShadow(
-                  color: Color(0x80000000),
+                  color: look.isPastel
+                      ? const Color(0x33503C3C)
+                      : const Color(0x80000000),
                   blurRadius: 40,
-                  offset: Offset(0, 20),
+                  offset: const Offset(0, 20),
                 ),
               ]
             : null,
@@ -459,13 +577,16 @@ class SumiCoverFrame extends StatelessWidget {
 // ── Washi grain ───────────────────────────────────────────────────────────────
 
 /// Full-screen tiled noise, overlay-blended at 35%, pointer-transparent.
-/// Skipped on low-spec hardware (one extra full-screen blend per frame).
+/// Sumi only; skipped on low-spec hardware (one extra full-screen blend per
+/// frame).
 class WashiGrain extends StatelessWidget {
   const WashiGrain({super.key});
 
   @override
   Widget build(BuildContext context) {
-    if (DeviceProfile.current.lowSpec) return const SizedBox.shrink();
+    if (DeviceProfile.current.lowSpec || !context.look.grain) {
+      return const SizedBox.shrink();
+    }
     return const IgnorePointer(
       child: DecoratedBox(
         decoration: BoxDecoration(
@@ -534,7 +655,7 @@ class _YinYangPainter extends CustomPainter {
 
 // ── Enso ──────────────────────────────────────────────────────────────────────
 
-/// Two-stroke enso circle with 読 inside (onboarding mark).
+/// Two-stroke enso circle with 読 inside (Sumi onboarding mark).
 class Enso extends StatelessWidget {
   const Enso({super.key, this.size = 160});
   final double size;
@@ -551,7 +672,9 @@ class Enso extends StatelessWidget {
           CustomPaint(painter: _EnsoPainter(fg)),
           Align(
             alignment: const Alignment(0, 0.18),
-            child: Text('読', style: YomiText.kanji(size * 0.39, color: fg)),
+            child: Text('読',
+                style: TextStyle(
+                    fontFamily: 'YujiSyuku', fontSize: size * 0.39, color: fg)),
           ),
         ],
       ),
@@ -594,10 +717,56 @@ class _EnsoPainter extends CustomPainter {
   bool shouldRepaint(_EnsoPainter old) => old.color != color;
 }
 
-// ── Hand-drawn progress stroke ────────────────────────────────────────────────
+// ── Progress ──────────────────────────────────────────────────────────────────
+
+/// Continue-block progress: Sumi hand-drawn stroke · Cinema 2px rule ·
+/// Pastel 10px rounded bar. Fill animates 300ms.
+class LookProgress extends StatelessWidget {
+  const LookProgress(
+      {super.key, required this.progress, this.onAccent = false});
+  final double progress;
+
+  /// Drawn on an accent-filled card (Pastel continue card).
+  final bool onAccent;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.yc;
+    final look = context.look;
+    final p = progress.clamp(0.0, 1.0);
+    if (look.isSumi) return BrushProgress(progress: p);
+    final (double h, Color track, Color fill) = look.isPastel
+        ? (
+            10.0,
+            onAccent ? const Color(0x99FFFFFF) : c.line,
+            onAccent ? c.onAccent : c.fg,
+          )
+        : (2.0, c.fg.withValues(alpha: 0.2), c.ac);
+    return TweenAnimationBuilder<double>(
+      tween: Tween(end: p),
+      duration: const Duration(milliseconds: 300),
+      curve: AppMotion.snap,
+      builder: (_, v, __) => ClipRRect(
+        borderRadius: BorderRadius.circular(h / 2),
+        child: SizedBox(
+          height: h,
+          child: Stack(
+            children: [
+              Positioned.fill(child: ColoredBox(color: track)),
+              FractionallySizedBox(
+                widthFactor: v,
+                alignment: Alignment.centerLeft,
+                child: ColoredBox(color: fill),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 /// Library continue block: 3px `line` track, 5px `ac` fill, round caps.
-/// Fill length animates 300ms.
 class BrushProgress extends StatelessWidget {
   const BrushProgress({super.key, required this.progress, this.height = 12});
   final double progress;
@@ -693,7 +862,7 @@ class _SplatterPainter extends CustomPainter {
   bool shouldRepaint(_SplatterPainter old) => old.color != color;
 }
 
-// ── Kanji helpers ─────────────────────────────────────────────────────────────
+// ── Numerals and marks ────────────────────────────────────────────────────────
 
 const _kanjiDigits = ['〇', '一', '二', '三', '四', '五', '六', '七', '八', '九'];
 
@@ -721,13 +890,28 @@ String kanjiNumeral(num n) {
     }
   }
   if (frac > 0) {
-    var f = frac.toStringAsFixed(2).substring(2);
-    while (f.endsWith('0')) {
-      f = f.substring(0, f.length - 1);
-    }
-    buf.write('·$f');
+    buf.write('·${_fraction(frac)}');
   }
   return buf.toString();
+}
+
+String _fraction(num frac) {
+  var f = frac.toStringAsFixed(2).substring(2);
+  while (f.endsWith('0')) {
+    f = f.substring(0, f.length - 1);
+  }
+  return f;
+}
+
+/// Chapter numeral in the current look: Sumi kanji (十五), Cinema two-digit
+/// reel numbers (08), Pastel plain (15).
+String chapterMark(num n, {YomiLookSpec? spec}) {
+  final s = spec ?? YomiText.spec;
+  if (s.kanji) return kanjiNumeral(n);
+  final whole = n.floor();
+  final frac = n - whole;
+  final base = s.isCinema ? whole.toString().padLeft(2, '0') : '$whole';
+  return frac <= 0 ? base : '$base.${_fraction(frac)}';
 }
 
 /// Single brush mark that tags a title: its first grapheme, upper-cased.
@@ -752,3 +936,59 @@ String languageKanji(String lang) =>
       'ru' => '露',
       _ => lang.isEmpty ? '源' : lang.characters.first.toUpperCase(),
     };
+
+// ── Accent swatches ───────────────────────────────────────────────────────────
+
+/// The look's four curated accents as 22px swatches; selected gets a `fg` ring.
+class AccentSwatches extends StatelessWidget {
+  const AccentSwatches(
+      {super.key, required this.selected, required this.onChanged});
+  final int selected;
+  final ValueChanged<int> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final spec = context.look;
+    final c = context.yc;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (var i = 0; i < spec.accents.length; i++)
+          Semantics(
+            button: true,
+            selected: i == selected,
+            label: spec.accentNames[i],
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () {
+                HapticFeedback.selectionClick();
+                onChanged(i);
+              },
+              child: AnimatedContainer(
+                duration: AppMotion.fast,
+                curve: AppMotion.snap,
+                width: 28,
+                height: 28,
+                margin: const EdgeInsets.only(left: 6),
+                padding: const EdgeInsets.all(3),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: i == selected ? c.fg : const Color(0x00000000),
+                    width: 1.5,
+                  ),
+                ),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: spec.accents[i],
+                    shape: BoxShape.circle,
+                    border: Border.all(color: c.line),
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}

@@ -10,7 +10,7 @@ class FrostedContainer extends StatelessWidget {
   const FrostedContainer({
     super.key,
     required this.child,
-    this.blurStrength = 20.0,  // ignored — kept for API compatibility
+    this.blurStrength = 20.0, // ignored — kept for API compatibility
     this.backgroundColor,
     this.borderRadius,
     this.border,

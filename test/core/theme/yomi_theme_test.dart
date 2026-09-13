@@ -43,6 +43,42 @@ void main() {
     });
   });
 
+  group('looks', () {
+    test('each look resolves its own palette, default mode and type', () {
+      for (final look in YomiLook.values) {
+        final spec = yomiLookSpecs[look]!;
+        final t = YomiTheme(look: look, mode: spec.defaultMode);
+        expect(t.colors.ac, spec.accents.first);
+        expect(t.colors.onAccent, spec.onAccent);
+        expect(spec.accentNames.length, spec.accents.length);
+        expect(spec.genreMarks.length, 4);
+        expect(spec.displayFont.isNotEmpty, isTrue);
+      }
+      expect(const YomiTheme(look: YomiLook.pastel).spec.defaultMode,
+          Brightness.light);
+      expect(const YomiTheme(look: YomiLook.cinema).modeName, 'Charcoal');
+      expect(
+          const YomiTheme(look: YomiLook.pastel, mode: Brightness.light)
+              .toggleOn,
+          const Color(0xFFD9788F));
+    });
+
+    test('labels and chapter marks follow the look', () {
+      YomiText.spec = sumiSpec;
+      expect(YomiText.label('LIBRARY', '庫'), 'LIBRARY · 庫');
+      expect(chapterMark(15), '十五');
+      YomiText.spec = cinemaSpec;
+      expect(YomiText.label('LIBRARY', '庫'), 'LIBRARY');
+      expect(YomiText.displayCase('Your reel'), 'YOUR REEL');
+      expect(chapterMark(8), '08');
+      expect(chapterMark(12.5), '12.5');
+      YomiText.spec = pastelSpec;
+      expect(YomiText.label('LIBRARY', '庫'), 'Library');
+      expect(chapterMark(8), '8');
+      YomiText.spec = sumiSpec;
+    });
+  });
+
   group('kanji helpers', () {
     test('kanjiNumeral', () {
       expect(kanjiNumeral(0), '〇');

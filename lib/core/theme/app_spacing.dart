@@ -21,34 +21,34 @@ import 'package:flutter/cupertino.dart';
 /// ============================================================================
 
 abstract final class AppSpacing {
-  static const x0  = 0.0;
-  static const x1  = 2.0;
-  static const x2  = 4.0;
-  static const x3  = 6.0;
-  static const x4  = 8.0;
-  static const x5  = 12.0;
-  static const x6  = 16.0;
-  static const x7  = 20.0;   // page horizontal margin
-  static const x8  = 24.0;
-  static const x9  = 32.0;
+  static const x0 = 0.0;
+  static const x1 = 2.0;
+  static const x2 = 4.0;
+  static const x3 = 6.0;
+  static const x4 = 8.0;
+  static const x5 = 12.0;
+  static const x6 = 16.0;
+  static const x7 = 20.0; // page horizontal margin
+  static const x8 = 24.0;
+  static const x9 = 32.0;
   static const x10 = 40.0;
   static const x11 = 48.0;
   static const x12 = 64.0;
 
-  static const gutter  = x7;    // screen edge inset (20)
-  static const gridGap = 14.0;  // library 2-col (10 for 3-col)
+  static const gutter = x7; // screen edge inset (20)
+  static const gridGap = 14.0; // library 2-col (10 for 3-col)
 }
 
 abstract final class AppRadius {
-  static const xs    = 8.0;    // chips, tags, small inputs
-  static const sm    = 10.0;   // badges, segmented controls
-  static const cover = 12.0;   // manga / manhwa cover art
-  static const md    = 16.0;   // cards, rows, buttons
-  static const lg    = 22.0;   // nav bar, grouped lists, hero cards
-  static const xl    = 28.0;   // bottom sheets, full-bleed panels
-  static const pill  = 999.0;  // filter pills, nav indicator
+  static const xs = 8.0; // chips, tags, small inputs
+  static const sm = 10.0; // badges, segmented controls
+  static const cover = 12.0; // manga / manhwa cover art
+  static const md = 16.0; // cards, rows, buttons
+  static const lg = 22.0; // nav bar, grouped lists, hero cards
+  static const xl = 28.0; // bottom sheets, full-bleed panels
+  static const pill = 999.0; // filter pills, nav indicator
 
-  static const hairline = 0.75;  // standard border width
+  static const hairline = 0.75; // standard border width
 }
 
 abstract final class AppElevation {
@@ -64,7 +64,7 @@ abstract final class AppElevation {
 
   static const e3 = [
     BoxShadow(color: Color(0x66000000), blurRadius: 32, offset: Offset(0, 10)),
-    BoxShadow(color: Color(0x33000000), blurRadius: 6,  offset: Offset(0, 2)),
+    BoxShadow(color: Color(0x33000000), blurRadius: 6, offset: Offset(0, 2)),
   ];
 
   static const e4 = [
@@ -75,8 +75,10 @@ abstract final class AppElevation {
   /// Floating nav bar — deep drop shadow + coral bloom + violet ambient.
   static const float = [
     BoxShadow(
-      color: Color(0x7A000000), blurRadius: 48,
-      spreadRadius: -4, offset: Offset(0, 16),
+      color: Color(0x7A000000),
+      blurRadius: 48,
+      spreadRadius: -4,
+      offset: Offset(0, 16),
     ),
     BoxShadow(color: Color(0x1AFF5A4A), blurRadius: 24, offset: Offset(0, 8)),
     BoxShadow(color: Color(0x0D8B5CF6), blurRadius: 32, offset: Offset(0, 12)),
@@ -90,13 +92,15 @@ abstract final class AppElevation {
 
   static const e3Light = [
     BoxShadow(color: Color(0x1A0D0D1A), blurRadius: 32, offset: Offset(0, 10)),
-    BoxShadow(color: Color(0x100D0D1A), blurRadius: 6,  offset: Offset(0, 2)),
+    BoxShadow(color: Color(0x100D0D1A), blurRadius: 6, offset: Offset(0, 2)),
   ];
 
   static const floatLight = [
     BoxShadow(
-      color: Color(0x240D0D1A), blurRadius: 48,
-      spreadRadius: -4, offset: Offset(0, 16),
+      color: Color(0x240D0D1A),
+      blurRadius: 48,
+      spreadRadius: -4,
+      offset: Offset(0, 16),
     ),
     BoxShadow(color: Color(0x10DE2E1F), blurRadius: 24, offset: Offset(0, 8)),
   ];
@@ -106,16 +110,16 @@ abstract final class AppMotion {
   // ── Durations ────────────────────────────────────────────────────────────────
 
   static const instant = Duration(milliseconds: 80);
-  static const micro   = Duration(milliseconds: 120);
-  static const fast    = Duration(milliseconds: 180);
-  static const base    = Duration(milliseconds: 260);
-  static const page    = Duration(milliseconds: 380);
-  static const hero    = Duration(milliseconds: 520);
-  static const epic    = Duration(milliseconds: 700);
+  static const micro = Duration(milliseconds: 120);
+  static const fast = Duration(milliseconds: 180);
+  static const base = Duration(milliseconds: 260);
+  static const page = Duration(milliseconds: 380);
+  static const hero = Duration(milliseconds: 520);
+  static const epic = Duration(milliseconds: 700);
 
   // Back-compat aliases used across existing screens
-  static const slow     = page;   // nav pill slide was called `slow`
-  static const standard = Cubic(0.4, 0.0, 0.2, 1.0);  // kept as Curve alias
+  static const slow = page; // nav pill slide was called `slow`
+  static const standard = Cubic(0.4, 0.0, 0.2, 1.0); // kept as Curve alias
 
   // ── Curves ───────────────────────────────────────────────────────────────────
 

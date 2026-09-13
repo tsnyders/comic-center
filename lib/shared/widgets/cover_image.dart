@@ -83,7 +83,8 @@ class _ShimmerPlaceholderState extends State<_ShimmerPlaceholder>
             end: Alignment.bottomRight,
             colors: [
               AppColors.surface,
-              Color.lerp(AppColors.surface, AppColors.surfaceElevated, _anim.value)!,
+              Color.lerp(
+                  AppColors.surface, AppColors.surfaceElevated, _anim.value)!,
               AppColors.surface,
             ],
           ),

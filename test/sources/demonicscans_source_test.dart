@@ -177,8 +177,7 @@ void main() {
         expect(results[0].title, 'Murim Login');
         expect(results[0].coverUrl,
             'https://demonicscans.org/images/thumbnails/murim.jpg');
-        expect(results[0].url,
-            'https://demonicscans.org/manga/Murim-Login');
+        expect(results[0].url, 'https://demonicscans.org/manga/Murim-Login');
         expect(results[1].id, 'Solo-Leveling');
         // Already absolute URL passes through unchanged
         expect(results[1].coverUrl,
@@ -187,7 +186,8 @@ void main() {
 
       test('returns empty list when no items in page', () async {
         final adapter = _MockAdapter()
-          ..stub('/advanced.php', '<html><body><div id="advanced-content"></div></body></html>');
+          ..stub('/advanced.php',
+              '<html><body><div id="advanced-content"></div></body></html>');
         final results = await _buildSource(adapter).fetchPopular();
         expect(results, isEmpty);
       });
@@ -252,9 +252,9 @@ void main() {
     });
 
     group('fetchMangaDetail', () {
-      test('parses title, cover, genres, description, author, status', () async {
-        final adapter = _MockAdapter()
-          ..stub('/manga/Murim-Login', _detailHtml);
+      test('parses title, cover, genres, description, author, status',
+          () async {
+        final adapter = _MockAdapter()..stub('/manga/Murim-Login', _detailHtml);
         final source = _buildSource(adapter);
 
         final detail = await source.fetchMangaDetail('Murim-Login');
@@ -264,24 +264,26 @@ void main() {
         expect(detail.coverUrl,
             'https://demonicscans.org/images/covers/murim.jpg');
         expect(detail.genres, containsAll(['Action', 'Fantasy']));
-        expect(detail.description,
-            contains('A great manhwa about a gamer'));
+        expect(detail.description, contains('A great manhwa about a gamer'));
         expect(detail.author, 'Kim Tae-Gyun');
         expect(detail.status, 'ongoing');
         expect(detail.url, 'https://demonicscans.org/manga/Murim-Login');
       });
 
-      test('falls back to img.border-box cover when div#manga-page img absent', () async {
+      test('falls back to img.border-box cover when div#manga-page img absent',
+          () async {
         final adapter = _MockAdapter()
           ..stub('/manga/Murim-Login', _detailHtmlNewCover);
-        final detail = await _buildSource(adapter).fetchMangaDetail('Murim-Login');
+        final detail =
+            await _buildSource(adapter).fetchMangaDetail('Murim-Login');
         // Space in filename is percent-encoded to %20
         expect(detail.coverUrl,
             'https://readermc.org/images/thumbnails/Murim%20Login.jpg');
       });
 
       test('maps completed status correctly', () async {
-        final html = _detailHtml.replaceAll('<li>Ongoing</li>', '<li>Completed</li>');
+        final html =
+            _detailHtml.replaceAll('<li>Ongoing</li>', '<li>Completed</li>');
         final adapter = _MockAdapter()..stub('/manga/x', html);
         final detail = await _buildSource(adapter).fetchMangaDetail('x');
         expect(detail.status, 'completed');
@@ -297,8 +299,7 @@ void main() {
 
     group('fetchChapterList', () {
       test('returns chapters in ascending order (oldest first)', () async {
-        final adapter = _MockAdapter()
-          ..stub('/manga/Murim-Login', _detailHtml);
+        final adapter = _MockAdapter()..stub('/manga/Murim-Login', _detailHtml);
         final source = _buildSource(adapter);
 
         final chapters = await source.fetchChapterList('Murim-Login');
@@ -317,8 +318,7 @@ void main() {
       });
 
       test('chapter title excludes the date span text', () async {
-        final adapter = _MockAdapter()
-          ..stub('/manga/Murim-Login', _detailHtml);
+        final adapter = _MockAdapter()..stub('/manga/Murim-Login', _detailHtml);
         final chapters =
             await _buildSource(adapter).fetchChapterList('Murim-Login');
         // Title should be just "Chapter 1", not "Chapter 12023-01-01"
@@ -333,17 +333,17 @@ void main() {
         expect(chapters, isEmpty);
       });
 
-      test('new chaptered.php href format produces correct chapter ID', () async {
+      test('new chaptered.php href format produces correct chapter ID',
+          () async {
         const html = '''
 <html><body>
 <div id="chapters-list">
   <li><a class="chplinks" href="/chaptered.php?manga=999&chapter=1">Chapter 1<span>2024-01-01</span></a></li>
 </div>
 </body></html>''';
-        final adapter = _MockAdapter()
-          ..stub('/manga/Some-Manga', html);
-        final chapters = await _buildSource(adapter)
-            .fetchChapterList('Some-Manga');
+        final adapter = _MockAdapter()..stub('/manga/Some-Manga', html);
+        final chapters =
+            await _buildSource(adapter).fetchChapterList('Some-Manga');
 
         expect(chapters, hasLength(1));
         expect(chapters[0].id, 'chaptered.php?manga=999&chapter=1');
@@ -353,18 +353,17 @@ void main() {
 
     group('fetchPageUrls', () {
       test('extracts imgholder src URLs (new chaptered.php format)', () async {
-        final adapter = _MockAdapter()
-          ..stub('/chaptered.php', _pagesHtml);
+        final adapter = _MockAdapter()..stub('/chaptered.php', _pagesHtml);
         final source = _buildSource(adapter);
 
         final urls =
             await source.fetchPageUrls('chaptered.php?manga=129&chapter=1');
 
         expect(urls, hasLength(3));
-        expect(urls[0],
-            'https://demonicscans.org/images/manga/murim/ch1/001.jpg');
-        expect(urls[2],
-            'https://demonicscans.org/images/manga/murim/ch1/003.jpg');
+        expect(
+            urls[0], 'https://demonicscans.org/images/manga/murim/ch1/001.jpg');
+        expect(
+            urls[2], 'https://demonicscans.org/images/manga/murim/ch1/003.jpg');
       });
 
       test('resolves relative image URLs to absolute', () async {
@@ -386,7 +385,8 @@ void main() {
         expect(urls, isEmpty);
       });
 
-      test('legacy slug-based chapter ID still works (backward compat)', () async {
+      test('legacy slug-based chapter ID still works (backward compat)',
+          () async {
         // Old chapter IDs stored in DB before the URL format change should
         // still resolve via the /manga/ fallback path.
         const pagesHtml = '''

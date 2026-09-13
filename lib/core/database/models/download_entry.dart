@@ -39,6 +39,5 @@ class DownloadEntry {
   String? errorMessage;
   int retryCount = 0;
 
-  double get progress =>
-      totalPages == 0 ? 0.0 : downloadedPages / totalPages;
+  double get progress => totalPages == 0 ? 0.0 : downloadedPages / totalPages;
 }

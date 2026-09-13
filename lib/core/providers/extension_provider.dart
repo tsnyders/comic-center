@@ -46,7 +46,8 @@ class ExtensionEntry {
 // ── Providers ─────────────────────────────────────────────────────────────
 
 /// Fetches and caches the keiyoushi extension index.
-final extensionIndexProvider = FutureProvider<List<ExtensionEntry>>((ref) async {
+final extensionIndexProvider =
+    FutureProvider<List<ExtensionEntry>>((ref) async {
   final dio = Dio(BaseOptions(
     connectTimeout: const Duration(seconds: 15),
     receiveTimeout: const Duration(seconds: 30),

@@ -18,6 +18,7 @@ import '../../core/services/downloaded_chapter_files.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/theme/yomi_theme.dart';
+import '../../shared/widgets/sumi.dart';
 import 'widgets/page_pill.dart';
 import 'widgets/progress_line.dart';
 import 'widgets/reader_chrome.dart';
@@ -352,8 +353,10 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
         ref.watch(sourceByIdProvider(widget.sourceId))?.imageHeaders;
     _strip = strip;
 
+    // Pastel keeps its cream (or plum) canvas instead of pure black.
     final bgColor = switch (background) {
-      ReaderBackground.black => AppColors.readerBackground,
+      ReaderBackground.black =>
+        context.look.isPastel ? context.yc.bg : AppColors.readerBackground,
       ReaderBackground.white => AppColors.readerWhite,
       ReaderBackground.sepia => AppColors.readerSepia,
     };
@@ -617,14 +620,15 @@ class _ReaderSettingsSheet extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final direction = ref.watch(readingDirectionProvider);
+    final rp = ReaderPalette.of(context);
     final titleOverride = ref.watch(mangaReadingDirectionProvider(mangaId));
     final scale = ref.watch(pageScaleModeProvider);
     final background = ref.watch(readerBackgroundProvider);
 
     return Container(
-      decoration: const BoxDecoration(
-        color: Color(0xFF1A1917),
-        border: Border(top: BorderSide(color: Color(0xFF2A2825))),
+      decoration: BoxDecoration(
+        color: rp.card,
+        border: Border(top: BorderSide(color: rp.border)),
       ),
       padding: EdgeInsets.only(
         top: 12,
@@ -647,7 +651,7 @@ class _ReaderSettingsSheet extends ConsumerWidget {
               ),
             ),
           ),
-          Text('Reader · 読', style: YomiText.kanji(26, color: YomiReader.ink)),
+          DisplayText(YomiText.label('Reader', '読'), size: 26, color: rp.ink),
           const SizedBox(height: 20),
           if (!isWebtoon) ...[
             Text('DIRECTION',
@@ -818,6 +822,7 @@ class _OptionRow<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final rp = ReaderPalette.of(context);
     return Wrap(
       spacing: 8,
       runSpacing: 8,
@@ -836,17 +841,17 @@ class _OptionRow<T> extends StatelessWidget {
               duration: const Duration(milliseconds: 140),
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
               decoration: BoxDecoration(
-                color: selected ? YomiReader.ink : const Color(0x00000000),
-                borderRadius: BorderRadius.circular(2),
+                color: selected ? rp.ink : const Color(0x00000000),
+                borderRadius: BorderRadius.circular(context.radii.chip),
                 border: Border.all(
-                  color: selected ? YomiReader.ink : YomiReader.buttonBorder,
+                  color: selected ? rp.ink : rp.border,
                 ),
               ),
               child: Text(
                 opt.$2,
                 style: YomiText.ui(13,
                     weight: selected ? FontWeight.w700 : FontWeight.w400,
-                    color: selected ? YomiReader.bg : YomiReader.ink),
+                    color: selected ? rp.bg : rp.ink),
               ),
             ),
           ),
@@ -1051,19 +1056,20 @@ class _NextChapterButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final rp = ReaderPalette.of(context);
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: Container(
         padding: const EdgeInsets.all(13),
         decoration: BoxDecoration(
-          color: const Color(0xCC000000),
+          color: rp.bg.withValues(alpha: 0.8),
           shape: BoxShape.circle,
-          border: Border.all(color: YomiReader.buttonBorder),
+          border: Border.all(color: rp.border),
         ),
-        child: const Icon(
+        child: Icon(
           CupertinoIcons.chevron_right_2,
-          color: YomiReader.ink,
+          color: rp.ink,
           size: 22,
         ),
       ),
@@ -1081,19 +1087,23 @@ class _NextChapterFooter extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bottomPadding = MediaQuery.of(context).padding.bottom;
+    final rp = ReaderPalette.of(context);
     return GestureDetector(
       onTap: onTap,
       child: Container(
         margin: EdgeInsets.fromLTRB(20, 24, 20, bottomPadding + 32),
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: const Color(0xFF1A1917),
-          borderRadius: BorderRadius.circular(4),
-          border: Border.all(color: const Color(0xFF2A2825)),
+          color: rp.card,
+          borderRadius: BorderRadius.circular(context.radii.card),
+          border: Border.all(color: rp.border),
         ),
         child: Row(
           children: [
-            Text('次', style: YomiText.kanji(26, color: context.yc.ac)),
+            context.look.kanji
+                ? Text('次', style: YomiText.display(26, color: context.yc.ac))
+                : Icon(CupertinoIcons.arrow_right_circle_fill,
+                    color: context.yc.ac, size: 28),
             const SizedBox(width: 14),
             Expanded(
               child: Column(
@@ -1101,15 +1111,13 @@ class _NextChapterFooter extends StatelessWidget {
                 children: [
                   Text(
                     'Next Chapter',
-                    style: AppTextStyles.caption.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
+                    style: AppTextStyles.caption.copyWith(color: rp.ink2),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     title,
                     style: AppTextStyles.bodyMedium.copyWith(
-                      color: AppColors.textPrimary,
+                      color: rp.ink,
                       fontWeight: FontWeight.w600,
                     ),
                     maxLines: 1,
@@ -1119,8 +1127,7 @@ class _NextChapterFooter extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 8),
-            const Icon(CupertinoIcons.chevron_right,
-                color: AppColors.textTertiary, size: 16),
+            Icon(CupertinoIcons.chevron_right, color: rp.ink2, size: 16),
           ],
         ),
       ),

@@ -36,7 +36,7 @@ class UpdateCheckException implements Exception {
 }
 
 class UpdateService {
-  static const _repo    = 'tsnyders/comic-center';
+  static const _repo = 'tsnyders/comic-center';
   static const _channel = MethodChannel('yomi/platform');
 
   /// In-app APK download + install is only possible on Android. On iOS the
@@ -64,7 +64,7 @@ class UpdateService {
       );
       final release = _parseRelease(resp.data as Map<String, dynamic>);
 
-      final info         = await PackageInfo.fromPlatform();
+      final info = await PackageInfo.fromPlatform();
       final currentBuild = int.tryParse(info.buildNumber) ?? 0;
       final releaseBuild = _parseBuildNumber(release.tag);
 
@@ -88,9 +88,7 @@ class UpdateService {
         queryParameters: {'per_page': 30},
       );
       final list = resp.data as List;
-      return list
-          .map((e) => _parseRelease(e as Map<String, dynamic>))
-          .toList();
+      return list.map((e) => _parseRelease(e as Map<String, dynamic>)).toList();
     } on DioException catch (e) {
       throw UpdateCheckException(
         e.message ?? 'Network error while fetching changelog',
@@ -140,12 +138,12 @@ class UpdateService {
         .map((a) => a['browser_download_url'] as String)
         .firstOrNull;
     return ReleaseInfo(
-      tag         : d['tag_name']     as String? ?? '',
-      name        : d['name']         as String? ?? '',
-      body        : d['body']         as String? ?? '',
-      publishedAt : d['published_at'] as String? ?? '',
-      apkUrl      : apkUrl,
-      isPrerelease: d['prerelease']   as bool?   ?? false,
+      tag: d['tag_name'] as String? ?? '',
+      name: d['name'] as String? ?? '',
+      body: d['body'] as String? ?? '',
+      publishedAt: d['published_at'] as String? ?? '',
+      apkUrl: apkUrl,
+      isPrerelease: d['prerelease'] as bool? ?? false,
     );
   }
 

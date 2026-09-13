@@ -141,6 +141,32 @@ flutter:
         - asset: assets/fonts/ZenKakuGothicNew-Bold.ttf
           weight: 700
 
+    # Cinema look
+    - family: BarlowCondensed
+      fonts:
+        - asset: assets/fonts/BarlowCondensed-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/BarlowCondensed-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/BarlowCondensed-ExtraBold.ttf
+          weight: 800
+    - family: Barlow
+      fonts:
+        - asset: assets/fonts/Barlow-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Barlow-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Barlow-SemiBold.ttf
+          weight: 600
+    # Pastel look (Quicksand is a variable font, weight via wght axis)
+    - family: Gaegu
+      fonts:
+        - asset: assets/fonts/Gaegu-Bold.ttf
+          weight: 700
+    - family: Quicksand
+      fonts:
+        - asset: assets/fonts/Quicksand.ttf
+
     # LUMEN design system:
     #   HankenGrotesk (variable) — display + UI, weight via FontVariation('wght')
     #   SpaceMono — metadata, numbers, technical labels

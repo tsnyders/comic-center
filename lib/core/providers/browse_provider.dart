@@ -85,10 +85,8 @@ Future<MangaEntry> upsertMangaEntry({
 }) async {
   final sourceKey = '${source.id}::$mangaId';
 
-  final existing = await isar.mangaEntrys
-      .filter()
-      .sourceKeyEqualTo(sourceKey)
-      .findFirst();
+  final existing =
+      await isar.mangaEntrys.filter().sourceKeyEqualTo(sourceKey).findFirst();
 
   if (existing != null && _isRealTitle(existing.title)) return existing;
 
@@ -283,7 +281,8 @@ Future<void> refreshMangaChapters({
       }
     }
 
-    final total = await isar.chapterEntrys.filter().mangaIdEqualTo(mangaId).count();
+    final total =
+        await isar.chapterEntrys.filter().mangaIdEqualTo(mangaId).count();
     final read = await isar.chapterEntrys
         .filter()
         .mangaIdEqualTo(mangaId)

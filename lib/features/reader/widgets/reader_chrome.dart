@@ -43,13 +43,18 @@ class ReaderChrome extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ac = context.yc.ac;
+    final rp = ReaderPalette.of(context);
+    final look = context.look;
+    final bottomInset = MediaQuery.paddingOf(context).bottom;
     final title = mangaTitle.isNotEmpty ? mangaTitle : chapterTitle;
     final chapterLabel =
         chapterNumber == null ? chapterTitle : 'Ch. ${_num(chapterNumber!)}';
     final sub = totalPages > 0
         ? '$chapterLabel · Page ${currentPage + 1} / $totalPages'
         : chapterLabel;
-    final kanji = chapterNumber == null ? '読' : kanjiNumeral(chapterNumber!);
+    final mark = chapterNumber == null
+        ? (look.kanji ? '読' : '—')
+        : chapterMark(chapterNumber!);
 
     return Stack(
       children: [
@@ -62,11 +67,11 @@ class ReaderChrome extends StatelessWidget {
             visible: visible,
             hiddenDy: -20,
             child: DecoratedBox(
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  colors: [YomiReader.bg, Color(0x00000000)],
+                  colors: [rp.bg, rp.bg.withValues(alpha: 0)],
                 ),
               ),
               child: Padding(
@@ -80,11 +85,11 @@ class ReaderChrome extends StatelessWidget {
                       child: SumiPress(
                         onTap: onClose,
                         haptic: false,
-                        child: const SizedBox(
+                        child: SizedBox(
                           width: 36,
                           height: 36,
                           child: Icon(CupertinoIcons.chevron_left,
-                              size: 22, color: YomiReader.ink),
+                              size: 22, color: rp.ink),
                         ),
                       ),
                     ),
@@ -93,16 +98,23 @@ class ReaderChrome extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(title,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: YomiText.ui(14,
-                                  weight: FontWeight.w700,
-                                  color: YomiReader.ink)),
+                          if (look.isSumi)
+                            Text(title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: YomiText.ui(14,
+                                    weight: FontWeight.w700, color: rp.ink))
+                          else
+                            DisplayText(title,
+                                size: look.isCinema ? 18 : 22,
+                                color: rp.ink,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                height: 1),
                           Text(sub,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: YomiText.ui(11, color: YomiReader.ink2)),
+                              style: YomiText.ui(11, color: rp.ink2)),
                         ],
                       ),
                     ),
@@ -116,8 +128,9 @@ class ReaderChrome extends StatelessWidget {
                         child: Padding(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 6, vertical: 4),
-                          child: Text(kanji,
-                              style: YomiText.kanji(22, color: ac)
+                          child: Text(mark,
+                              style: YomiText.display(22,
+                                      color: look.isPastel ? rp.ink : ac)
                                   .copyWith(height: 1)),
                         ),
                       ),
@@ -137,17 +150,32 @@ class ReaderChrome extends StatelessWidget {
           child: _Slide(
             visible: visible,
             hiddenDy: 20,
-            child: DecoratedBox(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [Color(0x00000000), YomiReader.bg],
-                ),
-              ),
+            child: Container(
+              margin: look.isPastel
+                  ? EdgeInsets.fromLTRB(16, 0, 16, bottomInset + 20)
+                  : null,
+              decoration: look.isPastel
+                  ? BoxDecoration(
+                      color: rp.card,
+                      borderRadius: BorderRadius.circular(24),
+                      boxShadow: const [
+                        BoxShadow(
+                            color: Color(0x26503C3C),
+                            blurRadius: 40,
+                            offset: Offset(0, 12)),
+                      ],
+                    )
+                  : BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [rp.bg.withValues(alpha: 0), rp.bg],
+                      ),
+                    ),
               child: Padding(
-                padding: EdgeInsets.fromLTRB(
-                    16, 14, 16, MediaQuery.paddingOf(context).bottom + 20),
+                padding: look.isPastel
+                    ? const EdgeInsets.fromLTRB(16, 14, 16, 14)
+                    : EdgeInsets.fromLTRB(16, 14, 16, bottomInset + 20),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -156,7 +184,7 @@ class ReaderChrome extends StatelessWidget {
                         SizedBox(
                           width: 28,
                           child: Text('${currentPage + 1}',
-                              style: YomiText.ui(11, color: YomiReader.ink2)),
+                              style: YomiText.ui(11, color: rp.ink2)),
                         ),
                         Expanded(
                           child: _Scrubber(
@@ -169,7 +197,7 @@ class ReaderChrome extends StatelessWidget {
                           width: 28,
                           child: Text('$totalPages',
                               textAlign: TextAlign.right,
-                              style: YomiText.ui(11, color: YomiReader.ink2)),
+                              style: YomiText.ui(11, color: rp.ink2)),
                         ),
                       ],
                     ),
@@ -178,13 +206,13 @@ class ReaderChrome extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         _ModeButton(
-                          label: 'Page · 頁',
+                          label: YomiText.label('Page', '頁'),
                           active: !isStrip,
                           onTap: () => onModeChanged(ReaderMode.page),
                         ),
                         const SizedBox(width: 6),
                         _ModeButton(
-                          label: 'Strip · 縦',
+                          label: YomiText.label('Strip', '縦'),
                           active: isStrip,
                           onTap: () => onModeChanged(ReaderMode.strip),
                         ),
@@ -272,6 +300,10 @@ class _ScrubberState extends State<_Scrubber> {
   Widget build(BuildContext context) {
     final progress = _progress;
     final animate = _dragPct == null;
+    final rp = ReaderPalette.of(context);
+    final pastel = context.look.isPastel;
+    final trackH = pastel ? 10.0 : 2.0;
+    final knob = pastel ? 22.0 : 16.0;
 
     return Semantics(
       slider: true,
@@ -293,27 +325,37 @@ class _ScrubberState extends State<_Scrubber> {
                 clipBehavior: Clip.none,
                 alignment: Alignment.centerLeft,
                 children: [
-                  Container(height: 2, color: YomiReader.scrubTrack),
+                  Container(
+                    height: trackH,
+                    decoration: BoxDecoration(
+                      color: rp.scrubTrack,
+                      borderRadius: BorderRadius.circular(trackH / 2),
+                    ),
+                  ),
                   AnimatedContainer(
                     duration: animate
                         ? const Duration(milliseconds: 300)
                         : Duration.zero,
                     curve: AppMotion.snap,
-                    height: 2,
+                    height: trackH,
                     width: w * progress,
-                    color: YomiReader.ink,
+                    decoration: BoxDecoration(
+                      color: pastel ? context.yc.ac : rp.ink,
+                      borderRadius: BorderRadius.circular(trackH / 2),
+                    ),
                   ),
                   AnimatedPositioned(
                     duration: animate
                         ? const Duration(milliseconds: 300)
                         : Duration.zero,
                     curve: AppMotion.snap,
-                    left: (w * progress - 8).clamp(-8.0, w - 8.0),
+                    left: (w * progress - knob / 2)
+                        .clamp(-knob / 2, w - knob / 2),
                     child: Container(
-                      width: 16,
-                      height: 16,
-                      decoration: const BoxDecoration(
-                        color: YomiReader.ink,
+                      width: knob,
+                      height: knob,
+                      decoration: BoxDecoration(
+                        color: rp.ink,
                         shape: BoxShape.circle,
                       ),
                     ),
@@ -342,6 +384,9 @@ class _ModeButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final rp = ReaderPalette.of(context);
+    final look = context.look;
+    final radius = look.isPastel ? 12.0 : (look.isCinema ? 0.0 : 2.0);
     return Semantics(
       button: true,
       selected: active,
@@ -356,15 +401,22 @@ class _ModeButton extends StatelessWidget {
           curve: AppMotion.snap,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: BoxDecoration(
-            color: active ? YomiReader.ink : const Color(0x00000000),
-            borderRadius: BorderRadius.circular(2),
-            border: Border.all(color: YomiReader.buttonBorder),
+            color: active
+                ? (look.isPastel ? rp.card : rp.ink)
+                : (look.isPastel ? rp.track : const Color(0x00000000)),
+            borderRadius: BorderRadius.circular(radius),
+            border: look.isPastel ? null : Border.all(color: rp.border),
           ),
           child: Text(
-            label,
-            style: YomiText.ui(12,
-                weight: FontWeight.w700,
-                color: active ? YomiReader.bg : YomiReader.ink),
+            look.isCinema ? label.toUpperCase() : label,
+            style: look.isCinema
+                ? YomiText.display(13,
+                    color: active ? rp.bg : rp.ink2, letterSpacing: 2)
+                : YomiText.ui(12,
+                    weight: FontWeight.w700,
+                    color: active
+                        ? (look.isPastel ? rp.ink : rp.bg)
+                        : (look.isPastel ? rp.ink2 : rp.ink)),
           ),
         ),
       ),

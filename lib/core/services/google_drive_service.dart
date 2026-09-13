@@ -12,8 +12,7 @@ import '../config/google_drive_config.dart';
 class DriveNotConfiguredException implements Exception {
   const DriveNotConfiguredException();
   @override
-  String toString() =>
-      'Google Drive is not set up for this build. '
+  String toString() => 'Google Drive is not set up for this build. '
       'Add an iOS OAuth client ID — see docs/DRIVE_SETUP_IOS.md.';
 }
 
@@ -116,8 +115,7 @@ class GoogleDriveService {
     }).toList();
   }
 
-  static Future<File> downloadBackup(
-      String fileId, String fileName) async {
+  static Future<File> downloadBackup(String fileId, String fileName) async {
     final api = await _api();
     if (api == null) throw Exception('Not signed in to Google Drive');
     final media = await api.files.get(
@@ -159,9 +157,7 @@ class DriveBackupFile {
   final int sizeBytes;
 
   String get displayName {
-    final n = name
-        .replaceFirst('yomi_backup_', '')
-        .replaceAll('.json', '');
+    final n = name.replaceFirst('yomi_backup_', '').replaceAll('.json', '');
     return n.replaceAll('_', '  ').trim();
   }
 

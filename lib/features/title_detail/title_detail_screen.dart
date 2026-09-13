@@ -86,7 +86,8 @@ class _TitleDetailScreenState extends ConsumerState<TitleDetailScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(live.title, style: YomiText.kanji(32, color: c.fg)),
+                  DisplayText(live.title,
+                      size: context.look.isCinema ? 44 : 32),
                   const SizedBox(height: 4),
                   Text(meta, style: YomiText.ui(13, color: c.fg2)),
 
@@ -98,7 +99,7 @@ class _TitleDetailScreenState extends ConsumerState<TitleDetailScreen> {
                         child: SumiButton(
                           label: readLabel,
                           height: 50,
-                          radius: 4,
+                          radius: context.look.isSumi ? 4 : null,
                           enabled: chs.isNotEmpty,
                           onTap: () => openReader(context,
                               manga: live, chapters: chs, index: continueIdx),
@@ -138,7 +139,7 @@ class _TitleDetailScreenState extends ConsumerState<TitleDetailScreen> {
                   // ── Synopsis ──────────────────────────────────────────
                   if (live.description?.isNotEmpty ?? false) ...[
                     const SizedBox(height: 26),
-                    const SumiOverline('ABOUT · 作'),
+                    const SumiOverline('ABOUT', kanji: '作'),
                     const SizedBox(height: 8),
                     GestureDetector(
                       behavior: HitTestBehavior.opaque,
@@ -158,7 +159,7 @@ class _TitleDetailScreenState extends ConsumerState<TitleDetailScreen> {
                     crossAxisAlignment: CrossAxisAlignment.baseline,
                     textBaseline: TextBaseline.alphabetic,
                     children: [
-                      const SumiOverline('CHAPTERS · 話'),
+                      const SumiOverline('CHAPTERS', kanji: '話'),
                       const Spacer(),
                       _TextAction(
                         label: _refreshing ? 'Checking…' : 'Refresh',
@@ -314,12 +315,25 @@ class _Plate extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.yc;
+    final look = context.look;
     final inLibrary = manga.inLibrary;
+    Widget cover = SumiCoverFrame(
+      shadow: true,
+      radius: look.isPastel ? 20 : null,
+      child: CoverImage(url: manga.coverUrl),
+    );
+    if (look.isPastel && !reduceMotion(context)) {
+      cover = Transform.rotate(angle: -3 * 3.14159265 / 180, child: cover);
+    }
     return Container(
       height: topInset + 290,
       decoration: BoxDecoration(
-        color: c.card,
-        border: Border(bottom: BorderSide(color: c.line)),
+        color: look.isPastel ? c.ac : c.card,
+        border:
+            look.isPastel ? null : Border(bottom: BorderSide(color: c.line)),
+        borderRadius: look.isPastel
+            ? const BorderRadius.vertical(bottom: Radius.circular(40))
+            : null,
       ),
       child: Stack(
         children: [
@@ -342,37 +356,46 @@ class _Plate extends ConsumerWidget {
                       : n.addToLibrary(manga);
                 },
                 child: Container(
-                  width: 36,
-                  height: 36,
-                  decoration:
-                      BoxDecoration(color: c.bg, shape: BoxShape.circle),
+                  width: look.isSumi ? 36 : 40,
+                  height: look.isSumi ? 36 : 40,
+                  decoration: BoxDecoration(
+                    color: look.isCinema
+                        ? const Color(0x66000000)
+                        : (look.isPastel ? c.card : c.bg),
+                    borderRadius: BorderRadius.circular(
+                        look.isSumi ? 18 : (look.isPastel ? 14 : 0)),
+                    boxShadow: look.cardShadow,
+                  ),
                   child: Icon(
                     inLibrary
                         ? CupertinoIcons.bookmark_fill
                         : CupertinoIcons.bookmark,
                     size: 18,
-                    color: inLibrary ? c.ac : c.fg,
+                    color: inLibrary
+                        ? (look.isPastel ? c.fg : c.ac)
+                        : (look.isCinema ? const Color(0xFFF1EBE2) : c.fg),
                   ),
                 ),
               ),
             ),
           ),
-          Positioned(
-            right: 24,
-            top: topInset + 56,
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxHeight: 210),
-              child: RotatedBox(
-                quarterTurns: 1,
-                child: Text(
-                  manga.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: YomiText.kanji(20, color: c.fg2, letterSpacing: 3),
+          if (look.kanji)
+            Positioned(
+              right: 24,
+              top: topInset + 56,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 210),
+                child: RotatedBox(
+                  quarterTurns: 1,
+                  child: Text(
+                    manga.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: YomiText.display(20, color: c.fg2, letterSpacing: 3),
+                  ),
                 ),
               ),
             ),
-          ),
           Positioned(
             top: topInset + 22,
             left: 0,
@@ -383,10 +406,7 @@ class _Plate extends ConsumerWidget {
                 height: 220,
                 child: Hero(
                   tag: mangaCoverHeroTag(manga.id),
-                  child: SumiCoverFrame(
-                    shadow: true,
-                    child: CoverImage(url: manga.coverUrl),
-                  ),
+                  child: cover,
                 ),
               ),
             ),
@@ -453,9 +473,9 @@ class _CategorySheetState extends ConsumerState<_CategorySheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SumiOverline('CATEGORIES · 類'),
+          const SumiOverline('CATEGORIES', kanji: '類'),
           const SizedBox(height: 6),
-          Text('Add to category', style: YomiText.kanji(26, color: c.fg)),
+          const DisplayText('Add to category', size: 26),
           const SizedBox(height: 16),
           Wrap(
             spacing: 8,
@@ -475,7 +495,7 @@ class _CategorySheetState extends ConsumerState<_CategorySheet> {
           SumiButton(
             label: 'Save',
             height: 50,
-            radius: 4,
+            radius: context.look.isSumi ? 4 : null,
             onTap: () async {
               await ref
                   .read(libraryNotifierProvider.notifier)

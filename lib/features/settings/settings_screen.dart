@@ -14,7 +14,6 @@ import '../../core/services/backup_service.dart';
 import '../../core/services/google_drive_service.dart';
 import '../../core/services/update_service.dart';
 import '../../core/services/whats_new_service.dart';
-import '../../core/theme/app_spacing.dart';
 import '../../core/theme/yomi_theme.dart';
 import '../../shared/widgets/sumi.dart';
 import '../downloads/downloads_screen.dart';
@@ -70,8 +69,8 @@ class SettingsScreen extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const SumiOverline('SETTINGS · 設'),
-                  Text('You', style: YomiText.kanji(36, color: c.fg)),
+                  SumiOverline(theme.spec.copy.settingsKicker ?? 'SETTINGS', kanji: '設'),
+                  DisplayText(theme.spec.copy.settingsTitle, size: 36),
                 ],
               ),
             ),
@@ -92,7 +91,7 @@ class SettingsScreen extends ConsumerWidget {
           ),
 
           // ── READING · 読 ──────────────────────────────────────────────────
-          _Group(title: 'READING · 読', rows: [
+          _Group(title: 'READING', kanji: '読', rows: [
             _Row(
               label: 'Reading direction',
               value: switch (direction) {
@@ -174,7 +173,19 @@ class SettingsScreen extends ConsumerWidget {
           ]),
 
           // ── APPEARANCE · 姿 ───────────────────────────────────────────────
-          _Group(title: 'APPEARANCE · 姿', rows: [
+          _Group(title: 'APPEARANCE', kanji: '姿', rows: [
+            _Row(
+              label: 'Look',
+              value: theme.spec.name,
+              onTap: () => _pick(
+                  context,
+                  'Look',
+                  [
+                    for (final l in YomiLook.values)
+                      (l, yomiLookSpecs[l]!.name),
+                  ],
+                  (v) => ref.read(lookProvider.notifier).state = v),
+            ),
             _Row(
               label: 'Theme',
               value: theme.modeName,
@@ -183,7 +194,7 @@ class SettingsScreen extends ConsumerWidget {
             ),
             _Row(
               label: 'Accent',
-              trailing: _AccentSwatches(
+              trailing: AccentSwatches(
                 selected: theme.accentIndex,
                 onChanged: (i) =>
                     ref.read(accentIndexProvider.notifier).state = i,
@@ -217,7 +228,7 @@ class SettingsScreen extends ConsumerWidget {
           ]),
 
           // ── LIBRARY · 庫 ──────────────────────────────────────────────────
-          _Group(title: 'LIBRARY · 庫', rows: [
+          _Group(title: 'LIBRARY', kanji: '庫', rows: [
             _Row(
               label: 'Categories',
               onTap: () => push(const CategoryManagementScreen()),
@@ -236,7 +247,7 @@ class SettingsScreen extends ConsumerWidget {
           ]),
 
           // ── STORAGE · 蔵 ──────────────────────────────────────────────────
-          _Group(title: 'STORAGE · 蔵', rows: [
+          _Group(title: 'STORAGE', kanji: '蔵', rows: [
             _Row(
               label: 'Downloads',
               value: queued == 0 ? 'Up to date' : '$queued queued',
@@ -278,7 +289,7 @@ class SettingsScreen extends ConsumerWidget {
           ]),
 
           // ── BACKUP · 写 ───────────────────────────────────────────────────
-          _Group(title: 'BACKUP · 写', rows: [
+          _Group(title: 'BACKUP', kanji: '写', rows: [
             _Row(
               label: 'Export backup',
               onTap: () => _exportBackup(context, ref),
@@ -306,7 +317,7 @@ class SettingsScreen extends ConsumerWidget {
           ]),
 
           // ── ABOUT · 情 ────────────────────────────────────────────────────
-          _Group(title: 'ABOUT · 情', rows: [
+          _Group(title: 'ABOUT', kanji: '情', rows: [
             _Row(label: 'Version', value: WhatsNewService.currentVersion),
             _Row(
               label: "What's new",
@@ -628,12 +639,22 @@ class _AccountCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.yc;
+    final look = context.look;
     final signedIn = email != null;
+    final glyph = switch (look.look) {
+      YomiLook.sumi => '客',
+      YomiLook.cinema => 'G',
+      YomiLook.pastel => ':)',
+    };
+    final onCard = look.isPastel ? look.onAccent : c.fg;
+    final onCard2 =
+        look.isPastel ? look.onAccent.withValues(alpha: 0.7) : c.fg2;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        border: Border.all(color: c.line),
-        borderRadius: BorderRadius.circular(6),
+        color: look.isPastel ? c.ac : null,
+        border: look.isPastel ? null : Border.all(color: c.line),
+        borderRadius: BorderRadius.circular(context.radii.card),
       ),
       child: Row(
         children: [
@@ -641,14 +662,19 @@ class _AccountCard extends StatelessWidget {
             width: 52,
             height: 52,
             clipBehavior: Clip.antiAlias,
-            decoration: BoxDecoration(color: c.fg, shape: BoxShape.circle),
+            decoration: BoxDecoration(
+              color: look.isPastel ? c.card : c.fg,
+              borderRadius: BorderRadius.circular(
+                  look.isSumi ? 26 : context.radii.small + 6),
+            ),
             alignment: Alignment.center,
             child: signedIn && (photoUrl?.isNotEmpty ?? false)
                 ? Image.network(photoUrl!,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) =>
-                        Text('客', style: YomiText.kanji(26, color: c.bg)))
-                : Text('客', style: YomiText.kanji(26, color: c.bg)),
+                    errorBuilder: (_, __, ___) => DisplayText(glyph,
+                        size: 26, color: look.isPastel ? c.fg : c.bg))
+                : DisplayText(glyph,
+                    size: 26, color: look.isPastel ? c.fg : c.bg),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -658,16 +684,17 @@ class _AccountCard extends StatelessWidget {
                 Text(
                   signedIn
                       ? ((name?.isNotEmpty ?? false) ? name! : email!)
-                      : 'Guest reader',
+                      : look.copy.guestName,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: YomiText.ui(16, weight: FontWeight.w700, color: c.fg),
+                  style:
+                      YomiText.ui(16, weight: FontWeight.w700, color: onCard),
                 ),
                 Text(
-                  signedIn ? email! : 'Sign in to sync progress',
+                  signedIn ? email! : look.copy.guestHint,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: YomiText.ui(12, color: c.fg2),
+                  style: YomiText.ui(12, color: onCard2),
                 ),
               ],
             ),
@@ -678,15 +705,19 @@ class _AccountCard extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
               decoration: BoxDecoration(
-                color: signedIn ? const Color(0x00000000) : c.ac,
+                color: signedIn
+                    ? const Color(0x00000000)
+                    : (look.isPastel ? c.fg : c.ac),
                 border: signedIn ? Border.all(color: c.line) : null,
-                borderRadius: BorderRadius.circular(2),
+                borderRadius: BorderRadius.circular(context.radii.chip),
               ),
               child: Text(
                 signedIn ? 'Sign out' : 'Sign in',
                 style: YomiText.ui(12,
                     weight: FontWeight.w700,
-                    color: signedIn ? c.fg : c.onAccent),
+                    color: signedIn
+                        ? onCard
+                        : (look.isPastel ? c.bg : c.onAccent)),
               ),
             ),
           ),
@@ -699,8 +730,9 @@ class _AccountCard extends StatelessWidget {
 // ── Group + row ───────────────────────────────────────────────────────────────
 
 class _Group extends StatelessWidget {
-  const _Group({required this.title, required this.rows});
+  const _Group({required this.title, required this.rows, this.kanji});
   final String title;
+  final String? kanji;
   final List<Widget> rows;
 
   @override
@@ -713,13 +745,16 @@ class _Group extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            SumiOverline(title),
+            SumiOverline(title, kanji: kanji),
             const SizedBox(height: 8),
             Container(
               clipBehavior: Clip.antiAlias,
               decoration: BoxDecoration(
-                border: Border.all(color: c.line),
-                borderRadius: BorderRadius.circular(6),
+                color: context.look.isPastel ? c.card : null,
+                border:
+                    context.look.isPastel ? null : Border.all(color: c.line),
+                borderRadius: BorderRadius.circular(context.radii.card),
+                boxShadow: context.look.cardShadow,
               ),
               child: Column(
                 children: [
@@ -787,58 +822,6 @@ class _Row extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-}
-
-/// Four 22px swatches from the look's curated set; selected gets a `fg` ring.
-class _AccentSwatches extends StatelessWidget {
-  const _AccentSwatches({required this.selected, required this.onChanged});
-  final int selected;
-  final ValueChanged<int> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final spec = context.yomi.spec;
-    final c = context.yc;
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        for (var i = 0; i < spec.accents.length; i++)
-          Semantics(
-            button: true,
-            selected: i == selected,
-            label: spec.accentNames[i],
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: () {
-                HapticFeedback.selectionClick();
-                onChanged(i);
-              },
-              child: AnimatedContainer(
-                duration: AppMotion.fast,
-                curve: AppMotion.snap,
-                width: 28,
-                height: 28,
-                margin: const EdgeInsets.only(left: 6),
-                padding: const EdgeInsets.all(3),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: i == selected ? c.fg : const Color(0x00000000),
-                    width: 1.5,
-                  ),
-                ),
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: spec.accents[i],
-                    shape: BoxShape.circle,
-                  ),
-                ),
-              ),
-            ),
-          ),
-      ],
     );
   }
 }

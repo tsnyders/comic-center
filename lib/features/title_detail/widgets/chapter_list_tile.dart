@@ -39,6 +39,7 @@ class ChapterListTile extends ConsumerWidget {
     ].join(' · ');
 
     final number = chapter.number;
+    final look = context.look;
 
     return Semantics(
       button: true,
@@ -49,17 +50,27 @@ class ChapterListTile extends ConsumerWidget {
         child: Opacity(
           opacity: chapter.isRead ? 0.55 : 1.0,
           child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 14),
+            padding: look.isPastel
+                ? const EdgeInsets.symmetric(horizontal: 14, vertical: 12)
+                : const EdgeInsets.symmetric(vertical: 14),
+            margin: look.isPastel ? const EdgeInsets.only(bottom: 8) : null,
             decoration: BoxDecoration(
-              border: Border(bottom: BorderSide(color: c.line)),
+              color: look.isPastel ? c.card : null,
+              border: look.isPastel
+                  ? null
+                  : Border(bottom: BorderSide(color: c.line)),
+              borderRadius: look.isPastel ? BorderRadius.circular(20) : null,
+              boxShadow: look.cardShadow,
             ),
             child: Row(
               children: [
                 ConstrainedBox(
-                  constraints: const BoxConstraints(minWidth: 28),
+                  constraints:
+                      BoxConstraints(minWidth: look.isCinema ? 40 : 28),
                   child: Text(
-                    number == null ? '—' : kanjiNumeral(number),
-                    style: YomiText.kanji(20, color: c.fg2),
+                    number == null ? '—' : chapterMark(number),
+                    style:
+                        YomiText.display(look.isCinema ? 24 : 20, color: c.fg2),
                   ),
                 ),
                 const SizedBox(width: 14),
@@ -67,13 +78,20 @@ class ChapterListTile extends ConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        chapter.title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: YomiText.ui(14,
-                            weight: FontWeight.w700, color: c.fg),
-                      ),
+                      if (look.isCinema)
+                        DisplayText(chapter.title,
+                            size: 18,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            height: 1)
+                      else
+                        Text(
+                          chapter.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: YomiText.ui(14,
+                              weight: FontWeight.w700, color: c.fg),
+                        ),
                       const SizedBox(height: 2),
                       Text(
                         meta,
@@ -91,14 +109,16 @@ class ChapterListTile extends ConsumerWidget {
                 ),
                 const SizedBox(width: 10),
                 Container(
-                  width: 8,
-                  height: 8,
+                  width: look.isSumi ? 8 : 10,
+                  height: look.isSumi ? 8 : 10,
                   decoration: BoxDecoration(
-                    shape: BoxShape.circle,
+                    borderRadius: BorderRadius.circular(look.isCinema ? 0 : 5),
                     color: !chapter.isRead && !_inProgress
-                        ? c.ac
+                        ? (look.isPastel ? context.yomi.toggleOn : c.ac)
                         : const Color(0x00000000),
-                    border: _inProgress ? Border.all(color: c.ac) : null,
+                    border: _inProgress
+                        ? Border.all(color: look.isPastel ? c.fg : c.ac)
+                        : null,
                   ),
                 ),
               ],

@@ -45,32 +45,41 @@ class MangaCard extends StatelessWidget {
                   tag: mangaCoverHeroTag(manga.id),
                   child: SumiCoverFrame(child: CoverImage(url: manga.coverUrl)),
                 ),
-                Positioned(
-                  left: 8,
-                  top: 8,
-                  child: Text(
-                    kanjiTag(manga.title),
-                    style:
-                        YomiText.kanji(20, color: c.fg.withValues(alpha: 0.7)),
+                if (context.look.kanji)
+                  Positioned(
+                    left: 8,
+                    top: 8,
+                    child: Text(
+                      kanjiTag(manga.title),
+                      style: YomiText.display(20,
+                          color: c.fg.withValues(alpha: 0.7)),
+                    ),
                   ),
-                ),
                 if (manga.unreadCount > 0)
                   Positioned(
-                    right: 6,
-                    top: 6,
+                    left: context.look.isCinema ? 0 : null,
+                    right: context.look.isCinema ? null : 6,
+                    top: context.look.isCinema ? 0 : 6,
                     child: UnreadBadge(count: manga.unreadCount),
                   ),
               ],
             ),
           ),
           const SizedBox(height: 8),
-          Text(
-            manga.title,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: YomiText.ui(12,
-                weight: FontWeight.w700, color: c.fg, height: 1.25),
-          ),
+          if (context.look.isCinema)
+            DisplayText(manga.title,
+                size: 15,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                height: 1.1)
+          else
+            Text(
+              manga.title,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: YomiText.ui(12,
+                  weight: FontWeight.w700, color: c.fg, height: 1.25),
+            ),
           const SizedBox(height: 2),
           Text(
             (manga.author?.isNotEmpty ?? false)

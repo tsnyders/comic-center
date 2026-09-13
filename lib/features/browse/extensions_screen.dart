@@ -138,12 +138,9 @@ class _ExtensionsScreenState extends ConsumerState<ExtensionsScreen> {
             error: (e, _) => _buildError(e),
             data: (index) {
               return switch (_tab) {
-                _Tab.installed =>
-                  _buildInstalled(context, index, installedIds),
-                _Tab.available =>
-                  _buildAvailable(context, index, installedIds),
-                _Tab.updates =>
-                  _buildUpdates(context, index, installedIds),
+                _Tab.installed => _buildInstalled(context, index, installedIds),
+                _Tab.available => _buildAvailable(context, index, installedIds),
+                _Tab.updates => _buildUpdates(context, index, installedIds),
               };
             },
           ),
@@ -198,7 +195,8 @@ class _ExtensionsScreenState extends ConsumerState<ExtensionsScreen> {
   ) {
     final installed = index
         .where((e) =>
-            e.yomiSourceId != null && installedIds.contains(e.yomiSourceId) &&
+            e.yomiSourceId != null &&
+            installedIds.contains(e.yomiSourceId) &&
             (_query.isEmpty || e.name.toLowerCase().contains(_query)))
         .toList();
 
@@ -232,7 +230,8 @@ class _ExtensionsScreenState extends ConsumerState<ExtensionsScreen> {
   ) {
     final available = index
         .where((e) =>
-            !(e.yomiSourceId != null && installedIds.contains(e.yomiSourceId)) &&
+            !(e.yomiSourceId != null &&
+                installedIds.contains(e.yomiSourceId)) &&
             (_query.isEmpty || e.name.toLowerCase().contains(_query)))
         .toList();
 
@@ -245,10 +244,8 @@ class _ExtensionsScreenState extends ConsumerState<ExtensionsScreen> {
     }
 
     // Group: Yomi-native at top, then others
-    final native =
-        available.where((e) => e.isNativelySupported).toList();
-    final others =
-        available.where((e) => !e.isNativelySupported).toList();
+    final native = available.where((e) => e.isNativelySupported).toList();
+    final others = available.where((e) => !e.isNativelySupported).toList();
 
     return SliverPadding(
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.x7),
@@ -290,15 +287,17 @@ class _ExtensionsScreenState extends ConsumerState<ExtensionsScreen> {
     Set<String> installedIds,
   ) {
     final installedSources = ref.read(sourceRegistryProvider);
-    final updates = index.where((e) {
-      if (e.yomiSourceId == null) return false;
-      if (!installedIds.contains(e.yomiSourceId)) return false;
-      final installed =
-          installedSources.firstWhere((s) => s.id == e.yomiSourceId,
+    final updates = index
+        .where((e) {
+          if (e.yomiSourceId == null) return false;
+          if (!installedIds.contains(e.yomiSourceId)) return false;
+          final installed = installedSources.firstWhere(
+              (s) => s.id == e.yomiSourceId,
               orElse: () => installedSources.first);
-      return installed.version != e.version;
-    }).where((e) =>
-        _query.isEmpty || e.name.toLowerCase().contains(_query)).toList();
+          return installed.version != e.version;
+        })
+        .where((e) => _query.isEmpty || e.name.toLowerCase().contains(_query))
+        .toList();
 
     if (updates.isEmpty) {
       return _buildEmpty(

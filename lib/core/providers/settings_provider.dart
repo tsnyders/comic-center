@@ -9,7 +9,8 @@ enum DownloadLocation { local, googleDrive }
 /// Where downloaded chapters are stored. Persisted.
 final downloadLocationProvider = StateProvider<DownloadLocation>((ref) {
   final prefs = ref.watch(sharedPreferencesProvider);
-  ref.listenSelf((_, next) => prefs.setInt('settings.downloadLocation', next.index));
+  ref.listenSelf(
+      (_, next) => prefs.setInt('settings.downloadLocation', next.index));
   return readEnumPref(prefs, 'settings.downloadLocation',
       DownloadLocation.values, DownloadLocation.local);
 });
@@ -17,8 +18,8 @@ final downloadLocationProvider = StateProvider<DownloadLocation>((ref) {
 /// App-wide brightness (theme mode). Persisted. Defaults to dark (LUMEN ink).
 final brightnessProvider = StateProvider<Brightness>((ref) {
   final prefs = ref.watch(sharedPreferencesProvider);
-  ref.listenSelf(
-      (_, next) => prefs.setBool('settings.brightnessDark', next == Brightness.dark));
+  ref.listenSelf((_, next) =>
+      prefs.setBool('settings.brightnessDark', next == Brightness.dark));
   return (prefs.getBool('settings.brightnessDark') ?? true)
       ? Brightness.dark
       : Brightness.light;
@@ -57,9 +58,16 @@ final densityProvider = StateProvider<YomiDensity>((ref) {
       prefs, 'theme.density', YomiDensity.values, YomiDensity.comfortable);
 });
 
+/// Which look (Sumi / Cinema / Pastel). Persisted.
+final lookProvider = StateProvider<YomiLook>((ref) {
+  final prefs = ref.watch(sharedPreferencesProvider);
+  ref.listenSelf((_, next) => prefs.setInt('theme.look', next.index));
+  return readEnumPref(prefs, 'theme.look', YomiLook.values, YomiLook.sumi);
+});
+
 /// The composed theme every widget reads through `context.yomi` / `context.yc`.
 final yomiThemeProvider = Provider<YomiTheme>((ref) => YomiTheme(
-      look: YomiLook.sumi,
+      look: ref.watch(lookProvider),
       mode: ref.watch(brightnessProvider),
       accentIndex: ref.watch(accentIndexProvider),
       density: ref.watch(densityProvider),

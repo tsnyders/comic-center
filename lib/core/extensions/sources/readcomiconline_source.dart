@@ -34,8 +34,7 @@ class ReadComicOnlineSource implements MangaSource {
                 baseUrl: 'https://readcomiconline.li',
                 headers: {
                   'Referer': 'https://readcomiconline.li/',
-                  'User-Agent':
-                      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+                  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
                       'AppleWebKit/537.36 (KHTML, like Gecko) '
                       'Chrome/120.0.0.0 Safari/537.36',
                   'Accept':
@@ -71,15 +70,15 @@ class ReadComicOnlineSource implements MangaSource {
 
   @override
   Future<List<MangaSummary>> fetchPopular({int page = 1}) async {
-    final doc =
-        await _fetchDoc('/ComicList/MostPopular', queryParameters: {'page': page});
+    final doc = await _fetchDoc('/ComicList/MostPopular',
+        queryParameters: {'page': page});
     return _parseList(doc);
   }
 
   @override
   Future<List<MangaSummary>> fetchLatestUpdates({int page = 1}) async {
-    final doc =
-        await _fetchDoc('/ComicList/LatestUpdate', queryParameters: {'page': page});
+    final doc = await _fetchDoc('/ComicList/LatestUpdate',
+        queryParameters: {'page': page});
     return _parseList(doc);
   }
 
@@ -171,11 +170,12 @@ class ReadComicOnlineSource implements MangaSource {
             .trim() ??
         _humanize(mangaId);
 
-    final coverSrc = doc.querySelector('link[rel="image_src"]')?.attributes['href'] ??
-        doc.querySelector('div.rightBox img')?.attributes['src'] ??
-        doc.querySelector('.barContent img')?.attributes['src'] ??
-        doc.querySelector('#rightside img')?.attributes['src'] ??
-        '';
+    final coverSrc =
+        doc.querySelector('link[rel="image_src"]')?.attributes['href'] ??
+            doc.querySelector('div.rightBox img')?.attributes['src'] ??
+            doc.querySelector('.barContent img')?.attributes['src'] ??
+            doc.querySelector('#rightside img')?.attributes['src'] ??
+            '';
     final cover = _absolute(coverSrc);
 
     final genres = <String>[];
@@ -371,7 +371,8 @@ class ReadComicOnlineSource implements MangaSource {
   }
 
   String? _summaryText(dom.Document doc) {
-    for (final p in doc.querySelectorAll('div.barContent p, .section p, div p')) {
+    for (final p
+        in doc.querySelectorAll('div.barContent p, .section p, div p')) {
       final prev = p.previousElementSibling?.text.toLowerCase() ?? '';
       if (prev.contains('summary')) return p.text.trim();
     }

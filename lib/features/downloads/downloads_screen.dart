@@ -184,7 +184,8 @@ class _DownloadTile extends ConsumerWidget {
                   _ActionChip(
                     icon: CupertinoIcons.gear_alt,
                     label: 'Open Settings',
-                    onTap: () => Navigator.of(context, rootNavigator: true).push(
+                    onTap: () =>
+                        Navigator.of(context, rootNavigator: true).push(
                       CupertinoPageRoute<void>(
                         builder: (_) => const SettingsScreen(),
                       ),

@@ -30,8 +30,7 @@ class ComicExtraSource implements MangaSource {
                 baseUrl: 'https://comicextra.org',
                 headers: {
                   'Referer': 'https://comicextra.org/',
-                  'User-Agent':
-                      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+                  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
                       'AppleWebKit/537.36 (KHTML, like Gecko) '
                       'Chrome/120.0.0.0 Safari/537.36',
                   'Accept':
@@ -67,13 +66,15 @@ class ComicExtraSource implements MangaSource {
 
   @override
   Future<List<MangaSummary>> fetchPopular({int page = 1}) async {
-    final doc = await _fetchDoc('/popular-comics', queryParameters: {'page': page});
+    final doc =
+        await _fetchDoc('/popular-comics', queryParameters: {'page': page});
     return _parseList(doc);
   }
 
   @override
   Future<List<MangaSummary>> fetchLatestUpdates({int page = 1}) async {
-    final doc = await _fetchDoc('/recent-comics', queryParameters: {'page': page});
+    final doc =
+        await _fetchDoc('/recent-comics', queryParameters: {'page': page});
     return _parseList(doc);
   }
 
@@ -86,7 +87,8 @@ class ComicExtraSource implements MangaSource {
     // Primary search endpoint. Fall back to the advanced-search page if the
     // simple one ever changes shape.
     for (final attempt in <Future<dom.Document> Function()>[
-      () => _fetchDoc('/comic-search', queryParameters: {'key': query, 'page': page}),
+      () => _fetchDoc('/comic-search',
+          queryParameters: {'key': query, 'page': page}),
       () => _fetchDoc('/advanced-search',
           queryParameters: {'key': query, 'page': page}),
     ]) {
@@ -104,7 +106,8 @@ class ComicExtraSource implements MangaSource {
   List<MangaSummary> _parseList(dom.Document doc) {
     var cards = doc.querySelectorAll('div.cartoon-box');
     if (cards.isEmpty) cards = doc.querySelectorAll('div.eg-box');
-    if (cards.isEmpty) cards = doc.querySelectorAll('div.movie-list-index div.item');
+    if (cards.isEmpty)
+      cards = doc.querySelectorAll('div.movie-list-index div.item');
 
     final out = <MangaSummary>[];
     for (final el in cards) {

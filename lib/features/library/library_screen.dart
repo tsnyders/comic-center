@@ -65,13 +65,12 @@ class LibraryScreen extends ConsumerWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const SumiOverline('LIBRARY · 庫'),
-                        Text('Your shelf',
-                            style: YomiText.kanji(36, color: c.fg)),
+                        SumiOverline(context.look.copy.libraryKicker ?? 'LIBRARY', kanji: '庫'),
+                        DisplayText(context.look.copy.libraryTitle, size: 36),
                       ],
                     ),
                   ),
-                  const SumiSeal(),
+                  const LookMark(),
                 ],
               ),
             ),
@@ -275,44 +274,67 @@ class _ContinueBlock extends StatelessWidget {
             ? 'Ch. $chLabel of $total'
             : 'Ch. $chLabel';
 
+    final look = context.look;
+    final pastel = look.isPastel;
+    final ink = pastel ? look.onAccent : c.fg;
+    final ink2 = pastel ? look.onAccent.withValues(alpha: 0.7) : c.fg2;
+
+    Widget cover = SizedBox(
+      width: pastel ? 84 : 96,
+      height: pastel ? 120 : 140,
+      child: SumiCoverFrame(
+        radius: pastel ? 16 : null,
+        shadow: pastel,
+        child: CoverImage(url: manga.coverUrl),
+      ),
+    );
+    if (pastel && !reduceMotion(context)) {
+      // Sticker tilt, −3°.
+      cover = Transform.rotate(angle: -3 * 3.14159265 / 180, child: cover);
+    }
+
+    Widget row = Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        cover,
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment:
+                pastel ? MainAxisAlignment.center : MainAxisAlignment.end,
+            children: [
+              SumiOverline('CONTINUE', kanji: '続', color: pastel ? ink2 : c.ac),
+              const SizedBox(height: 6),
+              DisplayText(manga.title,
+                  size: look.isCinema ? 34 : 26,
+                  color: ink,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis),
+              const SizedBox(height: 4),
+              Text(meta, style: YomiText.ui(13, color: ink2)),
+              const SizedBox(height: 14),
+              LookProgress(progress: progress, onAccent: pastel),
+            ],
+          ),
+        ),
+      ],
+    );
+    if (pastel) {
+      row = Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: c.ac,
+          borderRadius: BorderRadius.circular(context.radii.card),
+        ),
+        child: row,
+      );
+    }
+
     return Semantics(
       button: true,
       label: 'Continue ${manga.title}, $meta',
-      child: SumiPress(
-        onTap: onTap,
-        scale: AppMotion.activeScale,
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            SizedBox(
-              width: 96,
-              height: 140,
-              child: SumiCoverFrame(child: CoverImage(url: manga.coverUrl)),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  SumiOverline('続 · CONTINUE', color: c.ac),
-                  const SizedBox(height: 6),
-                  Text(
-                    manga.title,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: YomiText.kanji(26, color: c.fg),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(meta, style: YomiText.ui(13, color: c.fg2)),
-                  const SizedBox(height: 14),
-                  BrushProgress(progress: progress),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
+      child: SumiPress(onTap: onTap, scale: AppMotion.activeScale, child: row),
     );
   }
 

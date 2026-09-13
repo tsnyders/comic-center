@@ -31,15 +31,16 @@ abstract final class AppTextStyles {
   // HankenGrotesk carries display + UI (weight differentiates the tiers).
   // SpaceMono is the technical voice: chapter numbers, ratings, metadata, labels.
   // Sumi: Yuji Syuku carries display / kanji; Zen Kaku Gothic New carries UI.
-  static const serif   = 'YujiSyuku';         // display titles (brush face)
-  static const sans    = 'ZenKakuGothicNew';  // UI chrome, labels, buttons
+  static const serif = 'YujiSyuku'; // display titles (brush face)
+  static const sans = 'ZenKakuGothicNew'; // UI chrome, labels, buttons
   static const display = 'YujiSyuku';
-  static const mono    = 'ZenKakuGothicNew';  // metadata · overlines (tracked)
+  static const mono = 'ZenKakuGothicNew'; // metadata · overlines (tracked)
 
   /// LUMEN metadata voice — mono, tracked, used for "CH 142 · ONGOING · 9.3★".
   static const metaMono = TextStyle(
     fontFamily: mono,
-    fontSize: 11, fontWeight: FontWeight.w400,
+    fontSize: 11,
+    fontWeight: FontWeight.w400,
     letterSpacing: 1.2,
     color: AppColors.textSecondary,
   );
@@ -47,7 +48,8 @@ abstract final class AppTextStyles {
   /// Smaller mono — counts, fine technical labels.
   static const metaMonoSm = TextStyle(
     fontFamily: mono,
-    fontSize: 9, fontWeight: FontWeight.w400,
+    fontSize: 9,
+    fontWeight: FontWeight.w400,
     letterSpacing: 1.0,
     color: AppColors.textTertiary,
   );
@@ -60,40 +62,50 @@ abstract final class AppTextStyles {
   static const displayXL = TextStyle(
     fontFamily: serif,
     fontVariations: [FontVariation('wght', 700)],
-    fontSize: 56, fontWeight: FontWeight.w700,
-    letterSpacing: 0, height: 1.1,
+    fontSize: 56,
+    fontWeight: FontWeight.w700,
+    letterSpacing: 0,
+    height: 1.1,
   );
 
   /// Hero section openers — title detail, featured banners. 44 pt.
   static const displayL = TextStyle(
     fontFamily: serif,
     fontVariations: [FontVariation('wght', 700)],
-    fontSize: 44, fontWeight: FontWeight.w700,
-    letterSpacing: 0, height: 1.1,
+    fontSize: 44,
+    fontWeight: FontWeight.w700,
+    letterSpacing: 0,
+    height: 1.1,
   );
 
   /// Medium hero — 36 pt. Use for browse section heroes.
   static const displayM = TextStyle(
     fontFamily: serif,
     fontVariations: [FontVariation('wght', 700)],
-    fontSize: 36, fontWeight: FontWeight.w700,
-    letterSpacing: 0, height: 1.1,
+    fontSize: 36,
+    fontWeight: FontWeight.w700,
+    letterSpacing: 0,
+    height: 1.1,
   );
 
   /// Sheet / panel / detail title — 28 pt.
   static const displayS = TextStyle(
     fontFamily: serif,
     fontVariations: [FontVariation('wght', 600)],
-    fontSize: 28, fontWeight: FontWeight.w600,
-    letterSpacing: 0, height: 1.1,
+    fontSize: 28,
+    fontWeight: FontWeight.w600,
+    letterSpacing: 0,
+    height: 1.1,
   );
 
   /// Shelf section header ("Continue Reading") — 22 pt serif.
   static const hero = TextStyle(
     fontFamily: serif,
     fontVariations: [FontVariation('wght', 700)],
-    fontSize: 22, fontWeight: FontWeight.w700,
-    letterSpacing: 0, height: 1.1,
+    fontSize: 22,
+    fontWeight: FontWeight.w700,
+    letterSpacing: 0,
+    height: 1.1,
   );
 
   // Back-compat aliases
@@ -101,8 +113,10 @@ abstract final class AppTextStyles {
   static const displayTitleAccent = TextStyle(
     fontFamily: serif,
     fontVariations: [FontVariation('wght', 600)],
-    fontSize: 28, fontWeight: FontWeight.w600,
-    letterSpacing: 0, height: 1.1,
+    fontSize: 28,
+    fontWeight: FontWeight.w600,
+    letterSpacing: 0,
+    height: 1.1,
     color: AppColors.accent,
   );
 
@@ -114,7 +128,8 @@ abstract final class AppTextStyles {
   static const navTitle = TextStyle(
     fontFamily: sans,
     fontVariations: [FontVariation('wght', 600)],
-    fontSize: 17, fontWeight: FontWeight.w600,
+    fontSize: 17,
+    fontWeight: FontWeight.w600,
     letterSpacing: -0.2,
   );
 
@@ -122,24 +137,30 @@ abstract final class AppTextStyles {
   static const sectionTitle = TextStyle(
     fontFamily: sans,
     fontVariations: [FontVariation('wght', 700)],
-    fontSize: 22, fontWeight: FontWeight.w700,
-    letterSpacing: -0.5, height: 1.15,
+    fontSize: 22,
+    fontWeight: FontWeight.w700,
+    letterSpacing: -0.5,
+    height: 1.15,
   );
 
   /// Mid-level headings — Sora SemiBold 18.
   static const titleM = TextStyle(
     fontFamily: sans,
     fontVariations: [FontVariation('wght', 600)],
-    fontSize: 18, fontWeight: FontWeight.w600,
-    letterSpacing: -0.3, height: 1.2,
+    fontSize: 18,
+    fontWeight: FontWeight.w600,
+    letterSpacing: -0.3,
+    height: 1.2,
   );
 
   /// Prominent label — card titles, row primary text. Sora SemiBold 14.
   static const labelXL = TextStyle(
     fontFamily: sans,
     fontVariations: [FontVariation('wght', 600)],
-    fontSize: 14, fontWeight: FontWeight.w600,
-    letterSpacing: -0.1, height: 1.2,
+    fontSize: 14,
+    fontWeight: FontWeight.w600,
+    letterSpacing: -0.1,
+    height: 1.2,
     color: AppColors.textPrimary,
   );
 
@@ -147,7 +168,8 @@ abstract final class AppTextStyles {
   static const labelMedium = TextStyle(
     fontFamily: sans,
     fontVariations: [FontVariation('wght', 500)],
-    fontSize: 13, fontWeight: FontWeight.w500,
+    fontSize: 13,
+    fontWeight: FontWeight.w500,
     letterSpacing: 0.0,
     color: AppColors.textSecondary,
   );
@@ -156,7 +178,8 @@ abstract final class AppTextStyles {
   static const labelSmall = TextStyle(
     fontFamily: sans,
     fontVariations: [FontVariation('wght', 500)],
-    fontSize: 11, fontWeight: FontWeight.w500,
+    fontSize: 11,
+    fontWeight: FontWeight.w500,
     letterSpacing: 0.1,
     color: AppColors.textSecondary,
   );
@@ -165,7 +188,8 @@ abstract final class AppTextStyles {
   static const overline = TextStyle(
     fontFamily: sans,
     fontVariations: [FontVariation('wght', 600)],
-    fontSize: 10, fontWeight: FontWeight.w600,
+    fontSize: 10,
+    fontWeight: FontWeight.w600,
     letterSpacing: 0.8,
     color: AppColors.textTertiary,
   );
@@ -174,7 +198,8 @@ abstract final class AppTextStyles {
   static const buttonPrimary = TextStyle(
     fontFamily: sans,
     fontVariations: [FontVariation('wght', 600)],
-    fontSize: 14, fontWeight: FontWeight.w600,
+    fontSize: 14,
+    fontWeight: FontWeight.w600,
     letterSpacing: 0.1,
   );
 
@@ -182,14 +207,16 @@ abstract final class AppTextStyles {
   static const sourceName = TextStyle(
     fontFamily: sans,
     fontVariations: [FontVariation('wght', 600)],
-    fontSize: 15, fontWeight: FontWeight.w600,
+    fontSize: 15,
+    fontWeight: FontWeight.w600,
   );
 
   /// Source meta / secondary — Sora Regular 12.
   static const sourceMeta = TextStyle(
     fontFamily: sans,
     fontVariations: [FontVariation('wght', 400)],
-    fontSize: 12, fontWeight: FontWeight.w400,
+    fontSize: 12,
+    fontWeight: FontWeight.w400,
     color: AppColors.textTertiary,
   );
 
@@ -199,42 +226,49 @@ abstract final class AppTextStyles {
 
   /// Large body — synopses, descriptions. 16 pt, generous line height.
   static const bodyLarge = TextStyle(
-    fontSize: 16, fontWeight: FontWeight.w400,
-    letterSpacing: -0.1, height: 1.65,
+    fontSize: 16,
+    fontWeight: FontWeight.w400,
+    letterSpacing: -0.1,
+    height: 1.65,
   );
 
   /// Standard body — chapter lists, metadata prose. 15 pt.
   static const bodyMedium = TextStyle(
-    fontSize: 15, fontWeight: FontWeight.w400,
+    fontSize: 15,
+    fontWeight: FontWeight.w400,
     height: 1.6,
   );
 
   /// Small body — secondary descriptions. 13 pt.
   static const bodySmall = TextStyle(
-    fontSize: 13, fontWeight: FontWeight.w400,
+    fontSize: 13,
+    fontWeight: FontWeight.w400,
     height: 1.55,
     color: AppColors.textSecondary,
   );
 
   /// Fine print — footnotes, metadata. 11 pt.
   static const caption = TextStyle(
-    fontSize: 11, fontWeight: FontWeight.w400,
+    fontSize: 11,
+    fontWeight: FontWeight.w400,
     color: AppColors.textTertiary,
   );
 
   // ── Cards ──────────────────────────────────────────────────────────────────
 
-  static const cardTitle    = labelXL;
+  static const cardTitle = labelXL;
   static const cardSubtitle = TextStyle(
-    fontSize: 11, fontWeight: FontWeight.w400,
+    fontSize: 11,
+    fontWeight: FontWeight.w400,
     color: AppColors.textSecondary,
   );
 
   // ── Sheet / Detail ─────────────────────────────────────────────────────────
 
-  static const sheetTitle  = displayS;
+  static const sheetTitle = displayS;
   static const sheetAuthor = TextStyle(
-    fontSize: 14, fontWeight: FontWeight.w400,
+    fontSize: 14,
+    fontWeight: FontWeight.w400,
     color: AppColors.textSecondary,
   );
 
@@ -243,14 +277,16 @@ abstract final class AppTextStyles {
   static const readerChapterTitle = TextStyle(
     fontFamily: sans,
     fontVariations: [FontVariation('wght', 600)],
-    fontSize: 14, fontWeight: FontWeight.w600,
+    fontSize: 14,
+    fontWeight: FontWeight.w600,
     color: AppColors.textPrimary,
   );
 
   static const readerPagePill = TextStyle(
     fontFamily: sans,
     fontVariations: [FontVariation('wght', 500)],
-    fontSize: 12, fontWeight: FontWeight.w500,
+    fontSize: 12,
+    fontWeight: FontWeight.w500,
     color: AppColors.textPrimary,
   );
 }

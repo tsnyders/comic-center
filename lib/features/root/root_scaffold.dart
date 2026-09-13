@@ -88,12 +88,25 @@ class _RootScaffoldState extends ConsumerState<RootScaffold> {
 
 // ── Nav ───────────────────────────────────────────────────────────────────────
 
-/// Bottom bar 92 tall, gradient transparent → `bg` from 45%. 探 Discover,
-/// yin-yang Library (raised 14px, rotates 180° when leaving Library), 設
-/// Settings.
+/// Bottom navigation per look. Sumi: gradient bar, 探 / yin-yang / 設. Cinema:
+/// film-strip word bar with a 2px accent rule over the active item. Pastel:
+/// floating 72px card with an accent pill behind the active item.
 class SumiNav extends StatelessWidget {
   const SumiNav({super.key, required this.index, required this.onTap});
 
+  final int index;
+  final ValueChanged<int> onTap;
+
+  @override
+  Widget build(BuildContext context) => switch (context.look.look) {
+        YomiLook.sumi => _SumiBar(index: index, onTap: onTap),
+        YomiLook.cinema => _CinemaBar(index: index, onTap: onTap),
+        YomiLook.pastel => _PastelBar(index: index, onTap: onTap),
+      };
+}
+
+class _SumiBar extends StatelessWidget {
+  const _SumiBar({required this.index, required this.onTap});
   final int index;
   final ValueChanged<int> onTap;
 
@@ -118,7 +131,7 @@ class SumiNav extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          _NavItem(
+          _KanjiItem(
             kanji: '探',
             label: 'Discover',
             active: index == 0,
@@ -159,7 +172,7 @@ class SumiNav extends StatelessWidget {
               ),
             ),
           ),
-          _NavItem(
+          _KanjiItem(
             kanji: '設',
             label: 'Settings',
             active: index == 2,
@@ -171,8 +184,8 @@ class SumiNav extends StatelessWidget {
   }
 }
 
-class _NavItem extends StatelessWidget {
-  const _NavItem({
+class _KanjiItem extends StatelessWidget {
+  const _KanjiItem({
     required this.kanji,
     required this.label,
     required this.active,
@@ -202,7 +215,7 @@ class _NavItem extends StatelessWidget {
             children: [
               AnimatedDefaultTextStyle(
                 duration: AppMotion.base,
-                style: YomiText.kanji(26, color: color).copyWith(height: 1),
+                style: YomiText.display(26, color: color).copyWith(height: 1),
                 child: Text(kanji),
               ),
               const SizedBox(height: 3),
@@ -213,6 +226,143 @@ class _NavItem extends StatelessWidget {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+const _navLabels = ['Discover', 'Library', 'Settings'];
+const _navIcons = [
+  CupertinoIcons.compass,
+  CupertinoIcons.book,
+  CupertinoIcons.settings,
+];
+
+/// Cinema: 84 tall, `bg`, 1px top rule, three uppercase condensed words.
+class _CinemaBar extends StatelessWidget {
+  const _CinemaBar({required this.index, required this.onTap});
+  final int index;
+  final ValueChanged<int> onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.yc;
+    final bottom = MediaQuery.paddingOf(context).bottom;
+    return Container(
+      height: 84 + bottom,
+      padding: EdgeInsets.only(bottom: 18 + bottom),
+      decoration: BoxDecoration(
+        color: c.bg,
+        border: Border(top: BorderSide(color: c.line)),
+      ),
+      child: Row(
+        children: [
+          for (var i = 0; i < 3; i++)
+            Expanded(
+              child: Semantics(
+                button: true,
+                selected: index == i,
+                label: _navLabels[i],
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => onTap(i),
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      Positioned(
+                        top: -1,
+                        left: 0,
+                        right: 0,
+                        child: FractionallySizedBox(
+                          widthFactor: 0.6,
+                          child: AnimatedContainer(
+                            duration: AppMotion.base,
+                            curve: AppMotion.snap,
+                            height: 2,
+                            color: index == i ? c.ac : const Color(0x00000000),
+                          ),
+                        ),
+                      ),
+                      AnimatedDefaultTextStyle(
+                        duration: AppMotion.base,
+                        style: YomiText.display(13,
+                            color: index == i ? c.fg : c.fg2, letterSpacing: 3),
+                        child: Text(_navLabels[i].toUpperCase()),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Pastel: floating 72px `card`, radius 24, accent pill behind the active
+/// icon + label.
+class _PastelBar extends StatelessWidget {
+  const _PastelBar({required this.index, required this.onTap});
+  final int index;
+  final ValueChanged<int> onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.yc;
+    final bottom = MediaQuery.paddingOf(context).bottom;
+    return Padding(
+      padding: EdgeInsets.fromLTRB(16, 0, 16, 20 + bottom),
+      child: Container(
+        height: 72,
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        decoration: BoxDecoration(
+          color: c.card,
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x26503C3C),
+              blurRadius: 40,
+              offset: Offset(0, 12),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            for (var i = 0; i < 3; i++)
+              Semantics(
+                button: true,
+                selected: index == i,
+                label: _navLabels[i],
+                child: SumiPress(
+                  onTap: () => onTap(i),
+                  haptic: false,
+                  scale: AppMotion.activeScale,
+                  child: AnimatedContainer(
+                    duration: AppMotion.base,
+                    curve: AppMotion.snap,
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: index == i ? c.ac : const Color(0x00000000),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(_navIcons[i], size: 22, color: c.fg),
+                        const SizedBox(height: 4),
+                        Text(_navLabels[i],
+                            style: YomiText.ui(10,
+                                weight: FontWeight.w700, color: c.fg)),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+          ],
         ),
       ),
     );

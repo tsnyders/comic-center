@@ -25,7 +25,11 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
 
   Future<void> _load() async {
     final text = await AppLogger.instance.readAll();
-    if (mounted) setState(() { _log = text; _loading = false; });
+    if (mounted)
+      setState(() {
+        _log = text;
+        _loading = false;
+      });
   }
 
   Future<void> _copy() async {
@@ -51,7 +55,8 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
       context: context,
       builder: (_) => CupertinoAlertDialog(
         title: const Text('Clear Log'),
-        content: const Text('This permanently deletes the on-device diagnostic log.'),
+        content: const Text(
+            'This permanently deletes the on-device diagnostic log.'),
         actions: [
           CupertinoDialogAction(
             onPressed: () => Navigator.pop(context),

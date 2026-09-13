@@ -116,8 +116,8 @@ class MangaDexSource implements MangaSource {
       final r = rel as Map<String, dynamic>;
       switch (r['type'] as String?) {
         case 'cover_art':
-          final fn =
-              (r['attributes'] as Map<String, dynamic>?)?['fileName'] as String?;
+          final fn = (r['attributes'] as Map<String, dynamic>?)?['fileName']
+              as String?;
           if (fn != null) coverUrl = '$_cdnBase/$mangaId/$fn.512.jpg';
         case 'author':
           author ??=
@@ -146,7 +146,8 @@ class MangaDexSource implements MangaSource {
                 'genre')
         .map<String>((t) {
           final nameMap = ((t['attributes'] as Map<String, dynamic>?)!['name'])
-              as Map<String, dynamic>? ?? {};
+                  as Map<String, dynamic>? ??
+              {};
           return nameMap['en'] as String? ?? '';
         })
         .where((g) => g.isNotEmpty)
@@ -196,8 +197,8 @@ class MangaDexSource implements MangaSource {
         for (final rel in rels) {
           final r = rel as Map<String, dynamic>;
           if (r['type'] == 'scanlation_group') {
-            scanlator = (r['attributes'] as Map<String, dynamic>?)?['name']
-                as String?;
+            scanlator =
+                (r['attributes'] as Map<String, dynamic>?)?['name'] as String?;
             break;
           }
         }
@@ -208,9 +209,7 @@ class MangaDexSource implements MangaSource {
 
         chapters.add(ChapterInfo(
           id: ch['id'] as String,
-          title: rawTitle.isEmpty
-              ? 'Chapter ${chNumStr ?? '?'}'
-              : rawTitle,
+          title: rawTitle.isEmpty ? 'Chapter ${chNumStr ?? '?'}' : rawTitle,
           number: chNumStr != null ? double.tryParse(chNumStr) : null,
           volume: volStr != null ? double.tryParse(volStr) : null,
           scanlator: scanlator,

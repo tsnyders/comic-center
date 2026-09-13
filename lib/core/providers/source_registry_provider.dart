@@ -49,7 +49,8 @@ class SourceRegistryNotifier extends Notifier<List<MangaSource>> {
   }
 
   /// Update the stored version for an installed extension.
-  Future<void> updateVersion(Isar isar, String sourceId, String newVersion) async {
+  Future<void> updateVersion(
+      Isar isar, String sourceId, String newVersion) async {
     await ExtensionManager.updateVersion(isar, sourceId, newVersion);
     // Registry doesn't change — the source implementation stays the same.
   }

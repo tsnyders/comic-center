@@ -22,10 +22,10 @@ class AppGlass extends StatelessWidget {
     super.key,
     required this.child,
     this.borderRadius,
-    this.blur,    // ignored — kept for API compatibility
+    this.blur, // ignored — kept for API compatibility
     this.padding,
     this.tint,
-    this.sheen,   // ignored — kept for API compatibility
+    this.sheen, // ignored — kept for API compatibility
   });
 
   final Widget child;
@@ -54,9 +54,7 @@ class AppGlass extends StatelessWidget {
             : null,
         boxShadow: isDark ? AppElevation.e2 : AppElevation.e2Light,
       ),
-      child: padding != null
-          ? Padding(padding: padding!, child: child)
-          : child,
+      child: padding != null ? Padding(padding: padding!, child: child) : child,
     );
   }
 }

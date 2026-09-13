@@ -19,8 +19,8 @@ abstract final class AppTheme {
       textTheme: CupertinoTextThemeData(
         primaryColor: c.fg,
         textStyle: YomiText.ui(15, color: c.fg, height: 1.5),
-        navTitleTextStyle: YomiText.kanji(19, color: c.fg),
-        navLargeTitleTextStyle: YomiText.kanji(34, color: c.fg),
+        navTitleTextStyle: YomiText.display(19, color: c.fg),
+        navLargeTitleTextStyle: YomiText.display(34, color: c.fg),
         actionTextStyle: YomiText.ui(16, weight: FontWeight.w500, color: c.ac),
       ),
     );
@@ -36,7 +36,7 @@ abstract final class AppTheme {
         brightness: theme.mode,
         surface: c.card,
       ),
-      fontFamily: YomiText.body,
+      fontFamily: theme.spec.bodyFont,
       scaffoldBackgroundColor: c.bg,
     );
   }

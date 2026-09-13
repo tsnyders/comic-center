@@ -21,8 +21,7 @@ class DemonicScansSource implements MangaSource {
                 baseUrl: 'https://demonicscans.org',
                 headers: {
                   'Referer': 'https://demonicscans.org/',
-                  'User-Agent':
-                      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+                  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
                       'AppleWebKit/537.36 (KHTML, like Gecko) '
                       'Chrome/120.0.0.0 Safari/537.36',
                   'Accept':
@@ -68,7 +67,8 @@ class DemonicScansSource implements MangaSource {
 
   @override
   Future<List<MangaSummary>> fetchLatestUpdates({int page = 1}) async {
-    final html = await _fetchHtml('/lastupdates.php', queryParameters: {'list': page});
+    final html =
+        await _fetchHtml('/lastupdates.php', queryParameters: {'list': page});
     final doc = html_parser.parse(html);
 
     // Ads are injected as .updates-element items — filter them out via .toffee-badge
@@ -76,20 +76,19 @@ class DemonicScansSource implements MangaSource {
         .querySelectorAll('div#updates-container > div.updates-element')
         .where((el) => el.querySelector('.toffee-badge') == null)
         .map<MangaSummary>((el) {
-          final link = el.querySelector('div.updates-element-info > a');
-          final href = link?.attributes['href'] ?? '';
-          final slug = _slug(href);
-          final title = link?.text.trim() ?? 'Unknown';
-          final img = el.querySelector('div.thumb > img');
-          final coverUrl = _absolute(img?.attributes['src'] ?? '');
-          return MangaSummary(
-            id: slug,
-            title: title,
-            coverUrl: coverUrl.isNotEmpty ? coverUrl : null,
-            url: '$baseUrl/manga/$slug',
-          );
-        })
-        .toList();
+      final link = el.querySelector('div.updates-element-info > a');
+      final href = link?.attributes['href'] ?? '';
+      final slug = _slug(href);
+      final title = link?.text.trim() ?? 'Unknown';
+      final img = el.querySelector('div.thumb > img');
+      final coverUrl = _absolute(img?.attributes['src'] ?? '');
+      return MangaSummary(
+        id: slug,
+        title: title,
+        coverUrl: coverUrl.isNotEmpty ? coverUrl : null,
+        url: '$baseUrl/manga/$slug',
+      );
+    }).toList();
   }
 
   @override
@@ -98,16 +97,16 @@ class DemonicScansSource implements MangaSource {
     int page = 1,
     List<SourceFilter> filters = const [],
   }) async {
-    final html = await _fetchHtml('/search.php',
-        queryParameters: {'manga': query});
+    final html =
+        await _fetchHtml('/search.php', queryParameters: {'manga': query});
     final doc = html_parser.parse(html);
 
     return doc.querySelectorAll('body > a[href]').map<MangaSummary>((el) {
       final href = el.attributes['href'] ?? '';
       final slug = _slug(href);
       // The site has a CSS typo: "seach-right" not "search-right"
-      final title = el.querySelector('div.seach-right > div')?.text.trim() ??
-          'Unknown';
+      final title =
+          el.querySelector('div.seach-right > div')?.text.trim() ?? 'Unknown';
       final img = el.querySelector('img');
       final coverUrl = _absolute(img?.attributes['src'] ?? '');
       return MangaSummary(
@@ -147,8 +146,7 @@ class DemonicScansSource implements MangaSource {
         .toList();
 
     final description = doc
-        .querySelector(
-            'div#manga-info-rightColumn > div > div.white-font')
+        .querySelector('div#manga-info-rightColumn > div > div.white-font')
         ?.text
         .trim();
 
@@ -195,8 +193,7 @@ class DemonicScansSource implements MangaSource {
       // ownText: direct text only (excludes the child <span> date)
       final name = _ownText(el);
       final dateStr = el.querySelector('span')?.text.trim();
-      final uploadDate =
-          dateStr != null ? DateTime.tryParse(dateStr) : null;
+      final uploadDate = dateStr != null ? DateTime.tryParse(dateStr) : null;
 
       // Prefer number from URL query (?chapter=250) — more reliable than regex
       // on the display name. Fall back to title regex for legacy/edge cases.
@@ -270,22 +267,21 @@ class DemonicScansSource implements MangaSource {
     return doc
         .querySelectorAll('div#advanced-content > div.advanced-element')
         .map<MangaSummary>((el) {
-          final link = el.querySelector('a[href]');
-          final href = link?.attributes['href'] ?? '';
-          final slug = _slug(href);
-          final h1 = el.querySelector('h1');
-          final title =
-              h1 != null ? _ownText(h1) : (link?.text.trim() ?? 'Unknown');
-          final img = el.querySelector('img');
-          final coverUrl = _absolute(img?.attributes['src'] ?? '');
-          return MangaSummary(
-            id: slug,
-            title: title.isNotEmpty ? title : 'Unknown',
-            coverUrl: coverUrl.isNotEmpty ? coverUrl : null,
-            url: '$baseUrl/manga/$slug',
-          );
-        })
-        .toList();
+      final link = el.querySelector('a[href]');
+      final href = link?.attributes['href'] ?? '';
+      final slug = _slug(href);
+      final h1 = el.querySelector('h1');
+      final title =
+          h1 != null ? _ownText(h1) : (link?.text.trim() ?? 'Unknown');
+      final img = el.querySelector('img');
+      final coverUrl = _absolute(img?.attributes['src'] ?? '');
+      return MangaSummary(
+        id: slug,
+        title: title.isNotEmpty ? title : 'Unknown',
+        coverUrl: coverUrl.isNotEmpty ? coverUrl : null,
+        url: '$baseUrl/manga/$slug',
+      );
+    }).toList();
   }
 
   /// Resolves a URL that may be relative to an absolute URL.

@@ -18,8 +18,7 @@ class ComicKSource implements MangaSource {
                 baseUrl: 'https://api.comick.fun',
                 headers: {
                   'Referer': 'https://comick.io/',
-                  'User-Agent':
-                      'Mozilla/5.0 (Linux; Android 13; Pixel 7) '
+                  'User-Agent': 'Mozilla/5.0 (Linux; Android 13; Pixel 7) '
                       'AppleWebKit/537.36 (KHTML, like Gecko) '
                       'Chrome/116.0.0.0 Mobile Safari/537.36',
                   'Accept': 'application/json',
@@ -180,8 +179,9 @@ class ComicKSource implements MangaSource {
 
       return ChapterInfo(
         id: chapHid,
-        title:
-            title != null && title.isNotEmpty ? title : 'Chapter ${chapNum ?? '?'}',
+        title: title != null && title.isNotEmpty
+            ? title
+            : 'Chapter ${chapNum ?? '?'}',
         number: chapNum != null ? double.tryParse(chapNum) : null,
         scanlator: scanlator,
         language: c['lang'] as String?,
@@ -197,8 +197,7 @@ class ComicKSource implements MangaSource {
 
   @override
   Future<List<String>> fetchPageUrls(String chapterId) async {
-    final resp =
-        await _dio.get<Map<String, dynamic>>('/chapter/$chapterId');
+    final resp = await _dio.get<Map<String, dynamic>>('/chapter/$chapterId');
     final chapter = resp.data!['chapter'] as Map<String, dynamic>? ?? {};
     final images = (chapter['md_images'] as List?) ?? [];
     return images

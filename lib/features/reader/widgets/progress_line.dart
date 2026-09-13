@@ -16,7 +16,7 @@ class ProgressLine extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) => Stack(
         children: [
-          Container(color: YomiReader.track),
+          Container(color: ReaderPalette.of(context).track),
           AnimatedContainer(
             duration: const Duration(milliseconds: 300),
             curve: AppMotion.snap,

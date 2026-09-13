@@ -20,6 +20,8 @@ class YomiApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = ref.watch(yomiThemeProvider);
     final onboarded = ref.watch(onboardingDoneProvider);
+    // Type (fonts, weights, case rules) follows the look; see YomiText.
+    YomiText.spec = theme.spec;
 
     // Initialize widget service so it listens to library updates
     ref.watch(widgetServiceProvider);

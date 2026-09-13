@@ -10,7 +10,8 @@ import '../../core/theme/app_text_styles.dart';
 
 // ── Provider ────────────────────────────────────────────────────────────────
 
-final _extensionIndexProvider = FutureProvider<List<_ExtensionEntry>>((ref) async {
+final _extensionIndexProvider =
+    FutureProvider<List<_ExtensionEntry>>((ref) async {
   final dio = Dio(BaseOptions(
     connectTimeout: const Duration(seconds: 15),
     receiveTimeout: const Duration(seconds: 30),
@@ -144,9 +145,12 @@ class _RepositoryScreenState extends ConsumerState<RepositoryScreen> {
             padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
             sliver: SliverList(
               delegate: SliverChildListDelegate([
-                const _NativeExtensionTile(name: 'MangaDex', lang: 'EN', version: '1.0.0'),
-                const _NativeExtensionTile(name: 'AllManga', lang: 'EN', version: '1.0.0'),
-                const _NativeExtensionTile(name: 'DemonicScans', lang: 'EN', version: '1.0.0'),
+                const _NativeExtensionTile(
+                    name: 'MangaDex', lang: 'EN', version: '1.0.0'),
+                const _NativeExtensionTile(
+                    name: 'AllManga', lang: 'EN', version: '1.0.0'),
+                const _NativeExtensionTile(
+                    name: 'DemonicScans', lang: 'EN', version: '1.0.0'),
               ]),
             ),
           ),
@@ -239,7 +243,8 @@ class _GlassSearchBarState extends State<_GlassSearchBar> {
       child: Row(
         children: [
           const SizedBox(width: 12),
-          Icon(CupertinoIcons.search, size: 15, color: context.textTertiaryColor),
+          Icon(CupertinoIcons.search,
+              size: 15, color: context.textTertiaryColor),
           const SizedBox(width: 8),
           Expanded(
             child: CupertinoTextField(

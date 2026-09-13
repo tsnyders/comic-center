@@ -54,8 +54,8 @@ class BrowseScreen extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const SumiOverline('DISCOVER · 探'),
-                  Text('Explore', style: YomiText.kanji(36, color: c.fg)),
+                  SumiOverline(context.look.copy.discoverKicker ?? 'DISCOVER', kanji: '探'),
+                  DisplayText(context.look.copy.discoverTitle, size: 36),
                 ],
               ),
             ),
@@ -102,7 +102,7 @@ class BrowseScreen extends ConsumerWidget {
             SliverToBoxAdapter(
               child: Padding(
                 padding: EdgeInsets.fromLTRB(gutter, 26, gutter, 10),
-                child: const SumiOverline('SOURCES · 源'),
+                child: const SumiOverline('SOURCES', kanji: '源'),
               ),
             ),
             SliverPadding(
@@ -156,11 +156,14 @@ class _SearchField extends StatelessWidget {
         onTap: onTap,
         scale: AppMotion.activeScale,
         child: Container(
-          height: 44,
+          height: context.look.isPastel ? 48 : 44,
           padding: const EdgeInsets.symmetric(horizontal: 14),
           decoration: BoxDecoration(
-            border: Border.all(color: c.line),
-            borderRadius: BorderRadius.circular(4),
+            color: context.look.isPastel ? c.card : null,
+            border: context.look.isPastel ? null : Border.all(color: c.line),
+            borderRadius: BorderRadius.circular(
+                context.look.isPastel ? 18 : context.radii.cover),
+            boxShadow: context.look.cardShadow,
           ),
           child: Row(
             children: [
@@ -186,6 +189,10 @@ class _FeaturedPlate extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.yc;
+    final look = context.look;
+    final pastel = look.isPastel;
+    final ink = pastel ? look.onAccent : c.fg;
+    final ink2 = pastel ? look.onAccent.withValues(alpha: 0.75) : c.fg2;
     return Semantics(
       button: true,
       label: 'Featured source ${source.name}',
@@ -196,23 +203,51 @@ class _FeaturedPlate extends StatelessWidget {
           height: 300,
           clipBehavior: Clip.antiAlias,
           decoration: BoxDecoration(
-            color: c.card,
-            border: Border.all(color: c.line),
-            borderRadius: BorderRadius.circular(6),
+            color: pastel ? look.accents[1] : c.card,
+            border: pastel ? null : Border.all(color: c.line),
+            borderRadius: BorderRadius.circular(context.radii.card),
           ),
           child: Stack(
             fit: StackFit.expand,
             children: [
-              const SumiSplatter(),
-              Positioned(
-                right: 18,
-                top: 18,
-                child: RotatedBox(
-                  quarterTurns: 1,
-                  child: Text('探索',
-                      style: YomiText.kanji(22, color: c.bg, letterSpacing: 4)),
+              if (look.isSumi) const SumiSplatter(),
+              if (pastel)
+                Positioned(
+                  right: -40,
+                  bottom: -40,
+                  child: Container(
+                    width: 200,
+                    height: 200,
+                    decoration: BoxDecoration(
+                      color: c.ac.withValues(alpha: 0.7),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
                 ),
-              ),
+              if (look.kanji)
+                Positioned(
+                  right: 18,
+                  top: 18,
+                  child: RotatedBox(
+                    quarterTurns: 1,
+                    child: Text('探索',
+                        style: YomiText.display(22,
+                            color: c.bg, letterSpacing: 4)),
+                  ),
+                ),
+              if (look.isCinema)
+                Positioned(
+                  left: 20,
+                  top: 20,
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(border: Border.all(color: c.ac)),
+                    child: Text('FEATURE',
+                        style: YomiText.display(12,
+                            color: c.ac, letterSpacing: 2)),
+                  ),
+                ),
               Positioned(
                 left: 18,
                 right: 120,
@@ -221,18 +256,20 @@ class _FeaturedPlate extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    SumiOverline('FEATURED SOURCE', color: c.ac),
+                    SumiOverline('FEATURED SOURCE',
+                        color: pastel ? ink2 : c.ac),
                     const SizedBox(height: 6),
-                    Text(source.name,
+                    DisplayText(source.name,
+                        size: look.isCinema ? 44 : 28,
+                        color: ink,
                         maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: YomiText.kanji(28, color: c.fg)),
+                        overflow: TextOverflow.ellipsis),
                     const SizedBox(height: 6),
                     Text(
                       '${source.language.toUpperCase()} · ${_host(source.baseUrl)} · v${source.version}',
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: YomiText.ui(13, color: c.fg2, height: 1.4),
+                      style: YomiText.ui(13, color: ink2, height: 1.4),
                     ),
                   ],
                 ),
@@ -260,13 +297,21 @@ class _SourceRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.yc;
+    final look = context.look;
     return SumiPress(
       onTap: onTap,
       scale: AppMotion.activeScale,
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 14),
+        padding: look.isPastel
+            ? const EdgeInsets.all(12)
+            : const EdgeInsets.symmetric(vertical: 14),
+        margin: look.isPastel ? const EdgeInsets.only(bottom: 10) : null,
         decoration: BoxDecoration(
-          border: Border(bottom: BorderSide(color: c.line)),
+          color: look.isPastel ? c.card : null,
+          border:
+              look.isPastel ? null : Border(bottom: BorderSide(color: c.line)),
+          borderRadius: look.isPastel ? BorderRadius.circular(22) : null,
+          boxShadow: look.cardShadow,
         ),
         child: Row(
           children: [
@@ -276,13 +321,13 @@ class _SourceRow extends StatelessWidget {
               clipBehavior: Clip.antiAlias,
               decoration: BoxDecoration(
                 color: c.card,
-                border: Border.all(color: c.line),
-                borderRadius: BorderRadius.circular(3),
+                border: look.isPastel ? null : Border.all(color: c.line),
+                borderRadius: BorderRadius.circular(context.radii.small),
               ),
               child: source.iconBytes.isEmpty
                   ? Center(
                       child: Text(kanjiTag(source.name),
-                          style: YomiText.kanji(22, color: c.fg2)))
+                          style: YomiText.display(22, color: c.fg2)))
                   : Image.memory(source.iconBytes, fit: BoxFit.cover),
             ),
             const SizedBox(width: 14),
@@ -290,11 +335,15 @@ class _SourceRow extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(source.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: YomiText.ui(15,
-                          weight: FontWeight.w700, color: c.fg)),
+                  if (look.isCinema)
+                    DisplayText(source.name,
+                        size: 22, maxLines: 1, overflow: TextOverflow.ellipsis)
+                  else
+                    Text(source.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: YomiText.ui(15,
+                            weight: FontWeight.w700, color: c.fg)),
                   const SizedBox(height: 2),
                   Text(_host(source.baseUrl),
                       maxLines: 1,
@@ -307,8 +356,12 @@ class _SourceRow extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 14),
-            Text(languageKanji(source.language),
-                style: YomiText.kanji(22, color: c.ac)),
+            Text(
+                look.kanji
+                    ? languageKanji(source.language)
+                    : source.language.toUpperCase(),
+                style:
+                    YomiText.display(22, color: look.isPastel ? c.fg2 : c.ac)),
           ],
         ),
       ),
@@ -344,7 +397,10 @@ class _PlainRow extends StatelessWidget {
             SizedBox(
               width: 56,
               child: Center(
-                child: Text(kanji, style: YomiText.kanji(26, color: c.fg)),
+                child: context.look.kanji
+                    ? Text(kanji, style: YomiText.display(26, color: c.fg))
+                    : Icon(CupertinoIcons.square_grid_2x2,
+                        size: 24, color: c.fg),
               ),
             ),
             const SizedBox(width: 14),

@@ -15,8 +15,7 @@ class ReaperScansSource implements MangaSource {
           BaseOptions(
             baseUrl: 'https://api.reaperscans.com',
             headers: {
-              'User-Agent':
-                  'Mozilla/5.0 (Linux; Android 13; Pixel 7) '
+              'User-Agent': 'Mozilla/5.0 (Linux; Android 13; Pixel 7) '
                   'AppleWebKit/537.36 (KHTML, like Gecko) '
                   'Chrome/116.0.0.0 Mobile Safari/537.36',
               'Origin': 'https://reaperscans.com',
@@ -30,17 +29,25 @@ class ReaperScansSource implements MangaSource {
 
   final Dio _dio;
 
-  @override String get id       => 'reaperscans_en';
-  @override String get name     => 'ReaperScans';
-  @override String get baseUrl  => 'https://reaperscans.com';
-  @override String get language => 'en';
-  @override String get version  => '1.0.0';
-  @override Uint8List get iconBytes => Uint8List(0);
-  @override Map<String, String> get imageHeaders => const {
+  @override
+  String get id => 'reaperscans_en';
+  @override
+  String get name => 'ReaperScans';
+  @override
+  String get baseUrl => 'https://reaperscans.com';
+  @override
+  String get language => 'en';
+  @override
+  String get version => '1.0.0';
+  @override
+  Uint8List get iconBytes => Uint8List(0);
+  @override
+  Map<String, String> get imageHeaders => const {
         'Referer': 'https://reaperscans.com/',
         'Origin': 'https://reaperscans.com',
       };
-  @override List<SourceFilter> getFilters() => const [];
+  @override
+  List<SourceFilter> getFilters() => const [];
 
   // ── Listings ─────────────────────────────────────────────────────────────
 
@@ -106,10 +113,13 @@ class ReaperScansSource implements MangaSource {
     List<String> pickTags() {
       final raw = d['tags'] ?? d['genres'] ?? d['categories'];
       if (raw is List) {
-        return raw.map<String>((e) {
-          if (e is Map) return e['name']?.toString() ?? '';
-          return e.toString();
-        }).where((s) => s.isNotEmpty).toList();
+        return raw
+            .map<String>((e) {
+              if (e is Map) return e['name']?.toString() ?? '';
+              return e.toString();
+            })
+            .where((s) => s.isNotEmpty)
+            .toList();
       }
       return [];
     }
@@ -117,7 +127,8 @@ class ReaperScansSource implements MangaSource {
     return MangaDetail(
       id: mangaId,
       title: pick(const ['title', 'name', 'series_title']) ?? mangaId,
-      coverUrl: pick(const ['thumbnail', 'cover', 'image', 'cover_url', 'poster']),
+      coverUrl:
+          pick(const ['thumbnail', 'cover', 'image', 'cover_url', 'poster']),
       author: pickPerson('author') ?? pickPerson('authors'),
       artist: pickPerson('artist') ?? pickPerson('artists'),
       description: pick(const ['description', 'synopsis', 'summary']),
@@ -146,10 +157,13 @@ class ReaperScansSource implements MangaSource {
       for (final ch in list) {
         final m = ch as Map<String, dynamic>;
         final id = m['id']?.toString() ?? '';
-        final rawNum = m['chapter_name']?.toString() ?? m['chapter_slug']?.toString() ?? '';
+        final rawNum = m['chapter_name']?.toString() ??
+            m['chapter_slug']?.toString() ??
+            '';
         // Extract trailing number from "Chapter 179" or "chapter-179"
         final numMatch = RegExp(r'[\d]+(?:\.[\d]+)?$').firstMatch(rawNum);
-        final chNum = numMatch != null ? double.tryParse(numMatch.group(0)!) : null;
+        final chNum =
+            numMatch != null ? double.tryParse(numMatch.group(0)!) : null;
         final title = m['chapter_name']?.toString() ??
             'Chapter ${chNum?.toStringAsFixed(0) ?? '?'}';
 
@@ -194,22 +208,28 @@ class ReaperScansSource implements MangaSource {
   List<String> _extractPageUrls(dynamic body) {
     // Shape 1: { "chapter_image": [{ "url_image": "..." }] }
     if (body is Map && body['chapter_image'] is List) {
-      return (body['chapter_image'] as List).map<String>((e) {
-        if (e is Map) return e['url_image']?.toString() ?? '';
-        return e.toString();
-      }).where((u) => u.isNotEmpty).toList();
+      return (body['chapter_image'] as List)
+          .map<String>((e) {
+            if (e is Map) return e['url_image']?.toString() ?? '';
+            return e.toString();
+          })
+          .where((u) => u.isNotEmpty)
+          .toList();
     }
 
     // Shape 2: { "chapter": { "pages": ["..."] } } or similar nested
     final pages = _dataList(body);
-    return pages.map<String>((p) {
-      if (p is String) return p;
-      if (p is Map<String, dynamic>) {
-        return (p['url_image'] ?? p['url'] ?? p['image'] ?? p['src'] ?? '')
-            as String;
-      }
-      return '';
-    }).where((u) => u.isNotEmpty).toList();
+    return pages
+        .map<String>((p) {
+          if (p is String) return p;
+          if (p is Map<String, dynamic>) {
+            return (p['url_image'] ?? p['url'] ?? p['image'] ?? p['src'] ?? '')
+                as String;
+          }
+          return '';
+        })
+        .where((u) => u.isNotEmpty)
+        .toList();
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────
@@ -227,10 +247,11 @@ class ReaperScansSource implements MangaSource {
 
   List<MangaSummary> _parseSummaries(List<dynamic> list) {
     return list.map<MangaSummary>((item) {
-      final m    = item as Map<String, dynamic>;
+      final m = item as Map<String, dynamic>;
       final slug = m['series_slug']?.toString() ??
           m['slug']?.toString() ??
-          m['id']?.toString() ?? '';
+          m['id']?.toString() ??
+          '';
       return MangaSummary(
         id: slug,
         title: m['title']?.toString() ?? m['name']?.toString() ?? 'Unknown',
@@ -243,7 +264,13 @@ class ReaperScansSource implements MangaSource {
   List<dynamic> _dataList(dynamic body) {
     if (body is List) return body;
     if (body is Map) {
-      for (final key in const ['data', 'results', 'series', 'chapters', 'pages']) {
+      for (final key in const [
+        'data',
+        'results',
+        'series',
+        'chapters',
+        'pages'
+      ]) {
         if (body[key] is List) return body[key] as List;
       }
     }
@@ -251,8 +278,9 @@ class ReaperScansSource implements MangaSource {
   }
 
   Map<String, dynamic> _dataMap(dynamic body) {
-    Map<String, dynamic>? asMap(dynamic v) =>
-        v is Map<String, dynamic> ? v : (v is Map ? Map<String, dynamic>.from(v) : null);
+    Map<String, dynamic>? asMap(dynamic v) => v is Map<String, dynamic>
+        ? v
+        : (v is Map ? Map<String, dynamic>.from(v) : null);
 
     final root = asMap(body);
     if (root == null) return {};

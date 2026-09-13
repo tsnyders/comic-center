@@ -12,7 +12,7 @@ class LiquidGlass extends StatelessWidget {
     super.key,
     required this.child,
     this.borderRadius = 22,
-    this.blur = 26,       // ignored — kept for API compatibility
+    this.blur = 26, // ignored — kept for API compatibility
     this.padding,
     this.tint = const Color(0xB3000000),
   });
@@ -35,9 +35,7 @@ class LiquidGlass extends StatelessWidget {
         ),
         boxShadow: AppElevation.e3,
       ),
-      child: padding != null
-          ? Padding(padding: padding!, child: child)
-          : child,
+      child: padding != null ? Padding(padding: padding!, child: child) : child,
     );
   }
 }
