@@ -170,33 +170,32 @@ class _DownloadTile extends ConsumerWidget {
               style: AppTextStyles.caption.copyWith(color: AppColors.warning),
             ),
           ],
-          if (entry.status != DownloadStatus.completed) ...[
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                if (isActive)
-                  _ActionChip(
-                    icon: CupertinoIcons.pause_fill,
-                    label: 'Pause',
-                    onTap: () => manager.pause(entry.id),
-                  ),
-                if (isFailed && _isGoogleDriveError(entry.errorMessage))
-                  _ActionChip(
-                    icon: CupertinoIcons.gear_alt,
-                    label: 'Open Settings',
-                    onTap: () =>
-                        Navigator.of(context, rootNavigator: true).push(
-                      CupertinoPageRoute<void>(
-                        builder: (_) => const SettingsScreen(),
-                      ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              if (isActive)
+                _ActionChip(
+                  icon: CupertinoIcons.pause_fill,
+                  label: 'Pause',
+                  onTap: () => manager.pause(entry.id),
+                ),
+              if (isFailed && _isGoogleDriveError(entry.errorMessage))
+                _ActionChip(
+                  icon: CupertinoIcons.gear_alt,
+                  label: 'Open Settings',
+                  onTap: () => Navigator.of(context, rootNavigator: true).push(
+                    CupertinoPageRoute<void>(
+                      builder: (_) => const SettingsScreen(),
                     ),
-                  )
-                else if (isPaused || isFailed)
-                  _ActionChip(
-                    icon: CupertinoIcons.play_fill,
-                    label: isFailed ? 'Retry' : 'Resume',
-                    onTap: () => manager.resume(entry.id),
                   ),
+                )
+              else if (isPaused || isFailed)
+                _ActionChip(
+                  icon: CupertinoIcons.play_fill,
+                  label: isFailed ? 'Retry' : 'Resume',
+                  onTap: () => manager.resume(entry.id),
+                ),
+              if (entry.status != DownloadStatus.completed) ...[
                 const SizedBox(width: 8),
                 _ActionChip(
                   icon: CupertinoIcons.xmark,
@@ -204,9 +203,17 @@ class _DownloadTile extends ConsumerWidget {
                   destructive: true,
                   onTap: () => manager.cancel(entry.id),
                 ),
+              ] else ...[
+                const SizedBox(width: 8),
+                _ActionChip(
+                  icon: CupertinoIcons.trash,
+                  label: 'Delete',
+                  destructive: true,
+                  onTap: () => manager.deleteDownload(entry.id),
+                ),
               ],
-            ),
-          ],
+            ],
+          ),
         ],
       ),
     );

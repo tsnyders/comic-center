@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="ic_launcher_background">#0A0A0D</color>
+    <!-- Adaptive launcher icon backgrounds, one per look (see YomiLookSpec) -->
+    <color name="ic_launcher_sumi_bg">#0B0B0A</color>
+    <color name="ic_launcher_cinema_bg">#1C1917</color>
+    <color name="ic_launcher_pastel_bg">#FBF6F3</color>
     <color name="widget_background">#F5F5F5</color>
     <color name="widget_text_primary">#1D1D1F</color>
     <color name="widget_text_secondary">#86868B</color>

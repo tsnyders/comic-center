@@ -19,4 +19,40 @@
     <style name="NormalTheme" parent="@android:style/Theme.Light.NoTitleBar">
         <item name="android:windowBackground">?android:colorBackground</item>
     </style>
+
+    <!-- Sumi look: splash while the process starts (pre-Android 12) -->
+    <style name="LaunchTheme.Sumi" parent="@android:style/Theme.Black.NoTitleBar">
+        <item name="android:windowBackground">@drawable/launch_background_sumi</item>
+        <item name="android:forceDarkAllowed">false</item>
+        <item name="android:windowFullscreen">false</item>
+        <item name="android:windowDrawsSystemBarBackgrounds">false</item>
+        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
+    </style>
+    <style name="NormalTheme.Sumi" parent="@android:style/Theme.Black.NoTitleBar">
+        <item name="android:windowBackground">@color/ic_launcher_sumi_bg</item>
+    </style>
+
+    <!-- Cinema look: splash while the process starts (pre-Android 12) -->
+    <style name="LaunchTheme.Cinema" parent="@android:style/Theme.Black.NoTitleBar">
+        <item name="android:windowBackground">@drawable/launch_background_cinema</item>
+        <item name="android:forceDarkAllowed">false</item>
+        <item name="android:windowFullscreen">false</item>
+        <item name="android:windowDrawsSystemBarBackgrounds">false</item>
+        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
+    </style>
+    <style name="NormalTheme.Cinema" parent="@android:style/Theme.Black.NoTitleBar">
+        <item name="android:windowBackground">@color/ic_launcher_cinema_bg</item>
+    </style>
+
+    <!-- Pastel look: splash while the process starts (pre-Android 12) -->
+    <style name="LaunchTheme.Pastel" parent="@android:style/Theme.Light.NoTitleBar">
+        <item name="android:windowBackground">@drawable/launch_background_pastel</item>
+        <item name="android:forceDarkAllowed">false</item>
+        <item name="android:windowFullscreen">false</item>
+        <item name="android:windowDrawsSystemBarBackgrounds">false</item>
+        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
+    </style>
+    <style name="NormalTheme.Pastel" parent="@android:style/Theme.Light.NoTitleBar">
+        <item name="android:windowBackground">@color/ic_launcher_pastel_bg</item>
+    </style>
 </resources>

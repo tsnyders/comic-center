@@ -1,8 +1,10 @@
 package com.comiccenter.comic_center
 
 import android.app.ActivityManager
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.view.KeyEvent
@@ -13,7 +15,7 @@ import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
 import java.io.File
 
-class MainActivity : FlutterActivity() {
+open class MainActivity : FlutterActivity() {
     private val channel = "yomi/platform"
     private val volumeKeyChannel = "yomi/volume_keys"
 
@@ -92,9 +94,45 @@ class MainActivity : FlutterActivity() {
                             result.error("INVALID_PATH", "Path argument is null", null)
                         }
                     }
+                    // Home-screen icon and splash follow the look: enable
+                    // exactly one of the per-look launcher activities declared
+                    // in AndroidManifest.xml (see LookActivities.kt).
+                    "setAppIcon" -> {
+                        val look = call.argument<String>("look") ?: "sumi"
+                        try {
+                            setLauncherAlias(look)
+                            result.success(null)
+                        } catch (e: Exception) {
+                            result.error("SET_ICON_FAILED", e.message, null)
+                        }
+                    }
                     else -> result.notImplemented()
                 }
             }
+    }
+
+    private val launcherAliases = mapOf(
+        "sumi" to ".MainActivitySumi",
+        "cinema" to ".MainActivityCinema",
+        "pastel" to ".MainActivityPastel",
+    )
+
+    private fun setLauncherAlias(look: String) {
+        val target = launcherAliases[look] ?: launcherAliases.getValue("sumi")
+        val pm = packageManager
+        for ((_, alias) in launcherAliases) {
+            val component = ComponentName(this, packageName + alias)
+            val wanted = if (alias == target)
+                PackageManager.COMPONENT_ENABLED_STATE_ENABLED
+            else
+                PackageManager.COMPONENT_ENABLED_STATE_DISABLED
+            // Skip no-op writes: each change makes launchers rebuild their
+            // icon grid, which shows as a brief flicker.
+            if (pm.getComponentEnabledSetting(component) != wanted) {
+                pm.setComponentEnabledSetting(
+                    component, wanted, PackageManager.DONT_KILL_APP)
+            }
+        }
     }
 
     // Intercept hardware volume keys while the reader requests it, forwarding

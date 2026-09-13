@@ -198,6 +198,32 @@ class DownloadManager extends AsyncNotifier<void> {
 
   Future<void> retry(int downloadId) => resume(downloadId);
 
+  /// Deletes a completed download: removes the files on disk and clears the
+  /// downloaded state on the chapter so the reader falls back to streaming.
+  Future<void> deleteDownload(int downloadId) async {
+    final isar = ref.read(isarProvider);
+    final entry = await isar.downloadEntrys.get(downloadId);
+    if (entry == null) return;
+
+    await isar.writeTxn(() async {
+      await isar.downloadEntrys.delete(downloadId);
+      final chapter = await isar.chapterEntrys.get(entry.chapterId);
+      if (chapter != null) {
+        chapter
+          ..isDownloaded = false
+          ..downloadPath = null
+          ..downloadedAt = null;
+        await isar.chapterEntrys.put(chapter);
+      }
+    });
+
+    final documentsDirectory = await getApplicationDocumentsDirectory();
+    final directory = Directory(
+      '${documentsDirectory.path}/downloads/${entry.mangaId}/${entry.chapterId}',
+    );
+    if (await directory.exists()) await directory.delete(recursive: true);
+  }
+
   Future<void> _scheduleQueue(Isar isar) async {
     if (Platform.isAndroid) {
       await DownloadBackgroundService.scheduleQueue();

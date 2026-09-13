@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../database/models/chapter_entry.dart';
 import '../database/models/manga_entry.dart';
+import 'app_logger.dart';
 
 // ── Backup / Restore service ──────────────────────────────────────────────────
 //
@@ -236,6 +237,14 @@ class BackupService {
         await isar.mangaEntrys.put(entry);
       }
     });
+
+    // Re-query after the transaction commits so the log proves the rows are
+    // actually persisted, not just that the txn callback ran without error.
+    final persistedInLibrary =
+        await isar.mangaEntrys.filter().inLibraryEqualTo(true).count();
+    AppLogger.instance.info(
+        'Restore from ${file.path}: wrote $mangaCount manga / $chapterCount '
+        'chapters; inLibrary count immediately after commit = $persistedInLibrary');
 
     return RestoreResult(mangaCount: mangaCount, chapterCount: chapterCount);
   }

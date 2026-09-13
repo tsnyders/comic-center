@@ -11,11 +11,14 @@ import 'core/database/isar_service.dart';
 import 'core/extensions/source_registry.dart';
 import 'core/providers/database_provider.dart';
 import 'core/providers/preferences_provider.dart';
+import 'core/providers/settings_provider.dart';
+import 'core/services/app_icon_service.dart';
 import 'core/services/app_logger.dart';
 import 'core/services/device_profile.dart';
 import 'core/services/download_background_service.dart';
 import 'core/services/extension_manager.dart';
 import 'core/services/whats_new_service.dart';
+import 'core/theme/yomi_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -52,6 +55,10 @@ void main() async {
   };
 
   final prefs = await SharedPreferences.getInstance();
+  // Launcher icon follows the persisted look (the manifest default is Sumi,
+  // so a reinstall or restore needs a one-time sync). Fire-and-forget.
+  unawaited(AppIconService.setLook(readEnumPref(
+      prefs, lookPrefKey, YomiLook.values, YomiLook.sumi)));
   final isar = await IsarService.init();
 
   // Android WorkManager owns chapter downloads, so they survive the Flutter UI

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/providers/download_provider.dart';
 import 'core/providers/settings_provider.dart';
+import 'core/services/app_icon_service.dart';
 import 'core/services/device_profile.dart';
 import 'core/services/widget_service.dart';
 import 'core/theme/app_spacing.dart';
@@ -22,6 +23,8 @@ class YomiApp extends ConsumerWidget {
     final onboarded = ref.watch(onboardingDoneProvider);
     // Type (fonts, weights, case rules) follows the look; see YomiText.
     YomiText.spec = theme.spec;
+    // Home-screen icon follows the look too (Android launcher aliases).
+    ref.listen(lookProvider, (_, next) => AppIconService.setLook(next));
 
     // Initialize widget service so it listens to library updates
     ref.watch(widgetServiceProvider);

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:isar/isar.dart';
 import 'package:path_provider/path_provider.dart';
 
+import '../services/app_logger.dart';
 import 'models/chapter_entry.dart';
 import 'models/download_entry.dart';
 import 'models/manga_entry.dart';
@@ -45,6 +46,9 @@ import 'models/source_entry.dart';
 abstract final class IsarService {
   static Future<Isar> init() async {
     final dir = await _resolveDir();
+    // Logged so a cold-start db path can be diffed against the one a restore
+    // wrote into, if entries ever appear to vanish across a restart.
+    AppLogger.instance.info('Opening Isar at $dir');
     return Isar.open(
       [
         MangaEntrySchema,

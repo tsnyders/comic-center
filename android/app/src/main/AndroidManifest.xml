@@ -5,8 +5,8 @@
     <application
         android:label="Yomi"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher"
-        android:roundIcon="@mipmap/ic_launcher_round"
+        android:icon="@mipmap/ic_launcher_sumi"
+        android:roundIcon="@mipmap/ic_launcher_sumi"
         android:largeHeap="true">
         <activity
             android:name=".MainActivity"
@@ -21,11 +21,82 @@
               android:name="io.flutter.embedding.android.NormalTheme"
               android:resource="@style/NormalTheme"
               />
+        </activity>
+
+        <!-- Launcher entry points, one per look (LookActivities.kt). Each
+             carries its own launcher icon and launch theme (splash colour +
+             icon), which an activity-alias cannot. Exactly one is enabled at
+             a time; MainActivity.setLauncherAlias flips them when the user
+             changes the look. Sumi is the manifest default (matches the
+             theme.look pref default). Home-screen widgets still target the
+             base .MainActivity, which has no launcher filter. -->
+        <activity
+            android:name=".MainActivitySumi"
+            android:enabled="true"
+            android:exported="true"
+            android:label="Yomi"
+            android:icon="@mipmap/ic_launcher_sumi"
+            android:roundIcon="@mipmap/ic_launcher_sumi"
+            android:launchMode="singleTop"
+            android:taskAffinity=""
+            android:theme="@style/LaunchTheme.Sumi"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+            android:hardwareAccelerated="true"
+            android:windowSoftInputMode="adjustResize">
+            <meta-data
+              android:name="io.flutter.embedding.android.NormalTheme"
+              android:resource="@style/NormalTheme.Sumi"
+              />
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        <activity
+            android:name=".MainActivityCinema"
+            android:enabled="false"
+            android:exported="true"
+            android:label="Yomi"
+            android:icon="@mipmap/ic_launcher_cinema"
+            android:roundIcon="@mipmap/ic_launcher_cinema"
+            android:launchMode="singleTop"
+            android:taskAffinity=""
+            android:theme="@style/LaunchTheme.Cinema"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+            android:hardwareAccelerated="true"
+            android:windowSoftInputMode="adjustResize">
+            <meta-data
+              android:name="io.flutter.embedding.android.NormalTheme"
+              android:resource="@style/NormalTheme.Cinema"
+              />
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
+        <activity
+            android:name=".MainActivityPastel"
+            android:enabled="false"
+            android:exported="true"
+            android:label="Yomi"
+            android:icon="@mipmap/ic_launcher_pastel"
+            android:roundIcon="@mipmap/ic_launcher_pastel"
+            android:launchMode="singleTop"
+            android:taskAffinity=""
+            android:theme="@style/LaunchTheme.Pastel"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+            android:hardwareAccelerated="true"
+            android:windowSoftInputMode="adjustResize">
+            <meta-data
+              android:name="io.flutter.embedding.android.NormalTheme"
+              android:resource="@style/NormalTheme.Pastel"
+              />
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
+
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />

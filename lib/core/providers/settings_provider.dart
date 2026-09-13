@@ -58,11 +58,14 @@ final densityProvider = StateProvider<YomiDensity>((ref) {
       prefs, 'theme.density', YomiDensity.values, YomiDensity.comfortable);
 });
 
-/// Which look (Sumi / Cinema / Pastel). Persisted.
+/// Which look (Sumi / Cinema / Pastel). Persisted. Also read in main() to
+/// sync the launcher icon before the first frame.
+const lookPrefKey = 'theme.look';
+
 final lookProvider = StateProvider<YomiLook>((ref) {
   final prefs = ref.watch(sharedPreferencesProvider);
-  ref.listenSelf((_, next) => prefs.setInt('theme.look', next.index));
-  return readEnumPref(prefs, 'theme.look', YomiLook.values, YomiLook.sumi);
+  ref.listenSelf((_, next) => prefs.setInt(lookPrefKey, next.index));
+  return readEnumPref(prefs, lookPrefKey, YomiLook.values, YomiLook.sumi);
 });
 
 /// The composed theme every widget reads through `context.yomi` / `context.yc`.
