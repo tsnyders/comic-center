@@ -102,6 +102,9 @@ abstract final class ShelfFilter {
 
 final shelfFilterProvider = StateProvider<String>((_) => ShelfFilter.all);
 
+/// Genre selection is independent of the built-in shelf and user categories.
+final libraryGenreProvider = StateProvider<String?>((_) => null);
+
 /// Manga ids with at least one downloaded chapter.
 final downloadedMangaIdsProvider = StreamProvider<Set<int>>((ref) {
   final isar = ref.watch(isarProvider);
@@ -132,10 +135,12 @@ final libraryStreamProvider = StreamProvider<List<MangaEntry>>((ref) {
 final filteredLibraryProvider = Provider<AsyncValue<List<MangaEntry>>>((ref) {
   final library = ref.watch(libraryStreamProvider);
   final filter = ref.watch(shelfFilterProvider);
+  final genre = ref.watch(libraryGenreProvider)?.trim().toLowerCase();
   final downloaded =
       ref.watch(downloadedMangaIdsProvider).valueOrNull ?? const <int>{};
 
-  return library.whenData((mangas) => switch (filter) {
+  return library.whenData((mangas) {
+    final shelf = switch (filter) {
         ShelfFilter.all => mangas,
         ShelfFilter.reading =>
           mangas.where((m) => m.lastReadAt != null && !isFinished(m)).toList(),
@@ -143,7 +148,12 @@ final filteredLibraryProvider = Provider<AsyncValue<List<MangaEntry>>>((ref) {
         ShelfFilter.downloaded =>
           mangas.where((m) => downloaded.contains(m.id)).toList(),
         _ => mangas.where((m) => m.categories.contains(filter)).toList(),
-      });
+      };
+    if (genre == null || genre.isEmpty) return shelf;
+    return shelf
+        .where((m) => m.genres.any((g) => g.trim().toLowerCase() == genre))
+        .toList();
+  });
 });
 
 // ── Continue reading (recently read, in-progress titles) ──────────────────────
@@ -169,7 +179,13 @@ final libraryCategoriesProvider = Provider<List<String>>((ref) {
 
 final libraryGenresProvider = Provider<List<String>>((ref) {
   final library = ref.watch(libraryStreamProvider).valueOrNull ?? [];
-  final genres = library.expand((m) => m.genres).toSet().toList()..sort();
+  final byName = <String, String>{};
+  for (final genre in library.expand((m) => m.genres)) {
+    final name = genre.trim();
+    if (name.isNotEmpty) byName.putIfAbsent(name.toLowerCase(), () => name);
+  }
+  final genres = byName.values.toList()
+    ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
   return genres;
 });
 

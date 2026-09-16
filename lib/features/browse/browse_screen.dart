@@ -8,6 +8,7 @@ import '../../core/theme/yomi_theme.dart';
 import '../../shared/widgets/empty_state.dart';
 import '../../shared/widgets/sumi.dart';
 import 'extensions_screen.dart';
+import 'global_search_screen.dart';
 import 'source_manga_screen.dart';
 
 /// ============================================================================
@@ -17,13 +18,17 @@ import 'source_manga_screen.dart';
 class BrowseScreen extends ConsumerWidget {
   const BrowseScreen({super.key});
 
-  void _openSource(BuildContext context, String sourceId,
-      {bool search = false}) {
+  void _openSource(BuildContext context, String sourceId) {
     Navigator.of(context).push(
       CupertinoPageRoute<void>(
-        builder: (_) =>
-            SourceMangaScreen(sourceId: sourceId, initialSearch: search),
+        builder: (_) => SourceMangaScreen(sourceId: sourceId),
       ),
+    );
+  }
+
+  void _openSearch(BuildContext context) {
+    Navigator.of(context).push(
+      CupertinoPageRoute<void>(builder: (_) => const GlobalSearchScreen()),
     );
   }
 
@@ -54,7 +59,8 @@ class BrowseScreen extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  SumiOverline(context.look.copy.discoverKicker ?? 'DISCOVER', kanji: '探'),
+                  SumiOverline(context.look.copy.discoverKicker ?? 'DISCOVER',
+                      kanji: '探'),
                   DisplayText(context.look.copy.discoverTitle, size: 36),
                 ],
               ),
@@ -66,9 +72,7 @@ class BrowseScreen extends ConsumerWidget {
             child: Padding(
               padding: EdgeInsets.fromLTRB(gutter, 16, gutter, 0),
               child: _SearchField(
-                onTap: () => sources.isEmpty
-                    ? _openExtensions(context)
-                    : _openSource(context, sources.first.id, search: true),
+                onTap: () => _openSearch(context),
               ),
             ),
           ),

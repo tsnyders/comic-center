@@ -13,7 +13,7 @@ import '../source_interface.dart';
 /// DemonicScans source — HTML scraping, no public JSON API.
 /// Manga IDs are the URL slug (e.g. "Murim-Login").
 /// Chapter IDs are composite "{manga-slug}/{chapter-slug}" (e.g. "Murim-Login/chapter-180").
-class DemonicScansSource implements MangaSource {
+class DemonicScansSource extends MangaSource {
   DemonicScansSource([Dio? dio])
       : _dio = dio ??
             Dio(

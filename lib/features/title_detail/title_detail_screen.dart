@@ -45,6 +45,16 @@ class _TitleDetailScreenState extends ConsumerState<TitleDetailScreen> {
     final gutter = context.yomiGutter;
 
     final live = ref.watch(liveMangaProvider(manga.id)).valueOrNull ?? manga;
+    final genres = <String, String>{};
+    for (final rawGenre in live.genres) {
+      final genre = rawGenre.trim();
+      if (genre.isNotEmpty) {
+        genres.putIfAbsent(genre.toLowerCase(), () => genre);
+      }
+    }
+    if (genres.isEmpty) {
+      ref.watch(mangaMetadataProvider(manga.id));
+    }
     final chapterSync = ref.watch(chapterSyncProvider(manga.id));
     final liveChapters = ref.watch(liveChaptersProvider(manga.id));
     // The sync provider owns initial source loading; the live Isar stream owns
@@ -90,6 +100,20 @@ class _TitleDetailScreenState extends ConsumerState<TitleDetailScreen> {
                       size: context.look.isCinema ? 44 : 32),
                   const SizedBox(height: 4),
                   Text(meta, style: YomiText.ui(13, color: c.fg2)),
+
+                  if (genres.isNotEmpty) ...[
+                    const SizedBox(height: 18),
+                    const SumiOverline('GENRES'),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        for (final genre in genres.values)
+                          SumiChip(label: genre, active: false),
+                      ],
+                    ),
+                  ],
 
                   // ── Buttons ───────────────────────────────────────────
                   const SizedBox(height: 18),

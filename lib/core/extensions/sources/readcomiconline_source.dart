@@ -26,7 +26,7 @@ import '../source_interface.dart';
 ///  - Manga ID  = comic slug (e.g. "The-Boys").
 ///  - Chapter ID = relative reader path incl. query
 ///    (e.g. "Comic/The-Boys/Issue-1?id=12345").
-class ReadComicOnlineSource implements MangaSource {
+class ReadComicOnlineSource extends MangaSource {
   ReadComicOnlineSource([Dio? dio])
       : _dio = dio ??
             Dio(

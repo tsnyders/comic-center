@@ -9,7 +9,7 @@ import '../models/manga_summary.dart';
 import '../source_interface.dart';
 
 /// AsuraScans source via the official JSON API at api.asurascans.com.
-class AsuraScansSource implements MangaSource {
+class AsuraScansSource extends MangaSource {
   AsuraScansSource([Dio? dio])
       : _dio = dio ??
             Dio(

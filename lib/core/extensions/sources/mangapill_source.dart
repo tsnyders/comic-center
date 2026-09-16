@@ -11,7 +11,7 @@ import '../models/manga_summary.dart';
 import '../source_interface.dart';
 
 /// MangaPill HTML source.
-class MangaPillSource implements MangaSource {
+class MangaPillSource extends MangaSource {
   MangaPillSource([Dio? dio]) : _dio = dio ?? _createClient();
 
   static Dio _createClient() => Dio(
@@ -48,6 +48,38 @@ class MangaPillSource implements MangaSource {
       };
   @override
   List<SourceFilter> getFilters() => const [];
+
+  @override
+  Future<List<GenreOption>> fetchGenres() async {
+    final doc = await _document('/search');
+    final genres = <String, GenreOption>{};
+    for (final link in doc.querySelectorAll('a[href]')) {
+      final href = link.attributes['href'];
+      final uri = href == null ? null : Uri.tryParse(href);
+      if (uri == null || uri.path != '/search') continue;
+      final id = uri.queryParameters['genre']?.trim();
+      final name = link.text.trim();
+      if (id != null && id.isNotEmpty && name.isNotEmpty) {
+        genres[id] = GenreOption(id: id, name: name);
+      }
+    }
+    for (final option in doc.querySelectorAll('select[name="genre"] option[value]')) {
+      final id = option.attributes['value']?.trim();
+      final name = option.text.trim();
+      if (id != null && id.isNotEmpty && name.isNotEmpty) {
+        genres[id] = GenreOption(id: id, name: name);
+      }
+    }
+    return genres.values.toList()..sort((a, b) => a.name.compareTo(b.name));
+  }
+
+  @override
+  Future<List<MangaSummary>> fetchByGenre(String genreId, {int page = 1}) async {
+    return _parseCards(await _document(
+      '/search',
+      queryParameters: {'genre': genreId, 'page': page},
+    ));
+  }
 
   @override
   Future<List<MangaSummary>> fetchPopular({int page = 1}) async {

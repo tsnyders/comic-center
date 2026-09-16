@@ -9,7 +9,7 @@ import '../models/manga_summary.dart';
 import '../source_interface.dart';
 
 /// ReaperScans source via the JSON REST API at api.reaperscans.com.
-class ReaperScansSource implements MangaSource {
+class ReaperScansSource extends MangaSource {
   ReaperScansSource()
       : _dio = Dio(
           BaseOptions(

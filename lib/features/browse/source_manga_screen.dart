@@ -9,6 +9,8 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../shared/widgets/cover_image.dart';
+import '../../shared/widgets/genre_filter_bar.dart';
+import '../../shared/widgets/sumi.dart';
 import '../title_detail/title_detail_screen.dart';
 
 class SourceMangaScreen extends ConsumerStatefulWidget {
@@ -45,7 +47,26 @@ class _SourceMangaScreenState extends ConsumerState<SourceMangaScreen> {
         query: _searchController.text.trim(),
       );
     }
-    return BrowseArgs(sourceId: widget.sourceId, mode: mode);
+    return BrowseArgs(
+      sourceId: widget.sourceId,
+      mode: mode,
+      genreId: mode == BrowseMode.genre
+          ? ref.watch(browseGenreProvider(widget.sourceId))
+          : null,
+    );
+  }
+
+  void _selectMode(BrowseMode mode) {
+    ref.read(browseGenreProvider(widget.sourceId).notifier).state = null;
+    ref.read(browseModeProvider(widget.sourceId).notifier).state = mode;
+  }
+
+  void _selectGenre(String? genreId) {
+    _searchController.clear();
+    ref.read(browseGenreProvider(widget.sourceId).notifier).state = genreId;
+    ref.read(browseModeProvider(widget.sourceId).notifier).state =
+        genreId == null ? BrowseMode.popular : BrowseMode.genre;
+    setState(() => _searchActive = false);
   }
 
   Future<void> _openManga(MangaSummary summary) async {
@@ -104,15 +125,13 @@ class _SourceMangaScreenState extends ConsumerState<SourceMangaScreen> {
 
   void _dismissSearch() {
     _searchController.clear();
-    ref.read(browseModeProvider(widget.sourceId).notifier).state =
-        BrowseMode.popular;
+    _selectMode(BrowseMode.popular);
     setState(() => _searchActive = false);
   }
 
   void _submitSearch() {
     if (_searchController.text.trim().isEmpty) return;
-    ref.read(browseModeProvider(widget.sourceId).notifier).state =
-        BrowseMode.search;
+    _selectMode(BrowseMode.search);
     setState(() {});
   }
 
@@ -126,8 +145,7 @@ class _SourceMangaScreenState extends ConsumerState<SourceMangaScreen> {
           CupertinoActionSheetAction(
             isDefaultAction: current == BrowseMode.popular,
             onPressed: () {
-              ref.read(browseModeProvider(widget.sourceId).notifier).state =
-                  BrowseMode.popular;
+              _selectMode(BrowseMode.popular);
               Navigator.pop(context);
             },
             child: const Text('Popular'),
@@ -135,8 +153,7 @@ class _SourceMangaScreenState extends ConsumerState<SourceMangaScreen> {
           CupertinoActionSheetAction(
             isDefaultAction: current == BrowseMode.latest,
             onPressed: () {
-              ref.read(browseModeProvider(widget.sourceId).notifier).state =
-                  BrowseMode.latest;
+              _selectMode(BrowseMode.latest);
               Navigator.pop(context);
             },
             child: const Text('Latest'),
@@ -168,6 +185,8 @@ class _SourceMangaScreenState extends ConsumerState<SourceMangaScreen> {
     }
 
     final mode = ref.watch(browseModeProvider(widget.sourceId));
+    final selectedGenre = ref.watch(browseGenreProvider(widget.sourceId));
+    final genresAsync = ref.watch(sourceGenresProvider(widget.sourceId));
     final mangasAsync = ref.watch(browseMangaProvider(_args(mode)));
     final topPadding = MediaQuery.of(context).padding.top;
     final bottomPadding = MediaQuery.of(context).padding.bottom;
@@ -245,12 +264,10 @@ class _SourceMangaScreenState extends ConsumerState<SourceMangaScreen> {
                   controller: _searchController,
                   autofocus: true,
                   onChanged: (_) {
-                    if (_searchController.text.trim().isNotEmpty) {
-                      ref
-                          .read(browseModeProvider(widget.sourceId).notifier)
-                          .state = BrowseMode.search;
-                      setState(() {});
-                    }
+                    _selectMode(_searchController.text.trim().isEmpty
+                        ? BrowseMode.popular
+                        : BrowseMode.search);
+                    setState(() {});
                   },
                   onSubmitted: (_) => _submitSearch(),
                 ),
@@ -264,22 +281,52 @@ class _SourceMangaScreenState extends ConsumerState<SourceMangaScreen> {
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
                 child: Row(
                   children: [
-                    _ModeTab(
+                    SumiChip(
                       label: 'Popular',
-                      selected: mode == BrowseMode.popular,
-                      onTap: () => ref
-                          .read(browseModeProvider(widget.sourceId).notifier)
-                          .state = BrowseMode.popular,
+                      active: mode == BrowseMode.popular,
+                      onTap: () => _selectMode(BrowseMode.popular),
                     ),
                     const SizedBox(width: 8),
-                    _ModeTab(
+                    SumiChip(
                       label: 'Latest',
-                      selected: mode == BrowseMode.latest,
-                      onTap: () => ref
-                          .read(browseModeProvider(widget.sourceId).notifier)
-                          .state = BrowseMode.latest,
+                      active: mode == BrowseMode.latest,
+                      onTap: () => _selectMode(BrowseMode.latest),
                     ),
                   ],
+                ),
+              ),
+            ),
+
+          if (!_searchActive)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.only(top: 18),
+                child: genresAsync.when(
+                  loading: () => const Center(
+                    child: CupertinoActivityIndicator(),
+                  ),
+                  error: (_, __) => CupertinoButton(
+                    onPressed: () =>
+                        ref.invalidate(sourceGenresProvider(widget.sourceId)),
+                    child: const Text('Retry loading genres'),
+                  ),
+                  data: (genres) => genres.isEmpty
+                      ? Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Text(
+                            'Genre browsing is unavailable for this source.',
+                            style: AppTextStyles.bodySmall.copyWith(
+                              color: context.textSecondaryColor,
+                            ),
+                          ),
+                        )
+                      : GenreFilterBar(
+                          genres: {
+                            for (final genre in genres) genre.id: genre.name,
+                          },
+                          selected: selectedGenre,
+                          onSelected: _selectGenre,
+                        ),
                 ),
               ),
             ),
@@ -349,49 +396,6 @@ class _SourceMangaScreenState extends ConsumerState<SourceMangaScreen> {
 }
 
 // ── Mode tab pill ─────────────────────────────────────────────────────────
-
-class _ModeTab extends StatelessWidget {
-  const _ModeTab({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: AppMotion.fast,
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 7),
-        decoration: BoxDecoration(
-          color: selected
-              ? context.accentColor
-              : context.surfaceElevatedColor.withValues(alpha: 0.7),
-          borderRadius: BorderRadius.circular(AppRadius.pill),
-          border: selected
-              ? null
-              : Border.all(
-                  color: context.borderColor,
-                  width: AppRadius.hairline,
-                ),
-        ),
-        child: Text(
-          label,
-          style: AppTextStyles.labelMedium.copyWith(
-            color:
-                selected ? AppColors.textOnAccent : context.textSecondaryColor,
-            fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 // ── Manga card in grid ────────────────────────────────────────────────────
 

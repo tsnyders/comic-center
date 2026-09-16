@@ -22,7 +22,7 @@ import '../source_interface.dart';
 ///
 /// The site has historically moved between .com/.net/.org domains; if it moves
 /// again only [baseUrl] needs updating.
-class ComicExtraSource implements MangaSource {
+class ComicExtraSource extends MangaSource {
   ComicExtraSource([Dio? dio])
       : _dio = dio ??
             Dio(
@@ -61,6 +61,33 @@ class ComicExtraSource implements MangaSource {
       };
   @override
   List<SourceFilter> getFilters() => const [];
+
+  @override
+  Future<List<GenreOption>> fetchGenres() async {
+    final doc = await _fetchDoc('/advanced-search');
+    final genres = <String, GenreOption>{};
+    for (final link in doc.querySelectorAll('a[href*="/genre/"]')) {
+      final href = link.attributes['href'];
+      final uri = href == null ? null : Uri.tryParse(href);
+      if (uri == null || !uri.path.startsWith('/genre/')) continue;
+      if (uri.hasAuthority && uri.host != Uri.parse(baseUrl).host) continue;
+      final name = link.text.trim();
+      if (name.isEmpty) continue;
+      genres[uri.path] = GenreOption(id: uri.path, name: name);
+    }
+    return genres.values.toList()..sort((a, b) => a.name.compareTo(b.name));
+  }
+
+  @override
+  Future<List<MangaSummary>> fetchByGenre(String genreId, {int page = 1}) async {
+    if (!genreId.startsWith('/genre/')) {
+      throw ArgumentError.value(genreId, 'genreId', 'Invalid ComicExtra genre');
+    }
+    return _parseList(await _fetchDoc(
+      genreId,
+      queryParameters: {'page': page},
+    ));
+  }
 
   // ── Listings ─────────────────────────────────────────────────────────────
 

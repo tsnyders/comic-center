@@ -11,6 +11,7 @@ import '../../core/theme/app_spacing.dart';
 import '../../core/theme/yomi_theme.dart';
 import '../../shared/widgets/cover_image.dart';
 import '../../shared/widgets/empty_state.dart';
+import '../../shared/widgets/genre_filter_bar.dart';
 import '../../shared/widgets/lumen_page_route.dart';
 import '../../shared/widgets/sumi.dart';
 import '../reader/open_reader.dart';
@@ -39,6 +40,8 @@ class LibraryScreen extends ConsumerWidget {
     final total = ref.watch(libraryStreamProvider).valueOrNull?.length ?? 0;
     final continueItems = ref.watch(continueReadingProvider);
     final filter = ref.watch(shelfFilterProvider);
+    final genre = ref.watch(libraryGenreProvider);
+    final genres = ref.watch(libraryGenresProvider);
     final categories =
         ref.watch(libraryCategoriesProvider).where((x) => x != 'All');
 
@@ -120,6 +123,20 @@ class LibraryScreen extends ConsumerWidget {
           ),
 
           // ── Cover grid ────────────────────────────────────────────────────
+          if (genres.isNotEmpty || genre != null)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.only(top: 18),
+                child: GenreFilterBar(
+                  genres: {for (final value in genres) value: value},
+                  selected: genre,
+                  horizontalPadding: gutter,
+                  onSelected: (value) =>
+                      ref.read(libraryGenreProvider.notifier).state = value,
+                ),
+              ),
+            ),
+
           library.when(
             loading: () => const SliverToBoxAdapter(
               child: Padding(

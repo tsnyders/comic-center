@@ -8,9 +8,9 @@ import '../models/manga_detail.dart';
 import '../models/manga_summary.dart';
 import '../source_interface.dart';
 
-class MangaDexSource implements MangaSource {
-  MangaDexSource()
-      : _dio = Dio(
+class MangaDexSource extends MangaSource {
+  MangaDexSource([Dio? dio])
+      : _dio = dio ?? Dio(
           BaseOptions(
             baseUrl: 'https://api.mangadex.org',
             connectTimeout: const Duration(seconds: 15),
@@ -45,6 +45,43 @@ class MangaDexSource implements MangaSource {
 
   @override
   List<SourceFilter> getFilters() => const [];
+
+  @override
+  Future<List<GenreOption>> fetchGenres() async {
+    final response = await _dio.get<Map<String, dynamic>>('/manga/tag');
+    final tags = response.data?['data'] as List? ?? const [];
+    final genres = <GenreOption>[];
+    for (final value in tags) {
+      if (value is! Map<String, dynamic>) continue;
+      final attributes = value['attributes'];
+      if (attributes is! Map<String, dynamic> ||
+          attributes['group'] != 'genre') continue;
+      final id = value['id'];
+      final names = attributes['name'];
+      final name = names is Map ? names['en'] : null;
+      if (id is String && id.isNotEmpty && name is String && name.isNotEmpty) {
+        genres.add(GenreOption(id: id, name: name));
+      }
+    }
+    genres.sort((a, b) => a.name.compareTo(b.name));
+    return genres;
+  }
+
+  @override
+  Future<List<MangaSummary>> fetchByGenre(String genreId, {int page = 1}) async {
+    final response = await _dio.get<Map<String, dynamic>>(
+      '/manga',
+      queryParameters: {
+        'includedTags[]': genreId,
+        'order[followedCount]': 'desc',
+        'availableTranslatedLanguage[]': 'en',
+        'includes[]': 'cover_art',
+        'limit': 20,
+        'offset': (page - 1) * 20,
+      },
+    );
+    return _parseSummaries(response.data!['data'] as List);
+  }
 
   @override
   Future<List<MangaSummary>> fetchPopular({int page = 1}) async {

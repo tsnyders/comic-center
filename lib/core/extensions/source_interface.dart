@@ -2,8 +2,11 @@ import 'dart:typed_data';
 
 import 'models/chapter_info.dart';
 import 'models/filter.dart';
+import 'models/genre_option.dart';
 import 'models/manga_detail.dart';
 import 'models/manga_summary.dart';
+
+export 'models/genre_option.dart';
 
 /// The contract every extension must implement.
 ///
@@ -43,6 +46,17 @@ abstract class MangaSource {
     int page = 1,
     List<SourceFilter> filters = const [],
   });
+
+  /// Genres backed by this source's catalogue. An empty list means that the
+  /// source has no verified genre browse route.
+  Future<List<GenreOption>> fetchGenres() async => const [];
+
+  /// Browse a source-native [genreId] returned by [fetchGenres].
+  Future<List<MangaSummary>> fetchByGenre(
+    String genreId, {
+    int page = 1,
+  }) =>
+      throw UnsupportedError('Genre browsing is unavailable for $name.');
 
   // ── Detail ────────────────────────────────────────────────────────────────
 

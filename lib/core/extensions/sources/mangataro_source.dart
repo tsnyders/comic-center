@@ -13,7 +13,7 @@ import '../models/manga_summary.dart';
 import '../source_interface.dart';
 
 /// MangaTaro source backed by its public catalogue and reader endpoints.
-class MangaTaroSource implements MangaSource {
+class MangaTaroSource extends MangaSource {
   MangaTaroSource([Dio? dio, DateTime Function()? clock])
       : _dio = dio ?? _createClient(),
         _clock = clock ?? DateTime.now;
@@ -56,6 +56,39 @@ class MangaTaroSource implements MangaSource {
   List<SourceFilter> getFilters() => const [];
 
   @override
+  Future<List<GenreOption>> fetchGenres() async {
+    final doc = await _document('/manga');
+    final genres = <String, GenreOption>{};
+    for (final input in doc.querySelectorAll(
+      'input[name="genres[]"][value], input[name="genres"][value]',
+    )) {
+      final id = input.attributes['value']?.trim();
+      final inputId = input.attributes['id'];
+      final label = inputId == null
+          ? input.parent?.text.trim()
+          : doc.querySelector('label[for="$inputId"]')?.text.trim() ??
+              input.parent?.text.trim();
+      if (id != null && id.isNotEmpty && label != null && label.isNotEmpty) {
+        genres[id] = GenreOption(id: id, name: label);
+      }
+    }
+    for (final option in doc.querySelectorAll(
+      'select[name="genres[]"] option[value], select[name="genres"] option[value]',
+    )) {
+      final id = option.attributes['value']?.trim();
+      final name = option.text.trim();
+      if (id != null && id.isNotEmpty && name.isNotEmpty) {
+        genres[id] = GenreOption(id: id, name: name);
+      }
+    }
+    return genres.values.toList()..sort((a, b) => a.name.compareTo(b.name));
+  }
+
+  @override
+  Future<List<MangaSummary>> fetchByGenre(String genreId, {int page = 1}) =>
+      _loadCatalogue(page: page, sort: 'latest', genres: [genreId]);
+
+  @override
   Future<List<MangaSummary>> fetchPopular({int page = 1}) async {
     if (page > 1) return _loadCatalogue(page: page, sort: 'popular');
     final response = await _dio.get<dynamic>('/wp-json/manga/v1/popular');
@@ -83,6 +116,7 @@ class MangaTaroSource implements MangaSource {
     required int page,
     required String sort,
     String search = '',
+    List<String> genres = const [],
   }) async {
     final response = await _dio.post<dynamic>(
       '/wp-json/manga/v1/load',
@@ -90,7 +124,7 @@ class MangaTaroSource implements MangaSource {
         'page': page,
         'search': search,
         'years': '[]',
-        'genres': '[]',
+        'genres': jsonEncode(genres),
         'types': '[]',
         'statuses': '[]',
         'sort': sort,

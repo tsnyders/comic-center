@@ -12,7 +12,7 @@ import 'source_registry_provider.dart';
 
 // ── Browse mode ───────────────────────────────────────────────────────────
 
-enum BrowseMode { popular, latest, search }
+enum BrowseMode { popular, latest, search, genre }
 
 // ── Browse args (used as FutureProvider.family key) ───────────────────────
 
@@ -22,12 +22,14 @@ class BrowseArgs {
     required this.mode,
     this.page = 1,
     this.query = '',
+    this.genreId,
   });
 
   final String sourceId;
   final BrowseMode mode;
   final int page;
   final String query;
+  final String? genreId;
 
   @override
   bool operator ==(Object other) =>
@@ -35,16 +37,29 @@ class BrowseArgs {
       other.sourceId == sourceId &&
       other.mode == mode &&
       other.page == page &&
-      other.query == query;
+      other.query == query &&
+      other.genreId == genreId;
 
   @override
-  int get hashCode => Object.hash(sourceId, mode, page, query);
+  int get hashCode => Object.hash(sourceId, mode, page, query, genreId);
 }
 
 // ── Per-source providers ──────────────────────────────────────────────────
 
 final browseModeProvider =
     StateProvider.family<BrowseMode, String>((ref, _) => BrowseMode.popular);
+
+final browseGenreProvider = StateProvider.family<String?, String>((ref, _) => null);
+
+final sourceGenresProvider = FutureProvider.autoDispose
+    .family<List<GenreOption>, String>((ref, sourceId) async {
+  ref.cacheFor(const Duration(minutes: 15));
+  final source = ref.watch(sourceByIdProvider(sourceId));
+  if (source == null) {
+    throw Exception('Source "$sourceId" is not installed.');
+  }
+  return source.fetchGenres();
+});
 
 // autoDispose: BrowseArgs includes the search query and page number, so every
 // query ever typed and every page ever browsed used to stay cached for the
@@ -58,10 +73,16 @@ final browseMangaProvider = FutureProvider.autoDispose
   if (source == null) {
     throw Exception('Source "${args.sourceId}" is not installed.');
   }
+  final genreId = args.genreId?.trim();
+  if (args.mode == BrowseMode.genre &&
+      (genreId == null || genreId.isEmpty)) {
+    throw ArgumentError.value(args.genreId, 'genreId', 'A genre is required.');
+  }
   return switch (args.mode) {
     BrowseMode.popular => source.fetchPopular(page: args.page),
     BrowseMode.latest => source.fetchLatestUpdates(page: args.page),
     BrowseMode.search => source.search(args.query, page: args.page),
+    BrowseMode.genre => source.fetchByGenre(genreId!, page: args.page),
   };
 });
 
@@ -77,6 +98,19 @@ bool _isRealTitle(String? s) {
   return true;
 }
 
+// Avoid fetching detail on every open when a source has no genre metadata.
+// A later visit can retry, and the cache resets when the app restarts.
+final _missingGenreRetryAfter = <String, DateTime>{};
+
+List<String> _cleanGenres(Iterable<String> genres) {
+  final byName = <String, String>{};
+  for (final genre in genres) {
+    final name = genre.trim();
+    if (name.isNotEmpty) byName.putIfAbsent(name.toLowerCase(), () => name);
+  }
+  return byName.values.toList();
+}
+
 Future<MangaEntry> upsertMangaEntry({
   required Isar isar,
   required MangaSource source,
@@ -88,7 +122,16 @@ Future<MangaEntry> upsertMangaEntry({
   final existing =
       await isar.mangaEntrys.filter().sourceKeyEqualTo(sourceKey).findFirst();
 
-  if (existing != null && _isRealTitle(existing.title)) return existing;
+  final hasTitle = existing != null && _isRealTitle(existing.title);
+  if (existing != null && hasTitle) {
+    if (existing.genres.any((genre) => genre.trim().isNotEmpty)) {
+      return existing;
+    }
+    final retryAfter = _missingGenreRetryAfter[sourceKey];
+    if (retryAfter != null && DateTime.now().isBefore(retryAfter)) {
+      return existing;
+    }
+  }
 
   MangaDetailLike detail;
   try {
@@ -97,30 +140,77 @@ Future<MangaEntry> upsertMangaEntry({
     detail = MangaDetailLike.empty();
   }
 
+  final genres = _cleanGenres(detail.genres);
+  if (hasTitle && genres.isEmpty) {
+    _missingGenreRetryAfter[sourceKey] =
+        DateTime.now().add(const Duration(minutes: 15));
+    return existing!;
+  }
+  _missingGenreRetryAfter.remove(sourceKey);
+
   final title = _isRealTitle(detail.title)
       ? detail.title
-      : (_isRealTitle(summary?.title) ? summary!.title : detail.title);
+      : (_isRealTitle(summary?.title)
+          ? summary!.title
+          : (existing?.title ?? detail.title));
 
   final coverUrl = detail.coverUrl ?? summary?.coverUrl;
 
-  final entry = existing ?? MangaEntry();
-  entry
-    ..sourceKey = sourceKey
-    ..sourceId = source.id
-    ..sourceMangaId = mangaId
-    ..sourceUrl = detail.url ?? summary?.url ?? ''
-    ..title = title
-    ..coverUrl = coverUrl ?? entry.coverUrl
-    ..author = detail.author ?? entry.author
-    ..artist = detail.artist ?? entry.artist
-    ..description = detail.description ?? entry.description
-    ..status = detail.status == 'unknown' ? entry.status : detail.status
-    ..lastUpdated = DateTime.now();
-  if (detail.genres.isNotEmpty) entry.genres = detail.genres;
-
-  await isar.writeTxn(() => isar.mangaEntrys.put(entry));
-  return entry;
+  return isar.writeTxn(() async {
+    // Re-read after the network request so a bookmark, category, or reading
+    // progress changed while detail loaded is not overwritten by a stale row.
+    final current =
+        await isar.mangaEntrys.filter().sourceKeyEqualTo(sourceKey).findFirst();
+    if (current != null &&
+        _isRealTitle(current.title) &&
+        current.genres.any((genre) => genre.trim().isNotEmpty)) {
+      return current;
+    }
+    final entry = current ?? MangaEntry();
+    entry
+      ..sourceKey = sourceKey
+      ..sourceId = source.id
+      ..sourceMangaId = mangaId
+      ..sourceUrl = detail.url ?? summary?.url ?? current?.sourceUrl ?? ''
+      ..title = title
+      ..coverUrl = coverUrl ?? entry.coverUrl
+      ..author = detail.author ?? entry.author
+      ..artist = detail.artist ?? entry.artist
+      ..description = detail.description ?? entry.description
+      ..status = detail.status == 'unknown' ? entry.status : detail.status
+      ..lastUpdated = DateTime.now();
+    if (genres.isNotEmpty) entry.genres = genres;
+    await isar.mangaEntrys.put(entry);
+    return entry;
+  });
 }
+
+/// Hydrates one saved title when its stored genres are missing. The detail
+/// screen watches this only for that title, so opening the library never
+/// starts a catalogue-wide metadata fetch.
+final mangaMetadataProvider = FutureProvider.autoDispose
+    .family<MangaEntry?, int>((ref, mangaId) async {
+  ref.cacheFor(const Duration(minutes: 15));
+  final isar = ref.watch(isarProvider);
+  final sources = ref.watch(sourceRegistryProvider);
+  final manga = await isar.mangaEntrys.get(mangaId);
+  if (manga == null || manga.genres.any((genre) => genre.trim().isNotEmpty)) {
+    return manga;
+  }
+  MangaSource? source;
+  for (final candidate in sources) {
+    if (candidate.id == manga.sourceId) {
+      source = candidate;
+      break;
+    }
+  }
+  if (source == null) return manga;
+  return upsertMangaEntry(
+    isar: isar,
+    source: source,
+    mangaId: manga.sourceMangaId,
+  );
+});
 
 class MangaDetailLike {
   MangaDetailLike({

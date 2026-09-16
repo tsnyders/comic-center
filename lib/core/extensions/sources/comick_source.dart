@@ -10,7 +10,7 @@ import '../source_interface.dart';
 
 /// ComicK source via api.comick.fun — supports both manga and manhwa.
 /// Manga IDs are the `hid` short identifier returned by the search API.
-class ComicKSource implements MangaSource {
+class ComicKSource extends MangaSource {
   ComicKSource([Dio? dio])
       : _dio = dio ??
             Dio(

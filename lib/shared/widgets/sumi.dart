@@ -367,12 +367,12 @@ class SumiChip extends StatelessWidget {
     super.key,
     required this.label,
     required this.active,
-    required this.onTap,
+    this.onTap,
   });
 
   final String label;
   final bool active;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -408,25 +408,28 @@ class SumiChip extends StatelessWidget {
           const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         ),
     };
-    return Semantics(
-      button: true,
-      selected: active,
-      child: SumiPress(
-        onTap: onTap,
-        scale: AppMotion.activeScale,
-        child: AnimatedContainer(
-          duration: AppMotion.fast,
-          curve: AppMotion.snap,
-          padding: pad,
-          decoration: BoxDecoration(
-            color: fill,
-            borderRadius: BorderRadius.circular(context.radii.chip),
-            border: Border.all(color: border),
-          ),
-          child: Text(YomiText.displayCase(label),
-              style: style.copyWith(color: text)),
-        ),
+    final chip = AnimatedContainer(
+      duration: AppMotion.fast,
+      curve: AppMotion.snap,
+      padding: pad,
+      decoration: BoxDecoration(
+        color: fill,
+        borderRadius: BorderRadius.circular(context.radii.chip),
+        border: Border.all(color: border),
       ),
+      child: Text(YomiText.displayCase(label),
+          style: style.copyWith(color: text)),
+    );
+    return Semantics(
+      button: onTap != null,
+      selected: onTap == null ? null : active,
+      child: onTap == null
+          ? chip
+          : SumiPress(
+              onTap: onTap,
+              scale: AppMotion.activeScale,
+              child: chip,
+            ),
     );
   }
 }
