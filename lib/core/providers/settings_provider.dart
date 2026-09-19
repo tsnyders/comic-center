@@ -1,19 +1,9 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../services/download_enqueue.dart';
 import '../theme/yomi_theme.dart';
 import 'preferences_provider.dart';
-
-enum DownloadLocation { local, googleDrive }
-
-/// Where downloaded chapters are stored. Persisted.
-final downloadLocationProvider = StateProvider<DownloadLocation>((ref) {
-  final prefs = ref.watch(sharedPreferencesProvider);
-  ref.listenSelf(
-      (_, next) => prefs.setInt('settings.downloadLocation', next.index));
-  return readEnumPref(prefs, 'settings.downloadLocation',
-      DownloadLocation.values, DownloadLocation.local);
-});
 
 /// App-wide brightness (theme mode). Persisted. Defaults to dark (LUMEN ink).
 final brightnessProvider = StateProvider<Brightness>((ref) {
@@ -114,3 +104,29 @@ final wifiOnlyProvider = StateProvider<bool>((ref) {
 
 /// 0 Discover · 1 Library (yin-yang) · 2 Settings. In-memory.
 final rootTabProvider = StateProvider<int>((_) => 1);
+
+// ── Downloads ─────────────────────────────────────────────────────────────────
+// Pref keys live in download_enqueue.dart so the Riverpod-free background
+// path reads the same values.
+
+/// Queue chapters found by a library update. Off by default.
+final autoDownloadNewChaptersProvider = StateProvider<bool>((ref) {
+  final prefs = ref.watch(sharedPreferencesProvider);
+  ref.listenSelf(
+      (_, next) => prefs.setBool(autoDownloadNewChaptersPrefKey, next));
+  return prefs.getBool(autoDownloadNewChaptersPrefKey) ?? false;
+});
+
+/// Delete a downloaded chapter once it is marked read. Off by default.
+final removeAfterReadProvider = StateProvider<bool>((ref) {
+  final prefs = ref.watch(sharedPreferencesProvider);
+  ref.listenSelf((_, next) => prefs.setBool(removeAfterReadPrefKey, next));
+  return prefs.getBool(removeAfterReadPrefKey) ?? false;
+});
+
+/// How many unread chapters to queue after the one being opened. 0 = off.
+final downloadAheadProvider = StateProvider<int>((ref) {
+  final prefs = ref.watch(sharedPreferencesProvider);
+  ref.listenSelf((_, next) => prefs.setInt(downloadAheadPrefKey, next));
+  return prefs.getInt(downloadAheadPrefKey) ?? 0;
+});

@@ -7,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../database/models/chapter_entry.dart';
 import '../database/models/manga_entry.dart';
+import '../services/download_enqueue.dart';
 import 'database_provider.dart';
 import 'preferences_provider.dart';
 
@@ -273,6 +274,7 @@ class LibraryNotifier extends AsyncNotifier<void> {
         await isar.mangaEntrys.put(manga);
       }
     });
+    await deleteReadDownloads(isar, mangaId);
   }
 
   /// Marks every chapter of [mangaId] as read and zeroes the unread count.

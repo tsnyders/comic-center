@@ -111,6 +111,19 @@ open class MainActivity : FlutterActivity() {
                             result.error("SET_ICON_FAILED", e.message, null)
                         }
                     }
+                    // Android 13+ needs runtime consent before the download
+                    // foreground notification can be shown. Fire-and-forget:
+                    // the worker still runs if the user declines.
+                    "requestNotificationPermission" -> {
+                        if (Build.VERSION.SDK_INT >= 33 &&
+                            checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) !=
+                                PackageManager.PERMISSION_GRANTED
+                        ) {
+                            requestPermissions(
+                                arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 0x4E4F)
+                        }
+                        result.success(null)
+                    }
                     else -> result.notImplemented()
                 }
             }

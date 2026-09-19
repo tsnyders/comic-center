@@ -23,7 +23,6 @@ const _downloadQueueTask = 'yomi.download.queue';
 const _downloadCleanupTask = 'yomi.download.cleanup';
 const _downloadQueueWork = 'yomi-download-queue';
 const _downloadCleanupWorkPrefix = 'yomi-download-cleanup';
-const _downloadLocationPreference = 'settings.downloadLocation';
 const _wifiOnlyPreference = 'settings.wifiOnly';
 
 DownloadQueueProcessor? _activeBackgroundProcessor;
@@ -245,14 +244,6 @@ class DownloadQueueProcessor {
       final source = ExtensionFactory.create(manga.sourceId);
       if (source == null) {
         throw StateError('Source "${manga.sourceId}" is not installed');
-      }
-
-      final preferences = await SharedPreferences.getInstance();
-      if ((preferences.getInt(_downloadLocationPreference) ?? 0) != 0) {
-        throw StateError(
-          'Google Drive download storage is not yet configured. '
-          'Change to Local Storage in Settings → Downloads.',
-        );
       }
 
       final pageUrls = await source.fetchPageUrls(chapter.sourceChapterId);
