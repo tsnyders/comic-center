@@ -423,7 +423,6 @@ void _reloadSettings(WidgetRef ref) {
     readerBackgroundProvider,
     defaultReaderModeProvider,
     mangaReaderModeProvider,
-    downloadLocationProvider,
     brightnessProvider,
     autoCheckUpdatesProvider,
     accentIndexProvider,
