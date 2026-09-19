@@ -130,3 +130,21 @@ final downloadAheadProvider = StateProvider<int>((ref) {
   ref.listenSelf((_, next) => prefs.setInt(downloadAheadPrefKey, next));
   return prefs.getInt(downloadAheadPrefKey) ?? 0;
 });
+
+// ── Extensions catalogue ──────────────────────────────────────────────────────
+
+/// Show 18+ extensions in the Available tab. Persisted. Off by default.
+final showNsfwExtensionsProvider = StateProvider<bool>((ref) {
+  final prefs = ref.watch(sharedPreferencesProvider);
+  ref.listenSelf((_, next) => prefs.setBool('extensions.showNsfw', next));
+  return prefs.getBool('extensions.showNsfw') ?? false;
+});
+
+/// Language chip in the Available tab; null means every language. Persisted.
+final extensionLanguageProvider = StateProvider<String?>((ref) {
+  final prefs = ref.watch(sharedPreferencesProvider);
+  ref.listenSelf((_, next) => next == null
+      ? prefs.remove('extensions.lang')
+      : prefs.setString('extensions.lang', next));
+  return prefs.getString('extensions.lang');
+});

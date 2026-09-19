@@ -1,6 +1,7 @@
 import 'source_interface.dart';
 import 'sources/asura_scans_source.dart';
 import 'sources/comicextra_source.dart';
+import 'sources/comick_source.dart';
 import 'sources/demonicscans_source.dart';
 import 'sources/mangadex_source.dart';
 import 'sources/mangapill_source.dart';
@@ -33,6 +34,8 @@ abstract final class ExtensionFactory {
     'eu.kanade.tachiyomi.extension.en.readcomiconline': 'readcomiconline_en',
     // ComicExtra (western comics)
     'eu.kanade.tachiyomi.extension.en.comicextra': 'comicextra_en',
+    // ComicK (multi-language aggregator)
+    'eu.kanade.tachiyomi.extension.all.comick': 'comick_en',
   };
 
   /// Native sources that should always be installable from the catalogue, even
@@ -76,6 +79,13 @@ abstract final class ExtensionFactory {
       lang: 'en',
       isNsfw: false,
     ),
+    (
+      name: 'ComicK',
+      pkg: 'eu.kanade.tachiyomi.extension.all.comick',
+      sourceId: 'comick_en',
+      lang: 'all',
+      isNsfw: true,
+    ),
   ];
 
   static MangaSource? create(String sourceId) => switch (sourceId) {
@@ -87,6 +97,7 @@ abstract final class ExtensionFactory {
         'reaperscans_en' => ReaperScansSource(),
         'readcomiconline_en' => ReadComicOnlineSource(),
         'comicextra_en' => ComicExtraSource(),
+        'comick_en' => ComicKSource(),
         _ => null,
       };
 }

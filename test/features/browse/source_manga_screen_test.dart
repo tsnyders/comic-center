@@ -16,6 +16,13 @@ class _GenreSource extends MangaSource {
   bool genresFail = false;
   bool genresSupported = true;
   final requests = <String>[];
+  List<SourceFilter>? lastFilters;
+
+  @override
+  List<SourceFilter> getFilters() => const [
+        SelectFilter(name: 'Status', options: ['Any', 'Ongoing']),
+        GroupFilter(name: 'Themes', items: [TriStateFilter(name: 'Isekai')]),
+      ];
 
   @override
   String get id => 'genre-test';
@@ -55,8 +62,10 @@ class _GenreSource extends MangaSource {
       _listing('latest');
   @override
   Future<List<MangaSummary>> search(String query,
-          {int page = 1, List<SourceFilter> filters = const []}) =>
-      _listing('search:$query');
+      {int page = 1, List<SourceFilter> filters = const []}) {
+    lastFilters = filters;
+    return _listing('search:$query');
+  }
   @override
   Future<MangaDetail> fetchMangaDetail(String mangaId) =>
       throw UnimplementedError();
@@ -149,6 +158,39 @@ void main() {
       await tester.tap(find.text('Retry loading genres'));
       await tester.pumpAndSettle();
       expect(find.text('Action'), findsOneWidget);
+    });
+  });
+
+  testWidgets('filter sheet applies filters as a search and can reset',
+      (tester) async {
+    final source = _GenreSource();
+    await _withSource(tester, source, (container) async {
+      await tester.tap(find.byIcon(CupertinoIcons.line_horizontal_3_decrease));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Ongoing'));
+      await tester.tap(find.text('Isekai'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Apply'));
+      await tester.pumpAndSettle();
+
+      expect(container.read(browseModeProvider(source.id)), BrowseMode.search);
+      expect(find.text('search: result'), findsOneWidget);
+      expect(source.lastFilters!.whereType<SelectFilter>().single.value,
+          'Ongoing');
+      expect(source.lastFilters!.whereType<GroupFilter>().single.included,
+          ['Isekai']);
+
+      await tester.tap(find.byIcon(CupertinoIcons.line_horizontal_3_decrease));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Reset'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Apply'));
+      await tester.pumpAndSettle();
+      expect(
+          source.lastFilters!.whereType<SelectFilter>().single.value, 'Any');
+      expect(source.lastFilters!.whereType<GroupFilter>().single.included,
+          isEmpty);
+      expect(tester.takeException(), isNull);
     });
   });
 
