@@ -8,6 +8,7 @@ import 'package:path_provider/path_provider.dart';
 import '../database/models/chapter_entry.dart';
 import '../database/models/manga_entry.dart';
 import 'database_provider.dart';
+import 'preferences_provider.dart';
 
 // ── Category persistence ──────────────────────────────────────────────────────
 
@@ -150,6 +151,8 @@ final filteredLibraryProvider = Provider<AsyncValue<List<MangaEntry>>>((ref) {
   final genre = ref.watch(libraryGenreProvider)?.trim().toLowerCase();
   final downloaded =
       ref.watch(downloadedMangaIdsProvider).valueOrNull ?? const <int>{};
+  final sort = ref.watch(librarySortProvider);
+  final ascending = ref.watch(librarySortAscendingProvider);
 
   return library.whenData((mangas) {
     final shelf = switch (filter) {
@@ -165,7 +168,8 @@ final filteredLibraryProvider = Provider<AsyncValue<List<MangaEntry>>>((ref) {
     return shelf
         .where((m) => m.genres.any((g) => g.trim().toLowerCase() == genre))
         .toList();
-  });
+  }).whenData((shelf) =>
+      [...shelf]..sort((a, b) => compareLibrary(sort, ascending, a, b)));
 });
 
 // ── Continue reading (recently read, in-progress titles) ──────────────────────
@@ -302,7 +306,114 @@ class LibraryNotifier extends AsyncNotifier<void> {
   // Legacy alias kept for callers that use the old name.
   Future<void> updateCategory(int mangaId, List<String> categories) =>
       updateCategories(mangaId, categories);
+
+  /// Sets [chapterIds] of [mangaId] read or unread in one transaction and
+  /// recounts the title's unread total. Unread also resets page progress.
+  Future<void> setChaptersRead(
+    int mangaId,
+    Iterable<int> chapterIds, {
+    required bool read,
+  }) async {
+    final isar = ref.read(isarProvider);
+    await isar.writeTxn(() async {
+      final now = DateTime.now();
+      for (final id in chapterIds) {
+        final c = await isar.chapterEntrys.get(id);
+        if (c == null || c.mangaId != mangaId || c.isRead == read) continue;
+        c
+          ..isRead = read
+          ..readAt = read ? now : null;
+        if (!read) c.lastPageRead = 0;
+        await isar.chapterEntrys.put(c);
+      }
+      final manga = await isar.mangaEntrys.get(mangaId);
+      if (manga == null) return;
+      manga.unreadCount = await isar.chapterEntrys
+          .filter()
+          .mangaIdEqualTo(mangaId)
+          .isReadEqualTo(false)
+          .count();
+      await isar.mangaEntrys.put(manga);
+    });
+  }
+
+  Future<void> markChapterUnread(int mangaId, int chapterId) =>
+      setChaptersRead(mangaId, [chapterId], read: false);
+
+  /// Marks every chapter numbered below [chapterId]'s number as read.
+  Future<void> markPreviousChaptersRead(int mangaId, int chapterId) async {
+    final isar = ref.read(isarProvider);
+    final number = (await isar.chapterEntrys.get(chapterId))?.number;
+    if (number == null) return;
+    final all =
+        await isar.chapterEntrys.filter().mangaIdEqualTo(mangaId).findAll();
+    final previous = [
+      for (final c in all)
+        if (c.number != null && c.number! < number) c.id,
+    ];
+    await setChaptersRead(mangaId, previous, read: true);
+  }
 }
 
 final libraryNotifierProvider =
     AsyncNotifierProvider<LibraryNotifier, void>(LibraryNotifier.new);
+
+// ── Library sort / display (persisted) ────────────────────────────────────────
+
+enum LibrarySort {
+  alphabetical('Alphabetical'),
+  lastRead('Last read'),
+  lastUpdated('Last updated'),
+  unreadCount('Unread count'),
+  totalChapters('Total chapters'),
+  dateAdded('Date added');
+
+  const LibrarySort(this.label);
+  final String label;
+
+  /// Direction a freshly chosen sort starts in.
+  bool get defaultAscending => this == LibrarySort.alphabetical;
+}
+
+final librarySortProvider = StateProvider<LibrarySort>((ref) {
+  final prefs = ref.watch(sharedPreferencesProvider);
+  // ignore: deprecated_member_use
+  ref.listenSelf((_, next) => prefs.setInt('library.sort', next.index));
+  return readEnumPref(
+      prefs, 'library.sort', LibrarySort.values, LibrarySort.lastUpdated);
+});
+
+final librarySortAscendingProvider = StateProvider<bool>((ref) {
+  final prefs = ref.watch(sharedPreferencesProvider);
+  // ignore: deprecated_member_use
+  ref.listenSelf((_, next) => prefs.setBool('library.sortAsc', next));
+  return prefs.getBool('library.sortAsc') ?? false;
+});
+
+/// Orders [a] against [b] by [sort]; missing dates sort as oldest and ties
+/// fall back to title so the order is deterministic.
+int compareLibrary(LibrarySort sort, bool ascending, MangaEntry a, MangaEntry b) {
+  int byDate(DateTime? x, DateTime? y) =>
+      (x ?? DateTime(0)).compareTo(y ?? DateTime(0));
+  int byTitle() => a.title.toLowerCase().compareTo(b.title.toLowerCase());
+  final r = switch (sort) {
+    LibrarySort.alphabetical => byTitle(),
+    LibrarySort.lastRead => byDate(a.lastReadAt, b.lastReadAt),
+    LibrarySort.lastUpdated => byDate(a.lastUpdated, b.lastUpdated),
+    LibrarySort.unreadCount => a.unreadCount.compareTo(b.unreadCount),
+    LibrarySort.totalChapters => a.chapterCount.compareTo(b.chapterCount),
+    LibrarySort.dateAdded => byDate(a.addedToLibrary, b.addedToLibrary),
+  };
+  if (r != 0) return ascending ? r : -r;
+  return sort == LibrarySort.alphabetical ? 0 : byTitle();
+}
+
+enum LibraryDisplay { grid, list }
+
+final libraryDisplayProvider = StateProvider<LibraryDisplay>((ref) {
+  final prefs = ref.watch(sharedPreferencesProvider);
+  // ignore: deprecated_member_use
+  ref.listenSelf((_, next) => prefs.setInt('library.display', next.index));
+  return readEnumPref(
+      prefs, 'library.display', LibraryDisplay.values, LibraryDisplay.grid);
+});

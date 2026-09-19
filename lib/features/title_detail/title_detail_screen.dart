@@ -5,13 +5,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/database/models/chapter_entry.dart';
 import '../../core/database/models/manga_entry.dart';
 import '../../core/providers/browse_provider.dart';
+import '../../core/providers/chapter_prefs_provider.dart';
 import '../../core/providers/database_provider.dart';
 import '../../core/providers/download_provider.dart';
 import '../../core/providers/library_provider.dart';
 import '../../core/providers/source_registry_provider.dart';
 import '../../core/theme/yomi_theme.dart';
+import '../../shared/widgets/category_sheet.dart';
 import '../../shared/widgets/cover_image.dart';
 import '../../shared/widgets/sumi.dart';
+import '../../shared/widgets/sumi_actions.dart';
 import '../library/widgets/manga_card.dart' show mangaCoverHeroTag;
 import '../reader/open_reader.dart';
 import 'widgets/chapter_list_tile.dart';
@@ -31,8 +34,8 @@ class TitleDetailScreen extends ConsumerStatefulWidget {
 }
 
 class _TitleDetailScreenState extends ConsumerState<TitleDetailScreen> {
-  /// false = newest first (source order); true = oldest first.
-  bool _ascending = false;
+  /// Chapter ids picked in selection mode; null when not selecting.
+  Set<int>? _selected;
   bool _refreshing = false;
   bool _expanded = false;
 
@@ -63,7 +66,10 @@ class _TitleDetailScreenState extends ConsumerState<TitleDetailScreen> {
         ? chapterSync
         : liveChapters;
     final chs = chapters.valueOrNull ?? const <ChapterEntry>[];
-    final display = _ascending ? chs.reversed.toList() : chs;
+    final sort = ref.watch(chapterSortProvider(manga.id));
+    final filter = ref.watch(chapterFilterProvider(manga.id));
+    final display = applyChapterView(chs, sort: sort, filter: filter);
+    final selected = _selected;
     final unread = chs.where((ch) => !ch.isRead).length;
     final continueIdx = _continueIndex(chs);
     final started = chs.any((ch) => ch.isRead || ch.lastPageRead > 0);
@@ -133,17 +139,16 @@ class _TitleDetailScreenState extends ConsumerState<TitleDetailScreen> {
                         ),
                       ),
                       const SizedBox(width: 10),
-                      SumiSquareButton(
-                        icon: CupertinoIcons.arrow_down_to_line,
-                        onTap: unread == 0
+                      GestureDetector(
+                        onLongPress: unread == 0
                             ? null
-                            : () => ref
-                                .read(downloadManagerProvider.notifier)
-                                .enqueueAll(
-                                  manga: live,
-                                  chapters:
-                                      chs.where((ch) => !ch.isRead).toList(),
-                                ),
+                            : () => _showDownloadSheet(live, chs),
+                        child: SumiSquareButton(
+                          icon: CupertinoIcons.arrow_down_to_line,
+                          onTap: unread == 0
+                              ? null
+                              : () => _downloadUnread(live, chs),
+                        ),
                       ),
                       if (live.inLibrary) ...[
                         const SizedBox(width: 10),
@@ -183,20 +188,50 @@ class _TitleDetailScreenState extends ConsumerState<TitleDetailScreen> {
                     crossAxisAlignment: CrossAxisAlignment.baseline,
                     textBaseline: TextBaseline.alphabetic,
                     children: [
-                      const SumiOverline('CHAPTERS', kanji: '話'),
-                      const Spacer(),
-                      _TextAction(
-                        label: _refreshing ? 'Checking…' : 'Refresh',
-                        onTap: _refreshing ? null : _refreshChapters,
-                      ),
-                      const SizedBox(width: 14),
-                      _TextAction(
-                        label: _ascending ? 'Oldest first' : 'Newest first',
-                        onTap: () => setState(() => _ascending = !_ascending),
-                      ),
+                      if (selected != null) ...[
+                        SumiOverline('${selected.length} SELECTED',
+                            kanji: '選'),
+                        const Spacer(),
+                        SumiTextAction(
+                          label: 'Actions',
+                          onTap: selected.isEmpty
+                              ? null
+                              : () => _showSelectionSheet(live, chs),
+                        ),
+                        const SizedBox(width: 14),
+                        SumiTextAction(
+                          label: 'Done',
+                          onTap: () => setState(() => _selected = null),
+                        ),
+                      ] else ...[
+                        const SumiOverline('CHAPTERS', kanji: '話'),
+                        const Spacer(),
+                        SumiTextAction(
+                          label: _refreshing ? 'Checking…' : 'Refresh',
+                          onTap: _refreshing ? null : _refreshChapters,
+                        ),
+                        const SizedBox(width: 14),
+                        SumiTextAction(
+                          label: filter == ChapterFilter.all
+                              ? 'Filter'
+                              : filter.label.replaceAll(' only', ''),
+                          onTap: () => _showFilterSheet(filter),
+                        ),
+                        const SizedBox(width: 14),
+                        SumiTextAction(
+                          label: sort.label,
+                          onTap: () => _showSortSheet(sort),
+                        ),
+                      ],
                     ],
                   ),
                   const SizedBox(height: 6),
+                  if (display.isEmpty && chs.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      child: Text('No chapters match this filter.',
+                          style: YomiText.ui(13, color: c.fg2)),
+                    ),
                 ],
               ),
             ),
@@ -224,10 +259,16 @@ class _TitleDetailScreenState extends ConsumerState<TitleDetailScreen> {
                   index: i,
                   child: ChapterListTile(
                     chapter: display[i],
-                    onTap: () => openReader(context,
-                        manga: live,
-                        chapters: chs,
-                        index: chs.indexOf(display[i])),
+                    selected: selected?.contains(display[i].id),
+                    onTap: selected != null
+                        ? () => _toggle(display[i].id)
+                        : () => openReader(context,
+                            manga: live,
+                            chapters: chs,
+                            index: chs.indexOf(display[i])),
+                    onLongPress: selected != null
+                        ? () => _toggle(display[i].id)
+                        : () => _showChapterSheet(live, display[i]),
                     onDownload: display[i].isDownloaded
                         ? null
                         : () => ref
@@ -303,28 +344,150 @@ class _TitleDetailScreenState extends ConsumerState<TitleDetailScreen> {
   }
 
   void _showCategorySheet(BuildContext context, MangaEntry live) {
-    final allCats =
-        ref.read(libraryCategoriesProvider).where((x) => x != 'All').toList();
-    if (allCats.isEmpty) {
-      showCupertinoDialog<void>(
-        context: context,
-        builder: (_) => CupertinoAlertDialog(
-          title: const Text('No Categories'),
-          content:
-              const Text('Create categories in Settings → Categories first.'),
-          actions: [
-            CupertinoDialogAction(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('OK'),
-            ),
-          ],
-        ),
-      );
-      return;
-    }
+    showCategorySheet(
+      context,
+      allCategories:
+          ref.read(libraryCategoriesProvider).where((x) => x != 'All').toList(),
+      initial: live.categories,
+      onSave: (cats) => ref
+          .read(libraryNotifierProvider.notifier)
+          .updateCategories(live.id, cats),
+    );
+  }
+
+  void _toggle(int chapterId) => setState(() {
+        final s = _selected!;
+        s.contains(chapterId) ? s.remove(chapterId) : s.add(chapterId);
+      });
+
+  /// Unread, not-yet-downloaded chapters, oldest first. [limit] caps the
+  /// batch ("next N unread").
+  void _downloadUnread(MangaEntry live, List<ChapterEntry> chs, {int? limit}) {
+    final next = chs.reversed.where((ch) => !ch.isRead && !ch.isDownloaded);
+    ref.read(downloadManagerProvider.notifier).enqueueAll(
+        manga: live,
+        chapters: (limit == null ? next : next.take(limit)).toList());
+  }
+
+  void _showDownloadSheet(MangaEntry live, List<ChapterEntry> chs) {
+    HapticFeedback.mediumImpact();
     showCupertinoModalPopup<void>(
       context: context,
-      builder: (_) => _CategorySheet(manga: live, allCategories: allCats),
+      builder: (sheet) => CupertinoActionSheet(
+        title: const Text('Download'),
+        actions: [
+          for (final n in const [5, 10])
+            sheetAction(sheet, 'Next $n unread',
+                () => _downloadUnread(live, chs, limit: n)),
+          sheetAction(sheet, 'All unread', () => _downloadUnread(live, chs)),
+        ],
+        cancelButton: sheetAction(sheet, 'Cancel', () {}),
+      ),
+    );
+  }
+
+  void _showChapterSheet(MangaEntry live, ChapterEntry ch) {
+    HapticFeedback.mediumImpact();
+    final lib = ref.read(libraryNotifierProvider.notifier);
+    final dl = ref.read(downloadManagerProvider.notifier);
+    showCupertinoModalPopup<void>(
+      context: context,
+      builder: (sheet) => CupertinoActionSheet(
+        title: Text(ch.title),
+        actions: [
+          sheetAction(
+              sheet,
+              ch.isRead ? 'Mark as unread' : 'Mark as read',
+              () => lib.setChaptersRead(live.id, [ch.id], read: !ch.isRead)),
+          sheetAction(sheet, 'Mark previous as read',
+              () => lib.markPreviousChaptersRead(live.id, ch.id)),
+          sheetAction(sheet, 'Mark all as read',
+              () => lib.markAllChaptersRead(live.id)),
+          if (ch.isDownloaded)
+            sheetAction(sheet, 'Delete download',
+                () => dl.deleteChapterDownload(ch.id),
+                destructive: true)
+          else
+            sheetAction(
+                sheet, 'Download', () => dl.enqueue(manga: live, chapter: ch)),
+          sheetAction(
+              sheet, 'Select', () => setState(() => _selected = {ch.id})),
+        ],
+        cancelButton: sheetAction(sheet, 'Cancel', () {}),
+      ),
+    );
+  }
+
+  void _showSelectionSheet(MangaEntry live, List<ChapterEntry> chs) {
+    final picked = chs.where((ch) => _selected!.contains(ch.id)).toList();
+    final ids = picked.map((ch) => ch.id).toList();
+    final lib = ref.read(libraryNotifierProvider.notifier);
+    final dl = ref.read(downloadManagerProvider.notifier);
+    void done() => setState(() => _selected = null);
+    showCupertinoModalPopup<void>(
+      context: context,
+      builder: (sheet) => CupertinoActionSheet(
+        title: Text('${ids.length} chapters'),
+        actions: [
+          sheetAction(sheet, 'Mark read', () {
+            lib.setChaptersRead(live.id, ids, read: true);
+            done();
+          }),
+          sheetAction(sheet, 'Mark unread', () {
+            lib.setChaptersRead(live.id, ids, read: false);
+            done();
+          }),
+          sheetAction(sheet, 'Download', () {
+            dl.enqueueAll(
+                manga: live,
+                chapters: picked.where((ch) => !ch.isDownloaded).toList());
+            done();
+          }),
+          sheetAction(sheet, 'Delete downloads', () {
+            for (final ch in picked.where((ch) => ch.isDownloaded)) {
+              dl.deleteChapterDownload(ch.id);
+            }
+            done();
+          }, destructive: true),
+        ],
+        cancelButton: sheetAction(sheet, 'Cancel', () {}),
+      ),
+    );
+  }
+
+  void _showFilterSheet(ChapterFilter current) {
+    showCupertinoModalPopup<void>(
+      context: context,
+      builder: (sheet) => CupertinoActionSheet(
+        title: const Text('Filter chapters'),
+        actions: [
+          for (final f in ChapterFilter.values)
+            sheetAction(
+                sheet,
+                f == current ? '${f.label} ✓' : f.label,
+                () => ref.read(chapterFilterProvider(manga.id).notifier).state =
+                    f),
+        ],
+        cancelButton: sheetAction(sheet, 'Cancel', () {}),
+      ),
+    );
+  }
+
+  void _showSortSheet(ChapterSort current) {
+    showCupertinoModalPopup<void>(
+      context: context,
+      builder: (sheet) => CupertinoActionSheet(
+        title: const Text('Sort chapters'),
+        actions: [
+          for (final s in ChapterSort.values)
+            sheetAction(
+                sheet,
+                s == current ? '${s.label} ✓' : s.label,
+                () =>
+                    ref.read(chapterSortProvider(manga.id).notifier).state = s),
+        ],
+        cancelButton: sheetAction(sheet, 'Cancel', () {}),
+      ),
     );
   }
 }
@@ -434,98 +597,6 @@ class _Plate extends ConsumerWidget {
                 ),
               ),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Small text action (refresh / sort) ────────────────────────────────────────
-
-class _TextAction extends StatelessWidget {
-  const _TextAction({required this.label, required this.onTap});
-  final String label;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.yc;
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: onTap == null
-          ? null
-          : () {
-              HapticFeedback.selectionClick();
-              onTap!();
-            },
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6),
-        child: Text(label, style: YomiText.ui(12, color: c.fg2)),
-      ),
-    );
-  }
-}
-
-// ── Category assignment sheet ─────────────────────────────────────────────────
-
-class _CategorySheet extends ConsumerStatefulWidget {
-  const _CategorySheet({required this.manga, required this.allCategories});
-
-  final MangaEntry manga;
-  final List<String> allCategories;
-
-  @override
-  ConsumerState<_CategorySheet> createState() => _CategorySheetState();
-}
-
-class _CategorySheetState extends ConsumerState<_CategorySheet> {
-  late final List<String> _selected = List.from(widget.manga.categories);
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.yc;
-    final gutter = context.yomiGutter;
-    return Container(
-      decoration: BoxDecoration(
-        color: c.bg,
-        border: Border(top: BorderSide(color: c.line)),
-      ),
-      padding: EdgeInsets.fromLTRB(
-          gutter, 20, gutter, MediaQuery.paddingOf(context).bottom + 20),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SumiOverline('CATEGORIES', kanji: '類'),
-          const SizedBox(height: 6),
-          const DisplayText('Add to category', size: 26),
-          const SizedBox(height: 16),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              for (final cat in widget.allCategories)
-                SumiChip(
-                  label: cat,
-                  active: _selected.contains(cat),
-                  onTap: () => setState(() => _selected.contains(cat)
-                      ? _selected.remove(cat)
-                      : _selected.add(cat)),
-                ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          SumiButton(
-            label: 'Save',
-            height: 50,
-            radius: context.look.isSumi ? 4 : null,
-            onTap: () async {
-              await ref
-                  .read(libraryNotifierProvider.notifier)
-                  .updateCategories(widget.manga.id, _selected);
-              if (context.mounted) Navigator.of(context).pop();
-            },
           ),
         ],
       ),

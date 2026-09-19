@@ -3,13 +3,22 @@ import 'dart:async';
 import 'package:comic_center/core/database/models/chapter_entry.dart';
 import 'package:comic_center/core/database/models/manga_entry.dart';
 import 'package:comic_center/core/providers/browse_provider.dart';
+import 'package:comic_center/core/providers/preferences_provider.dart';
 import 'package:comic_center/features/title_detail/title_detail_screen.dart';
 import 'package:comic_center/shared/widgets/sumi.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
+  late Override prefsOverride;
+  setUp(() async {
+    SharedPreferences.setMockInitialValues({});
+    prefsOverride = sharedPreferencesProvider
+        .overrideWithValue(await SharedPreferences.getInstance());
+  });
+
   testWidgets('detail shows each genre as a read-only chip', (tester) async {
     final manga = MangaEntry()
       ..id = 1
@@ -21,6 +30,7 @@ void main() {
       ..genres = ['Action', 'Adventure', 'Fantasy'];
     await tester.pumpWidget(ProviderScope(
       overrides: [
+        prefsOverride,
         liveMangaProvider(1).overrideWith((_) => Stream.value(manga)),
         liveChaptersProvider(1)
             .overrideWith((_) => Stream.value(<ChapterEntry>[])),
@@ -53,6 +63,7 @@ void main() {
     var refreshes = 0;
     await tester.pumpWidget(ProviderScope(
       overrides: [
+        prefsOverride,
         liveMangaProvider(2).overrideWith((_) => updates.stream),
         liveChaptersProvider(2)
             .overrideWith((_) => Stream.value(<ChapterEntry>[])),

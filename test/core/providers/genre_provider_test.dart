@@ -12,10 +12,12 @@ import 'package:comic_center/core/extensions/source_interface.dart';
 import 'package:comic_center/core/providers/browse_provider.dart';
 import 'package:comic_center/core/providers/database_provider.dart';
 import 'package:comic_center/core/providers/library_provider.dart';
+import 'package:comic_center/core/providers/preferences_provider.dart';
 import 'package:comic_center/core/providers/source_registry_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:isar/isar.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class _GenreSource extends MangaSource {
   int detailCalls = 0;
@@ -145,7 +147,10 @@ void main() {
       _entry(2, 'Fantasy', ['Fantasy']),
       _entry(3, 'Action unread', ['Action']),
     ];
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
     final container = ProviderContainer(overrides: [
+      sharedPreferencesProvider.overrideWithValue(prefs),
       libraryStreamProvider.overrideWith((ref) => Stream.value(entries)),
       downloadedMangaIdsProvider.overrideWith((ref) => Stream.value(<int>{})),
     ]);

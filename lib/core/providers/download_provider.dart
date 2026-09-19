@@ -261,6 +261,35 @@ class DownloadManager extends AsyncNotifier<void> {
       () => unawaited(deleteExpiredCompletedDownloadRecords(isar)),
     );
   }
+
+  /// [deleteDownload] keyed by chapter. Completed queue records age out after
+  /// two minutes, so the chapter's own [ChapterEntry.downloadPath] locates the
+  /// files; the queue record is removed too when one still exists.
+  Future<void> deleteChapterDownload(int chapterId) async {
+    final isar = ref.read(isarProvider);
+    final chapter = await isar.chapterEntrys.get(chapterId);
+    if (chapter == null) return;
+    final entry = await isar.downloadEntrys
+        .filter()
+        .chapterIdEqualTo(chapterId)
+        .findFirst();
+    final path = chapter.downloadPath ??
+        '${(await getApplicationDocumentsDirectory()).path}'
+            '/downloads/${chapter.mangaId}/$chapterId';
+
+    await isar.writeTxn(() async {
+      if (entry != null) await isar.downloadEntrys.delete(entry.id);
+      chapter
+        ..isDownloaded = false
+        ..downloadPath = null
+        ..downloadedAt = null
+        ..pageCount = 0;
+      await isar.chapterEntrys.put(chapter);
+    });
+
+    final directory = Directory(path);
+    if (await directory.exists()) await directory.delete(recursive: true);
+  }
 }
 
 final downloadManagerProvider =

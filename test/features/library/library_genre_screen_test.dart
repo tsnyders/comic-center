@@ -1,9 +1,11 @@
 import 'package:comic_center/core/database/models/manga_entry.dart';
 import 'package:comic_center/core/providers/library_provider.dart';
+import 'package:comic_center/core/providers/preferences_provider.dart';
 import 'package:comic_center/features/library/library_screen.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 MangaEntry _manga(int id, String title, List<String> genres) => MangaEntry()
   ..id = id
@@ -24,8 +26,11 @@ void main() {
       _manga(2, 'Romance title', ['Romance']),
       _manga(3, 'No genres title', []),
     ];
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
     await tester.pumpWidget(ProviderScope(
       overrides: [
+        sharedPreferencesProvider.overrideWithValue(prefs),
         libraryStreamProvider.overrideWith((_) => Stream.value(mangas)),
         downloadedMangaIdsProvider.overrideWith((_) => Stream.value({1})),
         libraryCategoriesProvider.overrideWithValue(['All']),

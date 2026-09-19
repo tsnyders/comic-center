@@ -15,11 +15,17 @@ class ChapterListTile extends ConsumerWidget {
     required this.chapter,
     required this.onTap,
     this.onDownload,
+    this.onLongPress,
+    this.selected,
   });
 
   final ChapterEntry chapter;
   final VoidCallback onTap;
   final VoidCallback? onDownload;
+  final VoidCallback? onLongPress;
+
+  /// Non-null while the list is in selection mode; true tints the row.
+  final bool? selected;
 
   bool get _inProgress => !chapter.isRead && chapter.lastPageRead > 0;
 
@@ -44,19 +50,23 @@ class ChapterListTile extends ConsumerWidget {
 
     return Semantics(
       button: true,
+      selected: selected,
       label: '${chapter.title}, $meta',
       child: GestureDetector(
         onTap: onTap,
+        onLongPress: onLongPress,
         behavior: HitTestBehavior.opaque,
         child: Opacity(
-          opacity: chapter.isRead ? 0.55 : 1.0,
+          opacity: chapter.isRead && selected != true ? 0.55 : 1.0,
           child: Container(
             padding: look.isPastel
                 ? const EdgeInsets.symmetric(horizontal: 14, vertical: 12)
                 : const EdgeInsets.symmetric(vertical: 14),
             margin: look.isPastel ? const EdgeInsets.only(bottom: 8) : null,
             decoration: BoxDecoration(
-              color: look.isPastel ? c.card : null,
+              color: selected == true
+                  ? c.ac.withValues(alpha: 0.14)
+                  : (look.isPastel ? c.card : null),
               border: look.isPastel
                   ? null
                   : Border(bottom: BorderSide(color: c.line)),

@@ -19,11 +19,19 @@ class MangaCard extends StatelessWidget {
     required this.manga,
     required this.onTap,
     this.onLongPress,
+    this.downloaded = false,
+    this.selected,
   });
 
   final MangaEntry manga;
   final VoidCallback onTap;
   final VoidCallback? onLongPress;
+
+  /// Shows a small download mark on the cover.
+  final bool downloaded;
+
+  /// Non-null while the shelf is in selection mode; true outlines the cover.
+  final bool? selected;
 
   @override
   Widget build(BuildContext context) {
@@ -61,6 +69,37 @@ class MangaCard extends StatelessWidget {
                     right: context.look.isCinema ? null : 6,
                     top: context.look.isCinema ? 0 : 6,
                     child: UnreadBadge(count: manga.unreadCount),
+                  ),
+                if (downloaded)
+                  Positioned(
+                    right: 6,
+                    bottom: 6,
+                    child: Semantics(
+                      label: 'Downloaded',
+                      child: Container(
+                        width: 18,
+                        height: 18,
+                        decoration: BoxDecoration(
+                          color: c.card,
+                          borderRadius: BorderRadius.circular(
+                              context.look.isCinema ? 0 : 9),
+                          border: Border.all(color: c.line),
+                        ),
+                        child: Icon(CupertinoIcons.arrow_down_to_line,
+                            size: 10, color: c.fg),
+                      ),
+                    ),
+                  ),
+                if (selected == true)
+                  Positioned.fill(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: c.ac.withValues(alpha: 0.25),
+                        border: Border.all(color: c.ac, width: 2),
+                        borderRadius: BorderRadius.circular(
+                            context.look.isCinema ? 0 : context.radii.cover),
+                      ),
+                    ),
                   ),
               ],
             ),

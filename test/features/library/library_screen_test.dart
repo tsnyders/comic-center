@@ -1,9 +1,11 @@
 import 'package:comic_center/core/database/models/manga_entry.dart';
 import 'package:comic_center/core/providers/library_provider.dart';
+import 'package:comic_center/core/providers/preferences_provider.dart';
 import 'package:comic_center/features/library/library_screen.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 // Regression: a title with reading history (lastReadAt set) shows the
 // Continue block. That block once laid out infinitely tall inside its sliver
@@ -25,8 +27,11 @@ void main() {
       ..lastReadAt = DateTime(2026, 7, 18)
       ..lastUpdated = DateTime(2026, 7, 18);
 
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
     await tester.pumpWidget(ProviderScope(
       overrides: [
+        sharedPreferencesProvider.overrideWithValue(prefs),
         libraryStreamProvider.overrideWith((_) => Stream.value([manga])),
         downloadedMangaIdsProvider.overrideWith((_) => Stream.value(<int>{})),
       ],
