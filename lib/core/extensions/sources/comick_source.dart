@@ -7,6 +7,7 @@ import '../models/filter.dart';
 import '../models/manga_detail.dart';
 import '../models/manga_summary.dart';
 import '../source_interface.dart';
+import '../source_prefs.dart';
 
 /// ComicK source via api.comick.fun — supports both manga and manhwa.
 /// Manga IDs are the `hid` short identifier returned by the search API.
@@ -32,6 +33,24 @@ class ComicKSource extends MangaSource {
 
   static const _cdnBase = 'https://meo.comick.pictures';
 
+  static const _langOptions = [
+    'English', 'Japanese', 'Korean', 'Chinese', 'Spanish', 'Portuguese (BR)',
+    'French', 'German', 'Russian', 'Italian', 'Indonesian', 'Vietnamese',
+  ];
+  static const _langValues = [
+    'en', 'ja', 'ko', 'zh', 'es', 'pt-br', 'fr', 'de', 'ru', 'it', 'id', 'vi',
+  ];
+
+  /// Genre slugs as used by comick.io/search?genres=<slug>.
+  static const _genreSlugs = [
+    'action', 'adventure', 'comedy', 'crime', 'drama', 'fantasy', 'historical',
+    'horror', 'isekai', 'magical-girls', 'mecha', 'medical', 'mystery',
+    'philosophical', 'psychological', 'romance', 'sci-fi', 'slice-of-life',
+    'sports', 'superhero', 'thriller', 'tragedy', 'wuxia',
+  ];
+
+  Future<String> get _lang => SourcePrefs(id).getString('lang', 'en');
+
   @override
   String get id => 'comick_en';
 
@@ -56,15 +75,52 @@ class ComicKSource extends MangaSource {
       };
 
   @override
-  List<SourceFilter> getFilters() => const [];
+  List<SourcePreference> get preferences => const [
+        SelectPreference(
+          key: 'lang',
+          title: 'Language',
+          options: _langOptions,
+          values: _langValues,
+          defaultValue: 'en',
+        ),
+      ];
+
+  @override
+  List<SourceFilter> getFilters() => [
+        const SortFilter(
+          name: 'Sort',
+          options: [
+            'Most followed', 'Latest upload', 'Most viewed', 'Rating', 'Newest',
+          ],
+          values: ['follow', 'uploaded', 'view', 'rating', 'created_at'],
+          directional: false,
+        ),
+        const SelectFilter(
+          name: 'Status',
+          options: ['Any', 'Ongoing', 'Completed', 'Cancelled', 'Hiatus'],
+          values: ['', '1', '2', '3', '4'],
+        ),
+        GroupFilter(
+          name: 'Genres',
+          items: [
+            for (final slug in _genreSlugs)
+              TriStateFilter(name: _label(slug), value: slug),
+          ],
+        ),
+      ];
+
+  static String _label(String slug) => slug
+      .split('-')
+      .map((w) => '${w[0].toUpperCase()}${w.substring(1)}')
+      .join(' ');
 
   // ── Listings ─────────────────────────────────────────────────────────────
 
   @override
-  Future<List<MangaSummary>> fetchPopular({int page = 1}) => _search(
+  Future<List<MangaSummary>> fetchPopular({int page = 1}) async => _search(
         queryParameters: {
           'sort': 'follow',
-          'lang': 'en',
+          'lang': await _lang,
           'page': page,
           'limit': 30,
           't': 'false',
@@ -72,10 +128,11 @@ class ComicKSource extends MangaSource {
       );
 
   @override
-  Future<List<MangaSummary>> fetchLatestUpdates({int page = 1}) => _search(
+  Future<List<MangaSummary>> fetchLatestUpdates({int page = 1}) async =>
+      _search(
         queryParameters: {
           'sort': 'uploaded',
-          'lang': 'en',
+          'lang': await _lang,
           'page': page,
           'limit': 30,
           't': 'false',
@@ -87,15 +144,30 @@ class ComicKSource extends MangaSource {
     String query, {
     int page = 1,
     List<SourceFilter> filters = const [],
-  }) =>
-      _search(
-        queryParameters: {
-          'q': query,
-          'lang': 'en',
-          'page': page,
-          'limit': 30,
-        },
-      );
+  }) async {
+    final params = <String, dynamic>{
+      'lang': await _lang,
+      'page': page,
+      'limit': 30,
+    };
+    if (query.trim().isNotEmpty) params['q'] = query.trim();
+    for (final filter in filters) {
+      switch (filter) {
+        case SortFilter():
+          params['sort'] = filter.value;
+        case SelectFilter():
+          if (filter.value.isNotEmpty) params['status'] = filter.value;
+        case GroupFilter():
+          final included = filter.included.toList();
+          final excluded = filter.excluded.toList();
+          if (included.isNotEmpty) params['genres'] = included;
+          if (excluded.isNotEmpty) params['excludes'] = excluded;
+        case _:
+          break;
+      }
+    }
+    return _search(queryParameters: params);
+  }
 
   // ── Detail ────────────────────────────────────────────────────────────────
 
@@ -160,7 +232,7 @@ class ComicKSource extends MangaSource {
     final resp = await _dio.get<Map<String, dynamic>>(
       '/comic/$mangaId/chapters',
       queryParameters: {
-        'lang': 'en',
+        'lang': await _lang,
         'limit': 300,
         'chap-order': 1, // ascending
       },

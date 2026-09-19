@@ -114,3 +114,21 @@ final wifiOnlyProvider = StateProvider<bool>((ref) {
 
 /// 0 Discover · 1 Library (yin-yang) · 2 Settings. In-memory.
 final rootTabProvider = StateProvider<int>((_) => 1);
+
+// ── Extensions catalogue ──────────────────────────────────────────────────────
+
+/// Show 18+ extensions in the Available tab. Persisted. Off by default.
+final showNsfwExtensionsProvider = StateProvider<bool>((ref) {
+  final prefs = ref.watch(sharedPreferencesProvider);
+  ref.listenSelf((_, next) => prefs.setBool('extensions.showNsfw', next));
+  return prefs.getBool('extensions.showNsfw') ?? false;
+});
+
+/// Language chip in the Available tab; null means every language. Persisted.
+final extensionLanguageProvider = StateProvider<String?>((ref) {
+  final prefs = ref.watch(sharedPreferencesProvider);
+  ref.listenSelf((_, next) => next == null
+      ? prefs.remove('extensions.lang')
+      : prefs.setString('extensions.lang', next));
+  return prefs.getString('extensions.lang');
+});

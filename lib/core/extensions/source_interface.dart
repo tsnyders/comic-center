@@ -5,8 +5,10 @@ import 'models/filter.dart';
 import 'models/genre_option.dart';
 import 'models/manga_detail.dart';
 import 'models/manga_summary.dart';
+import 'models/source_preference.dart';
 
 export 'models/genre_option.dart';
+export 'models/source_preference.dart';
 
 /// The contract every extension must implement.
 ///
@@ -72,4 +74,10 @@ abstract class MangaSource {
   // ── Filters ───────────────────────────────────────────────────────────────
 
   List<SourceFilter> getFilters() => const [];
+
+  // ── Settings ──────────────────────────────────────────────────────────────
+
+  /// Per-source settings shown on the source settings screen. Sources read
+  /// the stored values at request time through `SourcePrefs`.
+  List<SourcePreference> get preferences => const [];
 }

@@ -3,6 +3,7 @@ import 'package:isar/isar.dart';
 
 import '../database/models/chapter_entry.dart';
 import '../database/models/manga_entry.dart';
+import '../extensions/models/filter.dart';
 import '../extensions/models/manga_detail.dart';
 import '../extensions/models/manga_summary.dart';
 import '../extensions/source_interface.dart';
@@ -23,6 +24,7 @@ class BrowseArgs {
     this.page = 1,
     this.query = '',
     this.genreId,
+    this.filters = const [],
   });
 
   final String sourceId;
@@ -30,6 +32,7 @@ class BrowseArgs {
   final int page;
   final String query;
   final String? genreId;
+  final List<SourceFilter> filters;
 
   @override
   bool operator ==(Object other) =>
@@ -38,10 +41,23 @@ class BrowseArgs {
       other.mode == mode &&
       other.page == page &&
       other.query == query &&
-      other.genreId == genreId;
+      other.genreId == genreId &&
+      _sameFilters(other.filters, filters);
 
   @override
-  int get hashCode => Object.hash(sourceId, mode, page, query, genreId);
+  int get hashCode => Object.hash(
+      sourceId, mode, page, query, genreId, Object.hashAll(filters));
+}
+
+// Filters are immutable and replaced wholesale on Apply, so per-element
+// identity is the right equality: the same instances means nothing changed.
+bool _sameFilters(List<SourceFilter> a, List<SourceFilter> b) {
+  if (identical(a, b)) return true;
+  if (a.length != b.length) return false;
+  for (var i = 0; i < a.length; i++) {
+    if (!identical(a[i], b[i])) return false;
+  }
+  return true;
 }
 
 // ── Per-source providers ──────────────────────────────────────────────────
@@ -81,7 +97,8 @@ final browseMangaProvider = FutureProvider.autoDispose
   return switch (args.mode) {
     BrowseMode.popular => source.fetchPopular(page: args.page),
     BrowseMode.latest => source.fetchLatestUpdates(page: args.page),
-    BrowseMode.search => source.search(args.query, page: args.page),
+    BrowseMode.search =>
+      source.search(args.query, page: args.page, filters: args.filters),
     BrowseMode.genre => source.fetchByGenre(genreId!, page: args.page),
   };
 });

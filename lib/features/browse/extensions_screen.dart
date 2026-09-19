@@ -4,10 +4,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/providers/database_provider.dart';
 import '../../core/providers/extension_provider.dart';
+import '../../core/providers/settings_provider.dart';
 import '../../core/providers/source_registry_provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../../shared/widgets/sumi.dart';
+import 'source_settings_screen.dart';
 
 // ── Tabs ──────────────────────────────────────────────────────────────────
 
@@ -212,13 +215,23 @@ class _ExtensionsScreenState extends ConsumerState<ExtensionsScreen> {
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.x7),
       sliver: SliverList.builder(
         itemCount: installed.length,
-        itemBuilder: (_, i) => _ExtensionTile(
-          entry: installed[i],
-          isInstalled: true,
-          isLoading: _loading.contains(installed[i].yomiSourceId),
-          action: _ExtensionAction.uninstall,
-          onAction: () => _uninstall(installed[i]),
-        ),
+        itemBuilder: (_, i) {
+          final source = ref.read(sourceByIdProvider(installed[i].yomiSourceId!));
+          return _ExtensionTile(
+            entry: installed[i],
+            isInstalled: true,
+            isLoading: _loading.contains(installed[i].yomiSourceId),
+            action: _ExtensionAction.uninstall,
+            onAction: () => _uninstall(installed[i]),
+            onSettings: source == null || source.preferences.isEmpty
+                ? null
+                : () => Navigator.of(context).push(
+                      CupertinoPageRoute<void>(
+                        builder: (_) => SourceSettingsScreen(source: source),
+                      ),
+                    ),
+          );
+        },
       ),
     );
   }
@@ -228,20 +241,27 @@ class _ExtensionsScreenState extends ConsumerState<ExtensionsScreen> {
     List<ExtensionEntry> index,
     Set<String> installedIds,
   ) {
-    final available = index
+    final all = index
         .where((e) =>
             !(e.yomiSourceId != null &&
                 installedIds.contains(e.yomiSourceId)) &&
             (_query.isEmpty || e.name.toLowerCase().contains(_query)))
         .toList();
 
-    if (available.isEmpty) {
+    if (all.isEmpty) {
       return _buildEmpty(
         icon: CupertinoIcons.checkmark_seal_fill,
         title: 'All extensions installed',
         subtitle: 'You have installed every available extension.',
       );
     }
+
+    final showNsfw = ref.watch(showNsfwExtensionsProvider);
+    final lang = ref.watch(extensionLanguageProvider);
+    final langs = {for (final e in all) e.lang}.toList()..sort();
+    final available = all
+        .where((e) => (showNsfw || !e.isNsfw) && (lang == null || e.lang == lang))
+        .toList();
 
     // Group: Yomi-native at top, then others
     final native = available.where((e) => e.isNativelySupported).toList();
@@ -251,6 +271,58 @@ class _ExtensionsScreenState extends ConsumerState<ExtensionsScreen> {
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.x7),
       sliver: SliverList(
         delegate: SliverChildListDelegate([
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Show 18+ extensions',
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: context.textPrimaryColor,
+                  ),
+                ),
+              ),
+              SumiToggle(
+                label: 'Show 18+ extensions',
+                value: showNsfw,
+                onChanged: (v) =>
+                    ref.read(showNsfwExtensionsProvider.notifier).state = v,
+              ),
+            ],
+          ),
+          if (langs.length > 1) ...[
+            const SizedBox(height: 12),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
+              child: Row(
+                children: [
+                  SumiChip(
+                    label: 'All languages',
+                    active: lang == null,
+                    onTap: () =>
+                        ref.read(extensionLanguageProvider.notifier).state = null,
+                  ),
+                  for (final l in langs) ...[
+                    const SizedBox(width: 8),
+                    SumiChip(
+                      label: l.toUpperCase(),
+                      active: lang == l,
+                      onTap: () =>
+                          ref.read(extensionLanguageProvider.notifier).state = l,
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+          const SizedBox(height: 16),
+          if (available.isEmpty)
+            Text(
+              'Nothing matches these filters.',
+              style: AppTextStyles.bodySmall.copyWith(
+                color: context.textTertiaryColor,
+              ),
+            ),
           if (native.isNotEmpty) ...[
             _SectionHeader(label: 'Available for Yomi (${native.length})'),
             ...native.map((e) => _ExtensionTile(
@@ -504,6 +576,7 @@ class _ExtensionTile extends StatelessWidget {
     required this.isLoading,
     required this.action,
     required this.onAction,
+    this.onSettings,
   });
 
   final ExtensionEntry entry;
@@ -511,6 +584,9 @@ class _ExtensionTile extends StatelessWidget {
   final bool isLoading;
   final _ExtensionAction action;
   final VoidCallback? onAction;
+
+  /// Opens the source's settings; null hides the gear.
+  final VoidCallback? onSettings;
 
   /// Pick a gradient seed by hashing the first character of the extension name.
   List<Color> _gradientFor(String name) {
@@ -613,6 +689,17 @@ class _ExtensionTile extends StatelessWidget {
           ),
 
           const SizedBox(width: 10),
+
+          if (onSettings != null)
+            Semantics(
+              label: '${entry.name} settings',
+              child: CupertinoButton(
+                padding: const EdgeInsets.only(right: 6),
+                onPressed: onSettings,
+                child: Icon(CupertinoIcons.gear,
+                    size: 20, color: context.textSecondaryColor),
+              ),
+            ),
 
           // Action
           if (isLoading)

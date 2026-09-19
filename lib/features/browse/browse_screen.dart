@@ -10,6 +10,7 @@ import '../../shared/widgets/sumi.dart';
 import 'extensions_screen.dart';
 import 'global_search_screen.dart';
 import 'source_manga_screen.dart';
+import 'source_settings_screen.dart';
 
 /// ============================================================================
 /// Discover — search, a featured source plate with the sumi splatter, then
@@ -35,6 +36,14 @@ class BrowseScreen extends ConsumerWidget {
   void _openExtensions(BuildContext context) {
     Navigator.of(context).push(
       CupertinoPageRoute<void>(builder: (_) => const ExtensionsScreen()),
+    );
+  }
+
+  void _openSettings(BuildContext context, MangaSource source) {
+    Navigator.of(context).push(
+      CupertinoPageRoute<void>(
+        builder: (_) => SourceSettingsScreen(source: source),
+      ),
     );
   }
 
@@ -118,6 +127,9 @@ class BrowseScreen extends ConsumerWidget {
                   child: _SourceRow(
                     source: sources[i],
                     onTap: () => _openSource(context, sources[i].id),
+                    onSettings: sources[i].preferences.isEmpty
+                        ? null
+                        : () => _openSettings(context, sources[i]),
                   ),
                 ),
               ),
@@ -294,9 +306,16 @@ String _host(String url) {
 // ── Source row: 56px icon, name 15/700, meta 12, kanji tag ────────────────────
 
 class _SourceRow extends StatelessWidget {
-  const _SourceRow({required this.source, required this.onTap});
+  const _SourceRow({
+    required this.source,
+    required this.onTap,
+    this.onSettings,
+  });
   final MangaSource source;
   final VoidCallback onTap;
+
+  /// Opens the source's settings; null hides the gear.
+  final VoidCallback? onSettings;
 
   @override
   Widget build(BuildContext context) {
@@ -366,6 +385,15 @@ class _SourceRow extends StatelessWidget {
                     : source.language.toUpperCase(),
                 style:
                     YomiText.display(22, color: look.isPastel ? c.fg2 : c.ac)),
+            if (onSettings != null)
+              Semantics(
+                label: '${source.name} settings',
+                child: CupertinoButton(
+                  padding: const EdgeInsets.only(left: 10),
+                  onPressed: onSettings,
+                  child: Icon(CupertinoIcons.gear, size: 20, color: c.fg2),
+                ),
+              ),
           ],
         ),
       ),
