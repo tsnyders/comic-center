@@ -44,6 +44,7 @@ void openReader(
             title: c.title,
             number: c.number,
             downloadPath: c.downloadPath,
+            isRead: c.isRead,
           ))
       .toList();
   Navigator.of(context, rootNavigator: true).push(

@@ -114,3 +114,10 @@ final wifiOnlyProvider = StateProvider<bool>((ref) {
 
 /// 0 Discover · 1 Library (yin-yang) · 2 Settings. In-memory.
 final rootTabProvider = StateProvider<int>((_) => 1);
+
+/// Keep the display awake while the reader is open (Android). Persisted.
+final keepScreenOnProvider = StateProvider<bool>((ref) {
+  final prefs = ref.watch(sharedPreferencesProvider);
+  ref.listenSelf((_, next) => prefs.setBool('reader.keepScreenOn', next));
+  return prefs.getBool('reader.keepScreenOn') ?? true;
+});

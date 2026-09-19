@@ -24,6 +24,9 @@ class ReaderChrome extends StatelessWidget {
     required this.onSettings,
     required this.onSeek,
     required this.onModeChanged,
+    required this.onChapterTap,
+    this.onPrevChapter,
+    this.onNextChapter,
   });
 
   final String mangaTitle;
@@ -37,6 +40,13 @@ class ReaderChrome extends StatelessWidget {
   final VoidCallback onSettings;
   final ValueChanged<int> onSeek;
   final ValueChanged<ReaderMode> onModeChanged;
+
+  /// Tapping the chapter label opens the chapter picker.
+  final VoidCallback onChapterTap;
+
+  /// Null at either end of the chapter list (control shown dimmed, inert).
+  final VoidCallback? onPrevChapter;
+  final VoidCallback? onNextChapter;
 
   static const _duration = Duration(milliseconds: 250);
 
@@ -111,10 +121,18 @@ class ReaderChrome extends StatelessWidget {
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 height: 1),
-                          Text(sub,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: YomiText.ui(11, color: rp.ink2)),
+                          Semantics(
+                            button: true,
+                            label: 'Choose chapter',
+                            child: SumiPress(
+                              onTap: onChapterTap,
+                              haptic: false,
+                              child: Text(sub,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: YomiText.ui(11, color: rp.ink2)),
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -203,18 +221,34 @@ class ReaderChrome extends StatelessWidget {
                     ),
                     const SizedBox(height: 14),
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        _ModeButton(
-                          label: YomiText.label('Page', '頁'),
-                          active: !isStrip,
-                          onTap: () => onModeChanged(ReaderMode.page),
+                        _ChapterNav(
+                          icon: CupertinoIcons.chevron_left_2,
+                          label: 'Previous chapter',
+                          onTap: onPrevChapter,
                         ),
-                        const SizedBox(width: 6),
-                        _ModeButton(
-                          label: YomiText.label('Strip', '縦'),
-                          active: isStrip,
-                          onTap: () => onModeChanged(ReaderMode.strip),
+                        Expanded(
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              _ModeButton(
+                                label: YomiText.label('Page', '頁'),
+                                active: !isStrip,
+                                onTap: () => onModeChanged(ReaderMode.page),
+                              ),
+                              const SizedBox(width: 6),
+                              _ModeButton(
+                                label: YomiText.label('Strip', '縦'),
+                                active: isStrip,
+                                onTap: () => onModeChanged(ReaderMode.strip),
+                              ),
+                            ],
+                          ),
+                        ),
+                        _ChapterNav(
+                          icon: CupertinoIcons.chevron_right_2,
+                          label: 'Next chapter',
+                          onTap: onNextChapter,
                         ),
                       ],
                     ),
@@ -418,6 +452,36 @@ class _ModeButton extends StatelessWidget {
                         ? (look.isPastel ? rp.ink : rp.bg)
                         : (look.isPastel ? rp.ink2 : rp.ink)),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Previous / next chapter chevron flanking the mode switch. Dimmed and inert
+/// at either end of the chapter list.
+class _ChapterNav extends StatelessWidget {
+  const _ChapterNav({required this.icon, required this.label, this.onTap});
+  final IconData icon;
+  final String label;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final rp = ReaderPalette.of(context);
+    return Semantics(
+      button: true,
+      enabled: onTap != null,
+      label: label,
+      child: SumiPress(
+        onTap: onTap,
+        haptic: false,
+        child: SizedBox(
+          width: 36,
+          height: 36,
+          child: Icon(icon,
+              size: 20,
+              color: onTap == null ? rp.ink2.withValues(alpha: 0.4) : rp.ink),
         ),
       ),
     );

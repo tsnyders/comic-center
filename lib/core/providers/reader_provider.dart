@@ -222,3 +222,10 @@ final effectiveReaderModeProvider =
   final override = ref.watch(mangaReaderModeProvider(mangaId));
   return override ?? ref.watch(defaultReaderModeProvider);
 });
+
+/// Vertical gap between strip images, in px. Persisted.
+final stripGapProvider = StateProvider<int>((ref) {
+  final prefs = ref.watch(sharedPreferencesProvider);
+  ref.listenSelf((_, next) => prefs.setInt('reader.stripGap', next));
+  return prefs.getInt('reader.stripGap') ?? 0;
+});

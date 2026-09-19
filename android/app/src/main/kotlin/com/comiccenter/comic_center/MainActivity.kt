@@ -111,6 +111,12 @@ open class MainActivity : FlutterActivity() {
                             result.error("SET_ICON_FAILED", e.message, null)
                         }
                     }
+                    "setKeepScreenOn" -> {
+                        val keep = android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
+                        if (call.argument<Boolean>("enabled") == true) window.addFlags(keep)
+                        else window.clearFlags(keep)
+                        result.success(null)
+                    }
                     else -> result.notImplemented()
                 }
             }
