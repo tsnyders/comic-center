@@ -355,6 +355,29 @@ class LibraryNotifier extends AsyncNotifier<void> {
     ];
     await setChaptersRead(mangaId, previous, read: true);
   }
+
+  /// Mid-chapter progress. Leaves `isRead` alone — [markChapterRead] flips
+  /// that when the last page is reached.
+  Future<void> saveChapterProgress({
+    required int mangaId,
+    required int chapterId,
+    required int page,
+  }) async {
+    final isar = ref.read(isarProvider);
+    await isar.writeTxn(() async {
+      final manga = await isar.mangaEntrys.get(mangaId);
+      final chapter = await isar.chapterEntrys.get(chapterId);
+      if (manga == null || chapter == null) return;
+      chapter.lastPageRead = page;
+      await isar.chapterEntrys.put(chapter);
+      manga
+        ..lastReadChapterId = chapter.sourceChapterId
+        ..lastReadChapterNumber = chapter.number
+        ..lastReadPage = page
+        ..lastReadAt = DateTime.now();
+      await isar.mangaEntrys.put(manga);
+    });
+  }
 }
 
 final libraryNotifierProvider =

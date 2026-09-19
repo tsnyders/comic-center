@@ -31,12 +31,16 @@ class ReaderChapterSummary {
     required this.title,
     this.number,
     this.downloadPath,
+    this.isRead = false,
   });
   final int id;
   final String sourceChapterId;
   final String title;
   final double? number;
   final String? downloadPath;
+
+  /// Snapshot at open time (the chapter picker dims read chapters).
+  final bool isRead;
 }
 
 class ReaderScreen extends ConsumerStatefulWidget {
@@ -87,7 +91,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
 
   /// Effective mode for this build (see [effectiveReaderModeProvider]).
   bool _strip = false;
-  bool _didInitialJump = false;
+  bool _didInit = false;
 
   // Driven directly (without setState) from the scroll/page-change callbacks so
   // that scrolling a webtoon or turning a page does NOT rebuild the entire
@@ -97,7 +101,6 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   final ValueNotifier<double> _webtoonProgress = ValueNotifier(0.0);
   Timer? _pillHideTimer;
   bool _chapterMarkedRead = false;
-  StreamSubscription<dynamic>? _volumeSub;
 
   // Warms chapterPagesProvider for the next chapter once the reader is 80%
   // through the current one, so tapping "next" doesn't sit on a spinner while
@@ -105,9 +108,25 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   // is autoDispose — closing it (in dispose) releases the prefetched data.
   ProviderSubscription<AsyncValue<List<String>>>? _nextChapterPrefetch;
 
+  // Mid-chapter progress, debounced so a fast flick through pages costs one
+  // Isar write rather than one per page. Flushed on dispose. The notifier is
+  // captured here because `ref` is unusable once the widget is disposed.
+  late final LibraryNotifier _library;
+  Timer? _progressTimer;
+  int _pendingPage = -1;
+
+  /// The reader that owns the app-wide toggles (volume keys, keep screen on,
+  /// brightness, system UI). Next/previous chapter *replaces* the route, and
+  /// the outgoing screen is disposed after the incoming one's initState, so
+  /// only the last reader standing hands them back to the app.
+  static _ReaderScreenState? _active;
+  static StreamSubscription<dynamic>? _volumeSub;
+
   @override
   void initState() {
     super.initState();
+    _active = this;
+    _library = ref.read(libraryNotifierProvider.notifier);
     _pageController = PageController(initialPage: widget.initialPage);
     _scrollController = ScrollController();
     SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle.light);
@@ -115,23 +134,31 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     // Only fires while the strip view is attached; harmless otherwise.
     _scrollController.addListener(_onWebtoonScroll);
     _enableVolumeKeys();
+    _setKeepScreenOn(ref.read(keepScreenOnProvider));
   }
 
   @override
   void dispose() {
+    _flushProgress();
     _pillHideTimer?.cancel();
-    _volumeSub?.cancel();
     _nextChapterPrefetch?.close();
-    if (Platform.isAndroid) {
-      _platform.invokeMethod<void>('setVolumeKeyIntercept', {'enabled': false});
+    if (_active == this) {
+      _active = null;
+      _volumeSub?.cancel();
+      _volumeSub = null;
+      if (Platform.isAndroid) {
+        _platform
+            .invokeMethod<void>('setVolumeKeyIntercept', {'enabled': false});
+      }
+      _setKeepScreenOn(false);
+      _restoreBrightness();
+      SystemChrome.setEnabledSystemUIMode(SystemUiMode.manual,
+          overlays: SystemUiOverlay.values);
     }
-    _restoreBrightness();
     _pillVisible.dispose();
     _webtoonProgress.dispose();
     _pageController.dispose();
     _scrollController.dispose();
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.manual,
-        overlays: SystemUiOverlay.values);
     super.dispose();
   }
 
@@ -142,11 +169,14 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     // iOS apps can't intercept the hardware volume buttons, so skip entirely.
     if (!Platform.isAndroid) return;
     _platform.invokeMethod<void>('setVolumeKeyIntercept', {'enabled': true});
-    _volumeSub = _volumeKeys.receiveBroadcastStream().listen((event) {
+    // One stream for whichever reader is active: a second listen makes the
+    // EventChannel cancel the first, which would kill the sink under the
+    // incoming reader when the outgoing one unsubscribes.
+    _volumeSub ??= _volumeKeys.receiveBroadcastStream().listen((event) {
       if (event == 'down') {
-        _turnPage(forward: true);
+        _active?._turnPage(forward: true);
       } else if (event == 'up') {
-        _turnPage(forward: false);
+        _active?._turnPage(forward: false);
       }
     });
   }
@@ -184,34 +214,82 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     }
   }
 
-  // ── Next chapter navigation ──────────────────────────────────────────────
+  // ── Keep screen on ───────────────────────────────────────────────────────
+
+  void _setKeepScreenOn(bool on) {
+    if (!Platform.isAndroid) return;
+    _platform.invokeMethod<void>('setKeepScreenOn', {'enabled': on});
+  }
+
+  // ── Reading progress (debounced) ─────────────────────────────────────────
+
+  void _queueProgress(int page) {
+    _pendingPage = page;
+    _progressTimer?.cancel();
+    _progressTimer = Timer(const Duration(seconds: 1), _flushProgress);
+  }
+
+  void _flushProgress() {
+    _progressTimer?.cancel();
+    if (_pendingPage < 0) return;
+    final page = _pendingPage;
+    _pendingPage = -1;
+    _library.saveChapterProgress(
+        mangaId: widget.mangaId, chapterId: widget.chapterId, page: page);
+  }
+
+  // ── Chapter navigation (chapters are newest-first) ───────────────────────
 
   bool get _hasNextChapter =>
       widget.chapterIndex > 0 && widget.chapters.isNotEmpty;
 
+  bool get _hasPrevChapter =>
+      widget.chapterIndex >= 0 &&
+      widget.chapterIndex < widget.chapters.length - 1;
+
   ReaderChapterSummary get _nextSummary =>
       widget.chapters[widget.chapterIndex - 1];
 
-  void _goToNextChapter(BuildContext context) {
+  void _goToNextChapter(BuildContext context) =>
+      _openChapter(context, widget.chapterIndex - 1);
+
+  void _goToPrevChapter(BuildContext context) =>
+      _openChapter(context, widget.chapterIndex + 1);
+
+  void _openChapter(BuildContext context, int index) {
     HapticFeedback.lightImpact();
-    final nextIdx = widget.chapterIndex - 1;
-    final next = widget.chapters[nextIdx];
+    final target = widget.chapters[index];
     Navigator.of(context).pushReplacement(
       CupertinoPageRoute<void>(
         fullscreenDialog: true,
         builder: (_) => ReaderScreen(
           mangaId: widget.mangaId,
           mangaTitle: widget.mangaTitle,
-          chapterId: next.id,
+          chapterId: target.id,
           sourceId: widget.sourceId,
-          sourceChapterId: next.sourceChapterId,
-          chapterTitle: next.title,
-          chapterNumber: next.number,
-          downloadPath: next.downloadPath,
+          sourceChapterId: target.sourceChapterId,
+          chapterTitle: target.title,
+          chapterNumber: target.number,
+          downloadPath: target.downloadPath,
           isWebtoon: widget.isWebtoon,
           chapters: widget.chapters,
-          chapterIndex: nextIdx,
+          chapterIndex: index,
         ),
+      ),
+    );
+  }
+
+  void _showChapterPicker(BuildContext context) {
+    if (widget.chapters.isEmpty) return;
+    showCupertinoModalPopup<void>(
+      context: context,
+      builder: (sheetContext) => _ChapterPickerSheet(
+        chapters: widget.chapters,
+        currentIndex: widget.chapterIndex,
+        onSelect: (i) {
+          Navigator.of(sheetContext).pop();
+          if (i != widget.chapterIndex) _openChapter(context, i);
+        },
       ),
     );
   }
@@ -255,13 +333,17 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
 
     final rawProgress = (pos.pixels / pos.maxScrollExtent).clamp(0.0, 1.0);
     final total = ref.read(readerProvider).totalPages;
-    final page =
-        total > 0 ? (rawProgress * total).floor().clamp(0, total - 1) : 0;
+    // Epsilon: the ratio round-trip (page/total → pixels → page) can land a
+    // hair under the integer and floor to the previous page.
+    final page = total > 0
+        ? (rawProgress * total + 1e-6).floor().clamp(0, total - 1)
+        : 0;
 
     // Push the page index to the provider only when the *integer* page
     // actually changes (a few times per chapter), never every frame.
     if (ref.read(readerProvider).currentPage != page) {
       ref.read(readerProvider.notifier).setPage(page);
+      _queueProgress(page);
     }
 
     // Per-frame values go through ValueNotifiers — no setState, so the image
@@ -341,6 +423,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     );
     final pagesAsync = ref.watch(chapterPagesProvider(chapterKey));
     final readerState = ref.watch(readerProvider);
+    ref.listen(keepScreenOnProvider, (_, on) => _setKeepScreenOn(on));
     final direction =
         ref.watch(effectiveReadingDirectionProvider(widget.mangaId));
     final background = ref.watch(readerBackgroundProvider);
@@ -391,21 +474,21 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
           ),
         ),
         data: (pages) {
-          final currentTotal = ref.read(readerProvider).totalPages;
-          if (currentTotal != pages.length) {
+          // readerProvider is app-wide, so always reset it here: when the
+          // page count matches the previous chapter, setTotalPages alone is
+          // a no-op and the stale page would stick (and skip the resume jump).
+          if (!_didInit) {
+            _didInit = true;
             WidgetsBinding.instance.addPostFrameCallback((_) {
               if (!mounted) return;
-              final notifier = ref.read(readerProvider.notifier)
-                ..setTotalPages(pages.length);
               // Land on the requested page ("Continue" → last read page).
               final start = widget.initialPage.clamp(0, pages.length - 1);
-              if (start > 0 && !_didInitialJump) {
-                _didInitialJump = true;
-                notifier.setPage(start);
-                if (strip && _scrollController.hasClients) {
-                  _scrollController.jumpTo((start / pages.length) *
-                      _scrollController.position.maxScrollExtent);
-                }
+              ref.read(readerProvider.notifier)
+                ..setTotalPages(pages.length)
+                ..setPage(start);
+              if (start > 0 && strip && _scrollController.hasClients) {
+                _scrollController.jumpTo((start / pages.length) *
+                    _scrollController.position.maxScrollExtent);
               }
             });
           }
@@ -455,6 +538,13 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                     onSettings: () => _showSettings(context),
                     onSeek: _onSeek,
                     onModeChanged: _setMode,
+                    onChapterTap: () => _showChapterPicker(context),
+                    onPrevChapter: _hasPrevChapter
+                        ? () => _goToPrevChapter(context)
+                        : null,
+                    onNextChapter: _hasNextChapter
+                        ? () => _goToNextChapter(context)
+                        : null,
                   ),
                 ),
               ),
@@ -545,6 +635,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
         itemCount: pages.length,
         onPageChanged: (i) {
           ref.read(readerProvider.notifier).setPage(i);
+          _queueProgress(i);
           _showPillBriefly();
           _maybePrefetchNextChapter((i + 1) / pages.length);
           if (i == pages.length - 1) _tryMarkAsRead(i);
@@ -568,6 +659,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     Map<String, String>? imageHeaders,
   ) {
     final hasFooter = _hasNextChapter;
+    final gap = ref.watch(stripGapProvider).toDouble();
     return GestureDetector(
       onTap: () => ref.read(readerProvider.notifier).toggleChrome(),
       child: ListView.builder(
@@ -589,11 +681,14 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
               onTap: () => _goToNextChapter(context),
             );
           }
-          return _WebtoonPage(
+          final page = _WebtoonPage(
             url: pages[i],
             index: i,
             headers: imageHeaders,
           );
+          return gap > 0
+              ? Padding(padding: EdgeInsets.only(bottom: gap), child: page)
+              : page;
         },
       ),
     );
@@ -610,21 +705,17 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   }
 }
 
-// ── Reader settings bottom sheet ───────────────────────────────────────────
+// ── Reader bottom sheets ───────────────────────────────────────────────────
 
-class _ReaderSettingsSheet extends ConsumerWidget {
-  const _ReaderSettingsSheet({required this.isWebtoon, required this.mangaId});
-  final bool isWebtoon;
-  final int mangaId;
+/// Shared frame: card surface, drag handle, display title, safe-area inset.
+class _ReaderSheet extends StatelessWidget {
+  const _ReaderSheet({required this.title, required this.child});
+  final String title;
+  final Widget child;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final direction = ref.watch(readingDirectionProvider);
+  Widget build(BuildContext context) {
     final rp = ReaderPalette.of(context);
-    final titleOverride = ref.watch(mangaReadingDirectionProvider(mangaId));
-    final scale = ref.watch(pageScaleModeProvider);
-    final background = ref.watch(readerBackgroundProvider);
-
     return Container(
       decoration: BoxDecoration(
         color: rp.card,
@@ -651,8 +742,36 @@ class _ReaderSettingsSheet extends ConsumerWidget {
               ),
             ),
           ),
-          DisplayText(YomiText.label('Reader', '読'), size: 26, color: rp.ink),
+          DisplayText(title, size: 26, color: rp.ink),
           const SizedBox(height: 20),
+          child,
+        ],
+      ),
+    );
+  }
+}
+
+class _ReaderSettingsSheet extends ConsumerWidget {
+  const _ReaderSettingsSheet({required this.isWebtoon, required this.mangaId});
+  final bool isWebtoon;
+  final int mangaId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final direction = ref.watch(readingDirectionProvider);
+    final rp = ReaderPalette.of(context);
+    final titleOverride = ref.watch(mangaReadingDirectionProvider(mangaId));
+    final scale = ref.watch(pageScaleModeProvider);
+    final background = ref.watch(readerBackgroundProvider);
+    final keepOn = ref.watch(keepScreenOnProvider);
+    final gap = ref.watch(stripGapProvider);
+
+    return _ReaderSheet(
+      title: YomiText.label('Reader', '読'),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
           if (!isWebtoon) ...[
             Text('DIRECTION',
                 style: AppTextStyles.labelSmall
@@ -711,6 +830,19 @@ class _ReaderSettingsSheet extends ConsumerWidget {
             ),
             const SizedBox(height: 16),
           ],
+          if (isWebtoon) ...[
+            Text('GAP BETWEEN IMAGES',
+                style: AppTextStyles.labelSmall
+                    .copyWith(color: AppColors.textTertiary)),
+            const SizedBox(height: 8),
+            _OptionRow<int>(
+              value: gap,
+              groupLabel: 'Gap between images',
+              options: const [(0, 'None'), (4, '4 px'), (8, '8 px')],
+              onChanged: (v) => ref.read(stripGapProvider.notifier).state = v,
+            ),
+            const SizedBox(height: 16),
+          ],
           Text('BRIGHTNESS',
               style: AppTextStyles.labelSmall
                   .copyWith(color: AppColors.textTertiary)),
@@ -732,7 +864,118 @@ class _ReaderSettingsSheet extends ConsumerWidget {
             onChanged: (v) =>
                 ref.read(readerBackgroundProvider.notifier).state = v,
           ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: Text('Keep screen on',
+                    style: YomiText.ui(13, color: rp.ink)),
+              ),
+              SumiToggle(
+                label: 'Keep screen on',
+                value: keepOn,
+                onChanged: (v) =>
+                    ref.read(keepScreenOnProvider.notifier).state = v,
+              ),
+            ],
+          ),
         ],
+      ),
+    );
+  }
+}
+
+/// Jump to any chapter of the title. Newest-first, like the detail screen.
+class _ChapterPickerSheet extends StatefulWidget {
+  const _ChapterPickerSheet({
+    required this.chapters,
+    required this.currentIndex,
+    required this.onSelect,
+  });
+  final List<ReaderChapterSummary> chapters;
+  final int currentIndex;
+  final ValueChanged<int> onSelect;
+
+  @override
+  State<_ChapterPickerSheet> createState() => _ChapterPickerSheetState();
+}
+
+class _ChapterPickerSheetState extends State<_ChapterPickerSheet> {
+  static const _rowHeight = 48.0;
+  final _scroll = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    // Open with the current chapter a couple of rows down.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scroll.hasClients) return;
+      _scroll.jumpTo(((widget.currentIndex - 2) * _rowHeight)
+          .clamp(0.0, _scroll.position.maxScrollExtent));
+    });
+  }
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final rp = ReaderPalette.of(context);
+    final ac = context.look.isPastel ? rp.ink : context.yc.ac;
+    final height = (widget.chapters.length * _rowHeight)
+        .clamp(_rowHeight, MediaQuery.sizeOf(context).height * 0.55);
+    return _ReaderSheet(
+      title: YomiText.label('Chapters', '章'),
+      child: SizedBox(
+        height: height,
+        child: ListView.builder(
+          controller: _scroll,
+          itemExtent: _rowHeight,
+          itemCount: widget.chapters.length,
+          itemBuilder: (context, i) {
+            final ch = widget.chapters[i];
+            final current = i == widget.currentIndex;
+            return Semantics(
+              button: true,
+              selected: current,
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => widget.onSelect(i),
+                child: Opacity(
+                  opacity: ch.isRead && !current ? 0.55 : 1.0,
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: 40,
+                        child: Text(
+                          ch.number == null ? '—' : chapterMark(ch.number!),
+                          style: YomiText.display(18,
+                              color: current ? ac : rp.ink2),
+                        ),
+                      ),
+                      Expanded(
+                        child: Text(
+                          ch.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: YomiText.ui(14,
+                              weight:
+                                  current ? FontWeight.w700 : FontWeight.w400,
+                              color: rp.ink),
+                        ),
+                      ),
+                      if (current)
+                        Icon(CupertinoIcons.checkmark_alt, size: 16, color: ac),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
       ),
     );
   }

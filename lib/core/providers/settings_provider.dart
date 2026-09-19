@@ -148,3 +148,10 @@ final extensionLanguageProvider = StateProvider<String?>((ref) {
       : prefs.setString('extensions.lang', next));
   return prefs.getString('extensions.lang');
 });
+
+/// Keep the display awake while the reader is open (Android). Persisted.
+final keepScreenOnProvider = StateProvider<bool>((ref) {
+  final prefs = ref.watch(sharedPreferencesProvider);
+  ref.listenSelf((_, next) => prefs.setBool('reader.keepScreenOn', next));
+  return prefs.getBool('reader.keepScreenOn') ?? true;
+});

@@ -122,6 +122,11 @@ open class MainActivity : FlutterActivity() {
                             requestPermissions(
                                 arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 0x4E4F)
                         }
+                    }
+                    "setKeepScreenOn" -> {
+                        val keep = android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
+                        if (call.argument<Boolean>("enabled") == true) window.addFlags(keep)
+                        else window.clearFlags(keep)
                         result.success(null)
                     }
                     else -> result.notImplemented()

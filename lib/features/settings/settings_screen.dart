@@ -176,6 +176,17 @@ class SettingsScreen extends ConsumerWidget {
               ),
               onTap: () => ref.read(hapticsProvider.notifier).state = !haptics,
             ),
+            _Row(
+              label: 'Keep screen on',
+              trailing: SumiToggle(
+                label: 'Keep screen on',
+                value: ref.watch(keepScreenOnProvider),
+                onChanged: (v) =>
+                    ref.read(keepScreenOnProvider.notifier).state = v,
+              ),
+              onTap: () => ref.read(keepScreenOnProvider.notifier).state =
+                  !ref.read(keepScreenOnProvider),
+            ),
           ]),
 
           // ── APPEARANCE · 姿 ───────────────────────────────────────────────
