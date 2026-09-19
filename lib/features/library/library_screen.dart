@@ -14,6 +14,7 @@ import '../../shared/widgets/category_sheet.dart';
 import '../../shared/widgets/cover_image.dart';
 import '../../shared/widgets/empty_state.dart';
 import '../../shared/widgets/genre_filter_bar.dart';
+import '../../shared/widgets/library_update_action.dart';
 import '../../shared/widgets/lumen_page_route.dart';
 import '../../shared/widgets/sumi.dart';
 import '../../shared/widgets/sumi_actions.dart';
@@ -121,6 +122,8 @@ class LibraryScreen extends ConsumerWidget {
                       ],
                     ),
                   ),
+                  const LibraryUpdateAction(),
+                  const SizedBox(width: 14),
                   const LookMark(),
                 ],
               ),

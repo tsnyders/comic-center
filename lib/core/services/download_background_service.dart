@@ -16,6 +16,7 @@ import '../extensions/extension_factory.dart';
 import '../extensions/source_interface.dart';
 import 'app_logger.dart';
 import 'downloaded_chapter_files.dart';
+import 'library_update_service.dart';
 
 const completedDownloadRetention = Duration(minutes: 2);
 
@@ -46,6 +47,10 @@ void downloadCallbackDispatcher() {
         if (taskName == _downloadCleanupTask) {
           await deleteExpiredCompletedDownloadRecords(isar);
           return true;
+        }
+
+        if (taskName == libraryUpdateTask) {
+          return runLibraryUpdateTask(isar);
         }
 
         return false;

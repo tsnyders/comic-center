@@ -303,7 +303,8 @@ final chapterSyncProvider = FutureProvider.autoDispose
           ..volume = info.volume
           ..scanlator = info.scanlator
           ..language = info.language
-          ..uploadDate = info.uploadDate,
+          ..uploadDate = info.uploadDate
+          ..dateFetched = DateTime.now(),
       )
       .toList();
 
@@ -383,7 +384,8 @@ Future<void> refreshMangaChapters({
           ..volume = info.volume
           ..scanlator = info.scanlator
           ..language = info.language
-          ..uploadDate = info.uploadDate;
+          ..uploadDate = info.uploadDate
+          ..dateFetched = DateTime.now();
         await isar.chapterEntrys.put(entry);
       }
     }

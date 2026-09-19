@@ -66,6 +66,9 @@ dependencies:
   # Cross-platform URL opening (replaces the Android-only intent channel)
   url_launcher: ^6.3.0
 
+  # "12 new chapters in 4 titles" after a background library update
+  flutter_local_notifications: ^22.3.1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

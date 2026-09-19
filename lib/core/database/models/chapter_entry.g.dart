@@ -17,78 +17,83 @@ const ChapterEntrySchema = CollectionSchema(
   name: r'ChapterEntry',
   id: 8780732185968774858,
   properties: {
-    r'downloadPath': PropertySchema(
+    r'dateFetched': PropertySchema(
       id: 0,
+      name: r'dateFetched',
+      type: IsarType.dateTime,
+    ),
+    r'downloadPath': PropertySchema(
+      id: 1,
       name: r'downloadPath',
       type: IsarType.string,
     ),
     r'downloadedAt': PropertySchema(
-      id: 1,
+      id: 2,
       name: r'downloadedAt',
       type: IsarType.dateTime,
     ),
     r'isDownloaded': PropertySchema(
-      id: 2,
+      id: 3,
       name: r'isDownloaded',
       type: IsarType.bool,
     ),
     r'isRead': PropertySchema(
-      id: 3,
+      id: 4,
       name: r'isRead',
       type: IsarType.bool,
     ),
     r'language': PropertySchema(
-      id: 4,
+      id: 5,
       name: r'language',
       type: IsarType.string,
     ),
     r'lastPageRead': PropertySchema(
-      id: 5,
+      id: 6,
       name: r'lastPageRead',
       type: IsarType.long,
     ),
     r'mangaId': PropertySchema(
-      id: 6,
+      id: 7,
       name: r'mangaId',
       type: IsarType.long,
     ),
     r'number': PropertySchema(
-      id: 7,
+      id: 8,
       name: r'number',
       type: IsarType.double,
     ),
     r'pageCount': PropertySchema(
-      id: 8,
+      id: 9,
       name: r'pageCount',
       type: IsarType.long,
     ),
     r'readAt': PropertySchema(
-      id: 9,
+      id: 10,
       name: r'readAt',
       type: IsarType.dateTime,
     ),
     r'scanlator': PropertySchema(
-      id: 10,
+      id: 11,
       name: r'scanlator',
       type: IsarType.string,
     ),
     r'sourceChapterId': PropertySchema(
-      id: 11,
+      id: 12,
       name: r'sourceChapterId',
       type: IsarType.string,
     ),
     r'title': PropertySchema(
-      id: 12,
+      id: 13,
       name: r'title',
       type: IsarType.string,
     ),
     r'uploadDate': PropertySchema(
-      id: 13,
+      id: 14,
       name: r'uploadDate',
       type: IsarType.dateTime,
     ),
     r'volume': PropertySchema(
-      id: 14,
+      id: 15,
       name: r'volume',
       type: IsarType.double,
     )
@@ -182,21 +187,22 @@ void _chapterEntrySerialize(
   List<int> offsets,
   Map<Type, List<int>> allOffsets,
 ) {
-  writer.writeString(offsets[0], object.downloadPath);
-  writer.writeDateTime(offsets[1], object.downloadedAt);
-  writer.writeBool(offsets[2], object.isDownloaded);
-  writer.writeBool(offsets[3], object.isRead);
-  writer.writeString(offsets[4], object.language);
-  writer.writeLong(offsets[5], object.lastPageRead);
-  writer.writeLong(offsets[6], object.mangaId);
-  writer.writeDouble(offsets[7], object.number);
-  writer.writeLong(offsets[8], object.pageCount);
-  writer.writeDateTime(offsets[9], object.readAt);
-  writer.writeString(offsets[10], object.scanlator);
-  writer.writeString(offsets[11], object.sourceChapterId);
-  writer.writeString(offsets[12], object.title);
-  writer.writeDateTime(offsets[13], object.uploadDate);
-  writer.writeDouble(offsets[14], object.volume);
+  writer.writeDateTime(offsets[0], object.dateFetched);
+  writer.writeString(offsets[1], object.downloadPath);
+  writer.writeDateTime(offsets[2], object.downloadedAt);
+  writer.writeBool(offsets[3], object.isDownloaded);
+  writer.writeBool(offsets[4], object.isRead);
+  writer.writeString(offsets[5], object.language);
+  writer.writeLong(offsets[6], object.lastPageRead);
+  writer.writeLong(offsets[7], object.mangaId);
+  writer.writeDouble(offsets[8], object.number);
+  writer.writeLong(offsets[9], object.pageCount);
+  writer.writeDateTime(offsets[10], object.readAt);
+  writer.writeString(offsets[11], object.scanlator);
+  writer.writeString(offsets[12], object.sourceChapterId);
+  writer.writeString(offsets[13], object.title);
+  writer.writeDateTime(offsets[14], object.uploadDate);
+  writer.writeDouble(offsets[15], object.volume);
 }
 
 ChapterEntry _chapterEntryDeserialize(
@@ -206,22 +212,23 @@ ChapterEntry _chapterEntryDeserialize(
   Map<Type, List<int>> allOffsets,
 ) {
   final object = ChapterEntry();
-  object.downloadPath = reader.readStringOrNull(offsets[0]);
-  object.downloadedAt = reader.readDateTimeOrNull(offsets[1]);
+  object.dateFetched = reader.readDateTimeOrNull(offsets[0]);
+  object.downloadPath = reader.readStringOrNull(offsets[1]);
+  object.downloadedAt = reader.readDateTimeOrNull(offsets[2]);
   object.id = id;
-  object.isDownloaded = reader.readBool(offsets[2]);
-  object.isRead = reader.readBool(offsets[3]);
-  object.language = reader.readStringOrNull(offsets[4]);
-  object.lastPageRead = reader.readLong(offsets[5]);
-  object.mangaId = reader.readLong(offsets[6]);
-  object.number = reader.readDoubleOrNull(offsets[7]);
-  object.pageCount = reader.readLong(offsets[8]);
-  object.readAt = reader.readDateTimeOrNull(offsets[9]);
-  object.scanlator = reader.readStringOrNull(offsets[10]);
-  object.sourceChapterId = reader.readString(offsets[11]);
-  object.title = reader.readString(offsets[12]);
-  object.uploadDate = reader.readDateTimeOrNull(offsets[13]);
-  object.volume = reader.readDoubleOrNull(offsets[14]);
+  object.isDownloaded = reader.readBool(offsets[3]);
+  object.isRead = reader.readBool(offsets[4]);
+  object.language = reader.readStringOrNull(offsets[5]);
+  object.lastPageRead = reader.readLong(offsets[6]);
+  object.mangaId = reader.readLong(offsets[7]);
+  object.number = reader.readDoubleOrNull(offsets[8]);
+  object.pageCount = reader.readLong(offsets[9]);
+  object.readAt = reader.readDateTimeOrNull(offsets[10]);
+  object.scanlator = reader.readStringOrNull(offsets[11]);
+  object.sourceChapterId = reader.readString(offsets[12]);
+  object.title = reader.readString(offsets[13]);
+  object.uploadDate = reader.readDateTimeOrNull(offsets[14]);
+  object.volume = reader.readDoubleOrNull(offsets[15]);
   return object;
 }
 
@@ -233,34 +240,36 @@ P _chapterEntryDeserializeProp<P>(
 ) {
   switch (propertyId) {
     case 0:
-      return (reader.readStringOrNull(offset)) as P;
-    case 1:
       return (reader.readDateTimeOrNull(offset)) as P;
+    case 1:
+      return (reader.readStringOrNull(offset)) as P;
     case 2:
-      return (reader.readBool(offset)) as P;
+      return (reader.readDateTimeOrNull(offset)) as P;
     case 3:
       return (reader.readBool(offset)) as P;
     case 4:
-      return (reader.readStringOrNull(offset)) as P;
+      return (reader.readBool(offset)) as P;
     case 5:
-      return (reader.readLong(offset)) as P;
+      return (reader.readStringOrNull(offset)) as P;
     case 6:
       return (reader.readLong(offset)) as P;
     case 7:
-      return (reader.readDoubleOrNull(offset)) as P;
-    case 8:
       return (reader.readLong(offset)) as P;
+    case 8:
+      return (reader.readDoubleOrNull(offset)) as P;
     case 9:
-      return (reader.readDateTimeOrNull(offset)) as P;
+      return (reader.readLong(offset)) as P;
     case 10:
-      return (reader.readStringOrNull(offset)) as P;
+      return (reader.readDateTimeOrNull(offset)) as P;
     case 11:
-      return (reader.readString(offset)) as P;
+      return (reader.readStringOrNull(offset)) as P;
     case 12:
       return (reader.readString(offset)) as P;
     case 13:
-      return (reader.readDateTimeOrNull(offset)) as P;
+      return (reader.readString(offset)) as P;
     case 14:
+      return (reader.readDateTimeOrNull(offset)) as P;
+    case 15:
       return (reader.readDoubleOrNull(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -566,6 +575,80 @@ extension ChapterEntryQueryWhere
 
 extension ChapterEntryQueryFilter
     on QueryBuilder<ChapterEntry, ChapterEntry, QFilterCondition> {
+  QueryBuilder<ChapterEntry, ChapterEntry, QAfterFilterCondition>
+      dateFetchedIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNull(
+        property: r'dateFetched',
+      ));
+    });
+  }
+
+  QueryBuilder<ChapterEntry, ChapterEntry, QAfterFilterCondition>
+      dateFetchedIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNotNull(
+        property: r'dateFetched',
+      ));
+    });
+  }
+
+  QueryBuilder<ChapterEntry, ChapterEntry, QAfterFilterCondition>
+      dateFetchedEqualTo(DateTime? value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'dateFetched',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<ChapterEntry, ChapterEntry, QAfterFilterCondition>
+      dateFetchedGreaterThan(
+    DateTime? value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'dateFetched',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<ChapterEntry, ChapterEntry, QAfterFilterCondition>
+      dateFetchedLessThan(
+    DateTime? value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'dateFetched',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<ChapterEntry, ChapterEntry, QAfterFilterCondition>
+      dateFetchedBetween(
+    DateTime? lower,
+    DateTime? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'dateFetched',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+      ));
+    });
+  }
+
   QueryBuilder<ChapterEntry, ChapterEntry, QAfterFilterCondition>
       downloadPathIsNull() {
     return QueryBuilder.apply(this, (query) {
@@ -1933,6 +2016,19 @@ extension ChapterEntryQueryLinks
 
 extension ChapterEntryQuerySortBy
     on QueryBuilder<ChapterEntry, ChapterEntry, QSortBy> {
+  QueryBuilder<ChapterEntry, ChapterEntry, QAfterSortBy> sortByDateFetched() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'dateFetched', Sort.asc);
+    });
+  }
+
+  QueryBuilder<ChapterEntry, ChapterEntry, QAfterSortBy>
+      sortByDateFetchedDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'dateFetched', Sort.desc);
+    });
+  }
+
   QueryBuilder<ChapterEntry, ChapterEntry, QAfterSortBy> sortByDownloadPath() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'downloadPath', Sort.asc);
@@ -2123,6 +2219,19 @@ extension ChapterEntryQuerySortBy
 
 extension ChapterEntryQuerySortThenBy
     on QueryBuilder<ChapterEntry, ChapterEntry, QSortThenBy> {
+  QueryBuilder<ChapterEntry, ChapterEntry, QAfterSortBy> thenByDateFetched() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'dateFetched', Sort.asc);
+    });
+  }
+
+  QueryBuilder<ChapterEntry, ChapterEntry, QAfterSortBy>
+      thenByDateFetchedDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'dateFetched', Sort.desc);
+    });
+  }
+
   QueryBuilder<ChapterEntry, ChapterEntry, QAfterSortBy> thenByDownloadPath() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'downloadPath', Sort.asc);
@@ -2325,6 +2434,12 @@ extension ChapterEntryQuerySortThenBy
 
 extension ChapterEntryQueryWhereDistinct
     on QueryBuilder<ChapterEntry, ChapterEntry, QDistinct> {
+  QueryBuilder<ChapterEntry, ChapterEntry, QDistinct> distinctByDateFetched() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'dateFetched');
+    });
+  }
+
   QueryBuilder<ChapterEntry, ChapterEntry, QDistinct> distinctByDownloadPath(
       {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
@@ -2427,6 +2542,13 @@ extension ChapterEntryQueryProperty
   QueryBuilder<ChapterEntry, int, QQueryOperations> idProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'id');
+    });
+  }
+
+  QueryBuilder<ChapterEntry, DateTime?, QQueryOperations>
+      dateFetchedProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'dateFetched');
     });
   }
 

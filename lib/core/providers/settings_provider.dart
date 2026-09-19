@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../services/download_enqueue.dart';
+import '../services/library_update_service.dart';
 import '../theme/yomi_theme.dart';
 import 'preferences_provider.dart';
 
@@ -15,10 +16,15 @@ final brightnessProvider = StateProvider<Brightness>((ref) {
       : Brightness.light;
 });
 
-/// Whether the app automatically checks for updates on launch. Persisted.
+/// Whether the library is refreshed for new chapters in the background
+/// (every 12 h via WorkManager). Persisted. Toggling schedules or cancels the
+/// task; RootScaffold schedules it on launch when the pref is on.
 final autoCheckUpdatesProvider = StateProvider<bool>((ref) {
   final prefs = ref.watch(sharedPreferencesProvider);
-  ref.listenSelf((_, next) => prefs.setBool('settings.autoCheckUpdates', next));
+  ref.listenSelf((prev, next) {
+    prefs.setBool('settings.autoCheckUpdates', next);
+    if (prev != null) LibraryUpdateService.setEnabled(next);
+  });
   return prefs.getBool('settings.autoCheckUpdates') ?? true;
 });
 
@@ -102,8 +108,9 @@ final wifiOnlyProvider = StateProvider<bool>((ref) {
 
 // ── Root navigation ───────────────────────────────────────────────────────────
 
-/// 0 Discover · 1 Library (yin-yang) · 2 Settings. In-memory.
-final rootTabProvider = StateProvider<int>((_) => 1);
+/// 0 Discover · 1 Updates · 2 Library (yin-yang) · 3 History · 4 Settings.
+/// In-memory.
+final rootTabProvider = StateProvider<int>((_) => 2);
 
 // ── Downloads ─────────────────────────────────────────────────────────────────
 // Pref keys live in download_enqueue.dart so the Riverpod-free background
