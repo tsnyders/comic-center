@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:comic_center/core/database/models/chapter_entry.dart';
+import 'package:comic_center/core/database/models/download_entry.dart';
 import 'package:comic_center/core/database/models/manga_entry.dart';
 import 'package:comic_center/core/extensions/models/chapter_info.dart';
 import 'package:comic_center/core/extensions/models/filter.dart';
@@ -79,7 +80,8 @@ void main() {
   setUpAll(initializeLocalIsar);
   setUp(() async {
     dir = await Directory.systemTemp.createTemp('yomi_update_test_');
-    isar = await Isar.open([MangaEntrySchema, ChapterEntrySchema],
+    isar = await Isar.open(
+        [MangaEntrySchema, ChapterEntrySchema, DownloadEntrySchema],
         directory: dir.path, name: 'update', inspector: false);
   });
   tearDown(() async {
@@ -137,5 +139,33 @@ void main() {
     expect(again.newChapters, 0);
     expect(again.updatedTitles, 0);
     expect(again.errors.keys, unorderedEquals([3, 5]));
+  });
+
+  test('autoDownload queues only the chapters this run added', () async {
+    final good = _FakeSource('good', chapters: {
+      '1': ['c1', 'c2', 'c3'],
+    });
+    await isar.writeTxn(() => isar.mangaEntrys.put(_manga(1, 'good')));
+    await isar.writeTxn(() => isar.chapterEntrys.put(ChapterEntry()
+      ..mangaId = 1
+      ..sourceChapterId = 'c1'
+      ..title = 'c1'));
+
+    await updateLibrary(isar, [good]); // default: nothing queued
+    expect(await isar.downloadEntrys.count(), 0);
+
+    final fresh = _FakeSource('good', chapters: {
+      '1': ['c1', 'c2', 'c3', 'c4'],
+    });
+    final result = await updateLibrary(isar, [fresh], autoDownload: true);
+    expect(result.newChapters, 1);
+
+    final queued = await isar.downloadEntrys.where().findAll();
+    final c4 = await isar.chapterEntrys
+        .filter()
+        .sourceChapterIdEqualTo('c4')
+        .findFirst();
+    expect(queued.map((d) => d.chapterId), [c4!.id]);
+    expect(queued.single.status, DownloadStatus.pending);
   });
 }

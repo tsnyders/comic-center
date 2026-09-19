@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:isar/isar.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:workmanager/workmanager.dart';
 
 import '../database/models/chapter_entry.dart';
@@ -9,6 +10,7 @@ import '../database/models/manga_entry.dart';
 import '../extensions/source_interface.dart';
 import '../providers/browse_provider.dart';
 import 'app_logger.dart';
+import 'download_enqueue.dart';
 import 'extension_manager.dart';
 
 /// WorkManager task name handled by `downloadCallbackDispatcher`.
@@ -37,7 +39,9 @@ Future<LibraryUpdateResult> updateLibrary(
   Isar isar,
   List<MangaSource> sources, {
   void Function(int done, int total)? onProgress,
+  bool autoDownload = false,
 }) async {
+  final runStart = DateTime.now();
   final mangas =
       await isar.mangaEntrys.filter().inLibraryEqualTo(true).findAll();
   final bySource = {for (final s in sources) s.id: s};
@@ -66,6 +70,15 @@ Future<LibraryUpdateResult> updateLibrary(
         if (added > 0) {
           newChapters += added;
           updatedTitles++;
+          if (autoDownload) {
+            // New rows are stamped at insert, so anything fetched since the
+            // run began is what this pass added.
+            final ids = await chapters
+                .dateFetchedGreaterThan(runStart, include: true)
+                .idProperty()
+                .findAll();
+            await enqueueNewChapters(isar, mangaId: manga.id, chapterIds: ids);
+          }
         }
       } catch (error, stackTrace) {
         errors[manga.id] = error;
@@ -87,8 +100,12 @@ Future<LibraryUpdateResult> updateLibrary(
 /// Background-isolate entry: refresh the library and summarise new chapters
 /// in one notification.
 Future<bool> runLibraryUpdateTask(Isar isar) async {
-  final result =
-      await updateLibrary(isar, await ExtensionManager.loadInstalled(isar));
+  final prefs = await SharedPreferences.getInstance();
+  final result = await updateLibrary(
+    isar,
+    await ExtensionManager.loadInstalled(isar),
+    autoDownload: prefs.getBool(autoDownloadNewChaptersPrefKey) ?? false,
+  );
   if (result.newChapters > 0) await LibraryUpdateService.notify(result);
   return true;
 }

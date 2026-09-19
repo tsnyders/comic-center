@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../services/library_update_service.dart';
 import 'database_provider.dart';
+import 'settings_provider.dart';
 import 'source_registry_provider.dart';
 
 /// `(done, total)` while a manual library update runs; null when idle.
@@ -18,6 +19,7 @@ class LibraryUpdateNotifier extends Notifier<(int, int)?> {
         ref.read(isarProvider),
         ref.read(sourceRegistryProvider),
         onProgress: (done, total) => state = (done, total),
+        autoDownload: ref.read(autoDownloadNewChaptersProvider),
       );
     } finally {
       state = null;
