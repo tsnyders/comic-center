@@ -1,6 +1,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <!-- Foreground download notification (Android 13+). FOREGROUND_SERVICE,
+         FOREGROUND_SERVICE_DATA_SYNC and the dataSync service type come from
+         workmanager_android's opt-in manifest, enabled by
+         workmanager.enableDataSyncForegroundService=true in gradle.properties. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
         android:label="Yomi"

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:isar/isar.dart';
 import 'package:path_provider/path_provider.dart';
@@ -8,7 +9,9 @@ import 'package:path_provider/path_provider.dart';
 import '../database/models/chapter_entry.dart';
 import '../database/models/download_entry.dart';
 import '../database/models/manga_entry.dart';
+import '../services/app_logger.dart';
 import '../services/download_background_service.dart';
+import '../services/download_enqueue.dart';
 import 'database_provider.dart';
 
 final downloadQueueProvider = StreamProvider<List<DownloadEntry>>((ref) {
@@ -48,7 +51,65 @@ final chapterDownloadStatusProvider =
       .map((list) => list.isEmpty ? null : list.first.status);
 });
 
+/// A title with at least one downloaded chapter (Downloads → "Downloaded").
+class DownloadedTitle {
+  const DownloadedTitle({
+    required this.mangaId,
+    required this.title,
+    required this.chapterCount,
+    required this.bytes,
+  });
+
+  final int mangaId;
+  final String title;
+  final int chapterCount;
+  final int bytes;
+}
+
+final downloadedTitlesProvider = StreamProvider<List<DownloadedTitle>>((ref) {
+  final isar = ref.watch(isarProvider);
+  return isar.chapterEntrys
+      .filter()
+      .isDownloadedEqualTo(true)
+      .watch(fireImmediately: true)
+      .asyncMap((chapters) async {
+    final documents = await getApplicationDocumentsDirectory();
+    final counts = <int, int>{};
+    for (final chapter in chapters) {
+      counts.update(chapter.mangaId, (n) => n + 1, ifAbsent: () => 1);
+    }
+    final titles = <DownloadedTitle>[];
+    for (final entry in counts.entries) {
+      final manga = await isar.mangaEntrys.get(entry.key);
+      titles.add(DownloadedTitle(
+        mangaId: entry.key,
+        title: manga?.title ?? 'Unknown title',
+        chapterCount: entry.value,
+        bytes: await _directorySize(
+          Directory('${documents.path}/downloads/${entry.key}'),
+        ),
+      ));
+    }
+    titles.sort(
+        (a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()));
+    return titles;
+  });
+});
+
+Future<int> _directorySize(Directory directory) async {
+  if (!await directory.exists()) return 0;
+  var total = 0;
+  await for (final entity
+      in directory.list(recursive: true, followLinks: false)) {
+    if (entity is File) total += await entity.length();
+  }
+  return total;
+}
+
 class DownloadManager extends AsyncNotifier<void> {
+  static const _platform = MethodChannel('yomi/platform');
+  static bool _notificationPermissionRequested = false;
+
   DownloadQueueProcessor? _fallbackProcessor;
   bool _fallbackIsRunning = false;
   Timer? _historyCleanupTimer;
@@ -72,83 +133,35 @@ class DownloadManager extends AsyncNotifier<void> {
   Future<void> enqueue({
     required MangaEntry manga,
     required ChapterEntry chapter,
-  }) async {
-    final isar = ref.read(isarProvider);
-    var shouldSchedule = false;
-    await isar.writeTxn(() async {
-      final existing = await isar.downloadEntrys
-          .filter()
-          .chapterIdEqualTo(chapter.id)
-          .findFirst();
-
-      if (existing != null) {
-        if (existing.status == DownloadStatus.pending ||
-            existing.status == DownloadStatus.downloading ||
-            existing.status == DownloadStatus.completed) {
-          return;
-        }
-        existing
-          ..status = DownloadStatus.pending
-          ..errorMessage = null
-          ..queuedAt = DateTime.now();
-        await isar.downloadEntrys.put(existing);
-        shouldSchedule = true;
-        return;
-      }
-
-      final entry = DownloadEntry()
-        ..chapterId = chapter.id
-        ..mangaId = manga.id
-        ..mangaTitle = manga.title
-        ..chapterTitle = chapter.title
-        ..chapterNumber = chapter.number ?? 0
-        ..status = DownloadStatus.pending
-        ..queuedAt = DateTime.now();
-      await isar.downloadEntrys.put(entry);
-      shouldSchedule = true;
-    });
-
-    if (shouldSchedule) await _scheduleQueue(isar);
-  }
+  }) =>
+      enqueueAll(manga: manga, chapters: [chapter]);
 
   Future<void> enqueueAll({
     required MangaEntry manga,
     required List<ChapterEntry> chapters,
   }) async {
     final isar = ref.read(isarProvider);
-    var shouldSchedule = false;
-    await isar.writeTxn(() async {
-      for (final chapter in chapters) {
-        final existing = await isar.downloadEntrys
-            .filter()
-            .chapterIdEqualTo(chapter.id)
-            .findFirst();
-        if (existing != null) {
-          if (existing.status == DownloadStatus.paused ||
-              existing.status == DownloadStatus.failed) {
-            existing
-              ..status = DownloadStatus.pending
-              ..errorMessage = null
-              ..queuedAt = DateTime.now();
-            await isar.downloadEntrys.put(existing);
-            shouldSchedule = true;
-          }
-          continue;
-        }
+    await _requestNotificationPermission();
+    final queued = await enqueueNewChapters(
+      isar,
+      mangaId: manga.id,
+      chapterIds: [for (final chapter in chapters) chapter.id],
+    );
+    // enqueueNewChapters schedules the Android worker itself; other
+    // platforms run the queue in-process.
+    if (queued > 0 && !Platform.isAndroid) await _runFallbackProcessor(isar);
+  }
 
-        await isar.downloadEntrys.put(DownloadEntry()
-          ..chapterId = chapter.id
-          ..mangaId = manga.id
-          ..mangaTitle = manga.title
-          ..chapterTitle = chapter.title
-          ..chapterNumber = chapter.number ?? 0
-          ..status = DownloadStatus.pending
-          ..queuedAt = DateTime.now());
-        shouldSchedule = true;
-      }
-    });
-
-    if (shouldSchedule) await _scheduleQueue(isar);
+  /// Android 13+ needs runtime consent before the download notification can
+  /// be shown. Asked once per process; MainActivity skips it below API 33.
+  Future<void> _requestNotificationPermission() async {
+    if (!Platform.isAndroid || _notificationPermissionRequested) return;
+    _notificationPermissionRequested = true;
+    try {
+      await _platform.invokeMethod<void>('requestNotificationPermission');
+    } catch (e, st) {
+      AppLogger.instance.warn('Notification permission request failed', e, st);
+    }
   }
 
   Future<void> pause(int downloadId) async {
@@ -183,53 +196,107 @@ class DownloadManager extends AsyncNotifier<void> {
     if (shouldSchedule) await _scheduleQueue(isar);
   }
 
-  Future<void> cancel(int downloadId) async {
-    final isar = ref.read(isarProvider);
-    final entry = await isar.downloadEntrys.get(downloadId);
-    await isar.writeTxn(() => isar.downloadEntrys.delete(downloadId));
-    if (entry == null) return;
-
-    final documentsDirectory = await getApplicationDocumentsDirectory();
-    final directory = Directory(
-      '${documentsDirectory.path}/downloads/${entry.mangaId}/${entry.chapterId}',
-    );
-    if (await directory.exists()) await directory.delete(recursive: true);
-  }
-
   Future<void> retry(int downloadId) => resume(downloadId);
 
-  /// Deletes a completed download: removes the files on disk and clears the
-  /// downloaded state on the chapter so the reader falls back to streaming.
+  Future<void> retryAllFailed() async {
+    final isar = ref.read(isarProvider);
+    final failed = await isar.downloadEntrys
+        .filter()
+        .statusEqualTo(DownloadStatus.failed)
+        .findAll();
+    if (failed.isEmpty) return;
+    await isar.writeTxn(() async {
+      final now = DateTime.now();
+      for (final entry in failed) {
+        entry
+          ..status = DownloadStatus.pending
+          ..errorMessage = null
+          ..queuedAt = now;
+        await isar.downloadEntrys.put(entry);
+      }
+    });
+    await _scheduleQueue(isar);
+  }
+
+  /// Puts a queued item ahead of every other pending one. The processor
+  /// always takes the oldest queuedAt, so the item borrows an earlier stamp.
+  Future<void> moveToTop(int downloadId) async {
+    final isar = ref.read(isarProvider);
+    await isar.writeTxn(() async {
+      final entry = await isar.downloadEntrys.get(downloadId);
+      if (entry == null || entry.status != DownloadStatus.pending) return;
+      final first = await isar.downloadEntrys
+          .filter()
+          .statusEqualTo(DownloadStatus.pending)
+          .sortByQueuedAt()
+          .findFirst();
+      final earliest = first?.queuedAt ?? DateTime.now();
+      entry.queuedAt = earliest.subtract(const Duration(seconds: 1));
+      await isar.downloadEntrys.put(entry);
+    });
+  }
+
+  Future<void> cancel(int downloadId) => deleteDownload(downloadId);
+
+  Future<void> cancelAll() async {
+    final isar = ref.read(isarProvider);
+    final active = await isar.downloadEntrys
+        .filter()
+        .not()
+        .statusEqualTo(DownloadStatus.completed)
+        .findAll();
+    final byManga = <int, List<int>>{};
+    for (final entry in active) {
+      (byManga[entry.mangaId] ??= []).add(entry.chapterId);
+    }
+    for (final entry in byManga.entries) {
+      await deleteChapterDownloads(
+        isar,
+        mangaId: entry.key,
+        chapterIds: entry.value,
+      );
+    }
+  }
+
+  /// Removes a queued or completed download: the files on disk, the queue
+  /// record, and the chapter's downloaded state so the reader streams again.
   Future<void> deleteDownload(int downloadId) async {
     final isar = ref.read(isarProvider);
     final entry = await isar.downloadEntrys.get(downloadId);
     if (entry == null) return;
-
-    await isar.writeTxn(() async {
-      await isar.downloadEntrys.delete(downloadId);
-      final chapter = await isar.chapterEntrys.get(entry.chapterId);
-      if (chapter != null) {
-        chapter
-          ..isDownloaded = false
-          ..downloadPath = null
-          ..downloadedAt = null;
-        await isar.chapterEntrys.put(chapter);
-      }
-    });
-
-    final documentsDirectory = await getApplicationDocumentsDirectory();
-    final directory = Directory(
-      '${documentsDirectory.path}/downloads/${entry.mangaId}/${entry.chapterId}',
+    await deleteChapterDownloads(
+      isar,
+      mangaId: entry.mangaId,
+      chapterIds: [entry.chapterId],
     );
-    if (await directory.exists()) await directory.delete(recursive: true);
   }
 
-  Future<void> _scheduleQueue(Isar isar) async {
-    if (Platform.isAndroid) {
-      await DownloadBackgroundService.scheduleQueue();
-      return;
-    }
+  /// Deletes every downloaded and queued chapter of [mangaId].
+  Future<void> deleteAllForManga(int mangaId) async {
+    final isar = ref.read(isarProvider);
+    final downloaded = await isar.chapterEntrys
+        .filter()
+        .mangaIdEqualTo(mangaId)
+        .isDownloadedEqualTo(true)
+        .findAll();
+    final queued =
+        await isar.downloadEntrys.filter().mangaIdEqualTo(mangaId).findAll();
+    await deleteChapterDownloads(
+      isar,
+      mangaId: mangaId,
+      chapterIds: {
+        for (final chapter in downloaded) chapter.id,
+        for (final entry in queued) entry.chapterId,
+      }.toList(),
+    );
+  }
 
+  Future<void> _scheduleQueue(Isar isar) {
+    if (Platform.isAndroid) return DownloadBackgroundService.scheduleQueue();
+    return _runFallbackProcessor(isar);
+  }
+
+  Future<void> _runFallbackProcessor(Isar isar) async {
     if (_fallbackIsRunning) return;
     _fallbackIsRunning = true;
     _fallbackProcessor = DownloadQueueProcessor();

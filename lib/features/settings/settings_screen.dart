@@ -51,8 +51,10 @@ class SettingsScreen extends ConsumerWidget {
     final background = ref.watch(readerBackgroundProvider);
     final haptics = ref.watch(hapticsProvider);
     final autoUpdate = ref.watch(autoCheckUpdatesProvider);
-    final dlLocation = ref.watch(downloadLocationProvider);
     final wifiOnly = ref.watch(wifiOnlyProvider);
+    final autoDownload = ref.watch(autoDownloadNewChaptersProvider);
+    final downloadAhead = ref.watch(downloadAheadProvider);
+    final removeAfterRead = ref.watch(removeAfterReadProvider);
     final queued = ref.watch(downloadQueueProvider).valueOrNull?.length ?? 0;
     final cacheBytes = ref.watch(_cacheSizeProvider).valueOrNull;
     final driveAccount = ref.watch(googleDriveProvider);
@@ -258,20 +260,6 @@ class SettingsScreen extends ConsumerWidget {
               onTap: () => push(const DownloadsScreen()),
             ),
             _Row(
-              label: 'Storage location',
-              value: dlLocation == DownloadLocation.local
-                  ? 'This device'
-                  : 'Google Drive',
-              onTap: () => _pick(
-                  context,
-                  'Storage location',
-                  [
-                    (DownloadLocation.local, 'This device'),
-                    (DownloadLocation.googleDrive, 'Google Drive'),
-                  ],
-                  (v) => ref.read(downloadLocationProvider.notifier).state = v),
-            ),
-            _Row(
               label: 'Download over Wi-Fi only',
               trailing: SumiToggle(
                 label: 'Download over Wi-Fi only',
@@ -280,6 +268,46 @@ class SettingsScreen extends ConsumerWidget {
               ),
               onTap: () =>
                   ref.read(wifiOnlyProvider.notifier).state = !wifiOnly,
+            ),
+            _Row(
+              label: 'Auto-download new chapters',
+              trailing: SumiToggle(
+                label: 'Auto-download new chapters',
+                value: autoDownload,
+                onChanged: (v) => ref
+                    .read(autoDownloadNewChaptersProvider.notifier)
+                    .state = v,
+              ),
+              onTap: () => ref
+                  .read(autoDownloadNewChaptersProvider.notifier)
+                  .state = !autoDownload,
+            ),
+            _Row(
+              label: 'Download ahead',
+              value: downloadAhead == 0
+                  ? 'Off'
+                  : '$downloadAhead chapter${downloadAhead == 1 ? '' : 's'}',
+              onTap: () => _pick(
+                  context,
+                  'Download ahead',
+                  [
+                    (0, 'Off'),
+                    (1, '1 chapter'),
+                    (2, '2 chapters'),
+                    (3, '3 chapters'),
+                  ],
+                  (v) => ref.read(downloadAheadProvider.notifier).state = v),
+            ),
+            _Row(
+              label: 'Remove downloaded chapter after reading',
+              trailing: SumiToggle(
+                label: 'Remove downloaded chapter after reading',
+                value: removeAfterRead,
+                onChanged: (v) =>
+                    ref.read(removeAfterReadProvider.notifier).state = v,
+              ),
+              onTap: () => ref.read(removeAfterReadProvider.notifier).state =
+                  !removeAfterRead,
             ),
             _Row(
               label: 'Clear cache',

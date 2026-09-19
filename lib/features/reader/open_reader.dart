@@ -1,8 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
+import 'package:isar/isar.dart';
 
 import '../../core/database/models/chapter_entry.dart';
 import '../../core/database/models/manga_entry.dart';
+import '../../core/services/download_enqueue.dart';
 import 'reader_screen.dart';
 
 /// Sources that publish exclusively long-strip webtoons / manhwa / manhua.
@@ -65,4 +69,8 @@ void openReader(
       ),
     ),
   );
+  if (Isar.getInstance() case final isar?) {
+    unawaited(enqueueAhead(isar,
+        mangaId: manga.id, currentChapterId: target.id));
+  }
 }
