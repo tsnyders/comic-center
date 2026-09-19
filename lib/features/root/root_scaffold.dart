@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/providers/settings_provider.dart';
+import '../../core/services/library_update_service.dart';
 import '../../core/services/update_service.dart';
 import '../../core/services/whats_new_service.dart';
 import '../../core/theme/app_spacing.dart';
@@ -10,12 +13,15 @@ import '../../core/theme/app_text_styles.dart';
 import '../../core/theme/yomi_theme.dart';
 import '../../shared/widgets/sumi.dart';
 import '../browse/browse_screen.dart';
+import '../history/history_screen.dart';
 import '../library/library_screen.dart';
 import '../settings/changelog_screen.dart';
 import '../settings/settings_screen.dart';
+import '../updates/updates_screen.dart';
 
-/// Discover · Library (yin-yang) · Settings. Tab index lives in
-/// [rootTabProvider] so Onboarding and Settings can deep-link into a tab.
+/// Discover · Updates · Library (yin-yang) · History · Settings. Tab index
+/// lives in [rootTabProvider] so Onboarding and Settings can deep-link into a
+/// tab.
 class RootScaffold extends ConsumerStatefulWidget {
   const RootScaffold({super.key});
 
@@ -27,6 +33,11 @@ class _RootScaffoldState extends ConsumerState<RootScaffold> {
   @override
   void initState() {
     super.initState();
+    // The pref defaults to on, so the periodic task must exist even if the
+    // toggle was never touched. Idempotent (an existing schedule is kept).
+    if (ref.read(autoCheckUpdatesProvider)) {
+      unawaited(LibraryUpdateService.schedule());
+    }
     if (ref.read(showWhatsNewProvider)) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _showWhatsNewDialog(context);
@@ -69,7 +80,9 @@ class _RootScaffoldState extends ConsumerState<RootScaffold> {
               index: tab,
               children: const [
                 BrowseScreen(),
+                UpdatesScreen(),
                 LibraryScreen(),
+                HistoryScreen(),
                 SettingsScreen(),
               ],
             ),
@@ -88,9 +101,9 @@ class _RootScaffoldState extends ConsumerState<RootScaffold> {
 
 // ── Nav ───────────────────────────────────────────────────────────────────────
 
-/// Bottom navigation per look. Sumi: gradient bar, 探 / yin-yang / 設. Cinema:
-/// film-strip word bar with a 2px accent rule over the active item. Pastel:
-/// floating 72px card with an accent pill behind the active item.
+/// Bottom navigation per look. Sumi: gradient bar, 探 新 / yin-yang / 歴 設.
+/// Cinema: film-strip word bar with a 2px accent rule over the active item.
+/// Pastel: floating 72px card with an accent pill behind the active item.
 class SumiNav extends StatelessWidget {
   const SumiNav({super.key, required this.index, required this.onTap});
 
@@ -114,12 +127,12 @@ class _SumiBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.yc;
     final bottom = MediaQuery.paddingOf(context).bottom;
-    final onLibrary = index == 1;
+    final onLibrary = index == 2;
     final reduced = reduceMotion(context);
 
     return Container(
       height: 92 + bottom,
-      padding: EdgeInsets.fromLTRB(40, 0, 40, 22 + bottom),
+      padding: EdgeInsets.fromLTRB(16, 0, 16, 22 + bottom),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
@@ -129,13 +142,22 @@ class _SumiBar extends StatelessWidget {
         ),
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          _KanjiItem(
-            kanji: '探',
-            label: 'Discover',
-            active: index == 0,
-            onTap: () => onTap(0),
+          Expanded(
+            child: _KanjiItem(
+              kanji: '探',
+              label: 'Discover',
+              active: index == 0,
+              onTap: () => onTap(0),
+            ),
+          ),
+          Expanded(
+            child: _KanjiItem(
+              kanji: '新',
+              label: 'Updates',
+              active: index == 1,
+              onTap: () => onTap(1),
+            ),
           ),
           Semantics(
             button: true,
@@ -152,7 +174,7 @@ class _SumiBar extends StatelessWidget {
                   duration: AppMotion.epic - const Duration(milliseconds: 100),
                   curve: AppMotion.spring,
                   child: SumiPress(
-                    onTap: () => onTap(1),
+                    onTap: () => onTap(2),
                     haptic: false,
                     child: Container(
                       decoration: const BoxDecoration(
@@ -172,11 +194,21 @@ class _SumiBar extends StatelessWidget {
               ),
             ),
           ),
-          _KanjiItem(
-            kanji: '設',
-            label: 'Settings',
-            active: index == 2,
-            onTap: () => onTap(2),
+          Expanded(
+            child: _KanjiItem(
+              kanji: '歴',
+              label: 'History',
+              active: index == 3,
+              onTap: () => onTap(3),
+            ),
+          ),
+          Expanded(
+            child: _KanjiItem(
+              kanji: '設',
+              label: 'Settings',
+              active: index == 4,
+              onTap: () => onTap(4),
+            ),
           ),
         ],
       ),
@@ -222,7 +254,7 @@ class _KanjiItem extends StatelessWidget {
               AnimatedDefaultTextStyle(
                 duration: AppMotion.base,
                 style: YomiText.ui(10, color: color, letterSpacing: 1),
-                child: Text(label),
+                child: FittedBox(fit: BoxFit.scaleDown, child: Text(label)),
               ),
             ],
           ),
@@ -232,14 +264,17 @@ class _KanjiItem extends StatelessWidget {
   }
 }
 
-const _navLabels = ['Discover', 'Library', 'Settings'];
+const _navLabels = ['Discover', 'Updates', 'Library', 'History', 'Settings'];
 const _navIcons = [
   CupertinoIcons.compass,
+  CupertinoIcons.bell,
   CupertinoIcons.book,
+  CupertinoIcons.clock,
   CupertinoIcons.settings,
 ];
 
-/// Cinema: 84 tall, `bg`, 1px top rule, three uppercase condensed words.
+/// Cinema: 84 tall, `bg`, 1px top rule, five uppercase condensed words
+/// (scaled down on narrow screens).
 class _CinemaBar extends StatelessWidget {
   const _CinemaBar({required this.index, required this.onTap});
   final int index;
@@ -258,7 +293,7 @@ class _CinemaBar extends StatelessWidget {
       ),
       child: Row(
         children: [
-          for (var i = 0; i < 3; i++)
+          for (var i = 0; i < _navLabels.length; i++)
             Expanded(
               child: Semantics(
                 button: true,
@@ -284,11 +319,18 @@ class _CinemaBar extends StatelessWidget {
                           ),
                         ),
                       ),
-                      AnimatedDefaultTextStyle(
-                        duration: AppMotion.base,
-                        style: YomiText.display(13,
-                            color: index == i ? c.fg : c.fg2, letterSpacing: 3),
-                        child: Text(_navLabels[i].toUpperCase()),
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                          child: AnimatedDefaultTextStyle(
+                            duration: AppMotion.base,
+                            style: YomiText.display(13,
+                                color: index == i ? c.fg : c.fg2,
+                                letterSpacing: 3),
+                            child: Text(_navLabels[i].toUpperCase()),
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -329,35 +371,41 @@ class _PastelBar extends StatelessWidget {
           ],
         ),
         child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
-            for (var i = 0; i < 3; i++)
-              Semantics(
-                button: true,
-                selected: index == i,
-                label: _navLabels[i],
-                child: SumiPress(
-                  onTap: () => onTap(i),
-                  haptic: false,
-                  scale: AppMotion.activeScale,
-                  child: AnimatedContainer(
-                    duration: AppMotion.base,
-                    curve: AppMotion.snap,
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: index == i ? c.ac : const Color(0x00000000),
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(_navIcons[i], size: 22, color: c.fg),
-                        const SizedBox(height: 4),
-                        Text(_navLabels[i],
-                            style: YomiText.ui(10,
-                                weight: FontWeight.w700, color: c.fg)),
-                      ],
+            for (var i = 0; i < _navLabels.length; i++)
+              Expanded(
+                child: Center(
+                  child: Semantics(
+                    button: true,
+                    selected: index == i,
+                    label: _navLabels[i],
+                    child: SumiPress(
+                      onTap: () => onTap(i),
+                      haptic: false,
+                      scale: AppMotion.activeScale,
+                      child: AnimatedContainer(
+                        duration: AppMotion.base,
+                        curve: AppMotion.snap,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: index == i ? c.ac : const Color(0x00000000),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(_navIcons[i], size: 22, color: c.fg),
+                            const SizedBox(height: 4),
+                            FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text(_navLabels[i],
+                                  style: YomiText.ui(10,
+                                      weight: FontWeight.w700, color: c.fg)),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
                 ),

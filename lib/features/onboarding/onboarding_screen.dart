@@ -29,7 +29,7 @@ class OnboardingScreen extends ConsumerWidget {
       ref.read(selectedGenresProvider.notifier).state = next;
     }
 
-    void finish({int tab = 1}) {
+    void finish({int tab = 2}) {
       ref.read(rootTabProvider.notifier).state = tab;
       ref.read(onboardingDoneProvider.notifier).state = true;
     }
@@ -129,7 +129,7 @@ class OnboardingScreen extends ConsumerWidget {
                     SumiButton(label: look.copy.continueButton, onTap: finish),
                     const SizedBox(height: 14),
                     SumiPress(
-                      onTap: () => finish(tab: 2),
+                      onTap: () => finish(tab: 4),
                       child: Padding(
                         padding: const EdgeInsets.symmetric(vertical: 6),
                         child: Text(look.copy.signIn,

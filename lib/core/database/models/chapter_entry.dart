@@ -30,4 +30,8 @@ class ChapterEntry {
   DateTime? uploadDate;
   DateTime? readAt;
   DateTime? downloadedAt;
+
+  /// When this row was first inserted from a source fetch. Drives the
+  /// Updates tab; null on rows created before the field existed.
+  DateTime? dateFetched;
 }

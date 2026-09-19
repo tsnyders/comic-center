@@ -1,5 +1,4 @@
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/database/models/chapter_entry.dart';
@@ -12,6 +11,7 @@ import '../../core/providers/source_registry_provider.dart';
 import '../../core/theme/yomi_theme.dart';
 import '../../shared/widgets/cover_image.dart';
 import '../../shared/widgets/sumi.dart';
+import '../../shared/widgets/text_action.dart';
 import '../library/widgets/manga_card.dart' show mangaCoverHeroTag;
 import '../reader/open_reader.dart';
 import 'widgets/chapter_list_tile.dart';
@@ -185,12 +185,12 @@ class _TitleDetailScreenState extends ConsumerState<TitleDetailScreen> {
                     children: [
                       const SumiOverline('CHAPTERS', kanji: '話'),
                       const Spacer(),
-                      _TextAction(
+                      TextAction(
                         label: _refreshing ? 'Checking…' : 'Refresh',
                         onTap: _refreshing ? null : _refreshChapters,
                       ),
                       const SizedBox(width: 14),
-                      _TextAction(
+                      TextAction(
                         label: _ascending ? 'Oldest first' : 'Newest first',
                         onTap: () => setState(() => _ascending = !_ascending),
                       ),
@@ -442,30 +442,6 @@ class _Plate extends ConsumerWidget {
 }
 
 // ── Small text action (refresh / sort) ────────────────────────────────────────
-
-class _TextAction extends StatelessWidget {
-  const _TextAction({required this.label, required this.onTap});
-  final String label;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.yc;
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: onTap == null
-          ? null
-          : () {
-              HapticFeedback.selectionClick();
-              onTap!();
-            },
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6),
-        child: Text(label, style: YomiText.ui(12, color: c.fg2)),
-      ),
-    );
-  }
-}
 
 // ── Category assignment sheet ─────────────────────────────────────────────────
 
