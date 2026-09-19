@@ -1,12 +1,12 @@
+import 'dart:io';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/providers/database_provider.dart';
-import '../../core/providers/library_provider.dart';
-import '../../core/services/backup_service.dart';
 import '../../core/services/google_drive_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
+import 'backup_restore_screen.dart' show restoreSummary, restoreYomiBackup;
 
 class DriveRestoreScreen extends ConsumerStatefulWidget {
   const DriveRestoreScreen({super.key});
@@ -150,34 +150,9 @@ class _DriveRestoreScreenState extends ConsumerState<DriveRestoreScreen> {
                         itemCount: _backups!.length,
                         itemBuilder: (_, i) => _DriveTile(
                           backup: _backups![i],
-                          onRestore: () =>
-                              _confirmRestore(context, _backups![i]),
+                          onRestore: () => _doRestore(_backups![i]),
                         ),
                       ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _confirmRestore(BuildContext context, DriveBackupFile backup) {
-    showCupertinoDialog<void>(
-      context: context,
-      builder: (_) => CupertinoAlertDialog(
-        title: const Text('Restore from Drive'),
-        content: const Text(
-            'This will merge the backup with your current library. Existing entries will be updated.'),
-        actions: [
-          CupertinoDialogAction(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          CupertinoDialogAction(
-            onPressed: () async {
-              Navigator.pop(context);
-              await _doRestore(backup);
-            },
-            child: const Text('Restore'),
           ),
         ],
       ),
@@ -197,22 +172,26 @@ class _DriveRestoreScreenState extends ConsumerState<DriveRestoreScreen> {
         ),
       ),
     );
+    final File file;
     try {
-      final file =
-          await GoogleDriveService.downloadBackup(backup.id, backup.name);
-      if (!mounted) return;
-      final isar = ref.read(isarProvider);
-      final categories = ref.read(categoryNotifierProvider.notifier);
-      final result = await BackupService.restore(isar: isar, file: file);
-      await categories.merge(result.categories);
+      file = await GoogleDriveService.downloadBackup(backup.id, backup.name);
+    } catch (e) {
       if (!mounted) return;
       Navigator.of(context).pop();
+      _showError(e.toString());
+      return;
+    }
+    if (!mounted) return;
+    Navigator.of(context).pop();
+    try {
+      // Passphrase prompt (if needed), counts preview and settings toggle.
+      final result = await restoreYomiBackup(context, ref, file);
+      if (result == null || !mounted) return;
       showCupertinoDialog<void>(
         context: context,
         builder: (_) => CupertinoAlertDialog(
           title: const Text('Restore Complete'),
-          content: Text(
-              'Restored ${result.mangaCount} titles and ${result.chapterCount} chapter records. Downloaded chapters are not included.'),
+          content: Text(restoreSummary(result)),
           actions: [
             CupertinoDialogAction(
               onPressed: () => Navigator.pop(context),
@@ -223,7 +202,6 @@ class _DriveRestoreScreenState extends ConsumerState<DriveRestoreScreen> {
       );
     } catch (e) {
       if (!mounted) return;
-      Navigator.of(context).pop();
       _showError(e.toString());
     }
   }

@@ -14,6 +14,7 @@ import '../../core/providers/reader_provider.dart';
 import '../../core/providers/settings_provider.dart';
 import '../../core/services/backup_service.dart';
 import '../../core/services/backup_file_picker.dart';
+import '../../core/services/backup_scheduler.dart';
 import '../../core/services/google_drive_service.dart';
 import '../../core/services/update_service.dart';
 import '../../core/services/whats_new_service.dart';
@@ -302,6 +303,28 @@ class SettingsScreen extends ConsumerWidget {
               label: 'Restore backup',
               onTap: () => push(const BackupRestoreScreen()),
             ),
+            _Row(
+              label: 'Backup passphrase',
+              value: ref.watch(backupPassphraseProvider) == null
+                  ? 'Not set'
+                  : 'Set',
+              onTap: () => _editPassphrase(context, ref),
+            ),
+            _Row(
+              label: 'Automatic backups',
+              value: _cap(ref.watch(autoBackupProvider).name),
+              onTap: () => _pick(
+                  context,
+                  'Automatic backups',
+                  [for (final m in AutoBackup.values) (m, _cap(m.name))], (v) {
+                ref.read(autoBackupProvider.notifier).state = v;
+                BackupScheduler.apply(switch (v) {
+                  AutoBackup.off => null,
+                  AutoBackup.daily => const Duration(days: 1),
+                  AutoBackup.weekly => const Duration(days: 7),
+                });
+              }),
+            ),
             if (driveAccount == null)
               _Row(
                 label: 'Connect Google Drive',
@@ -560,7 +583,7 @@ class SettingsScreen extends ConsumerWidget {
     );
     try {
       final isar = ref.read(isarProvider);
-      final categories = ref.read(libraryCategoriesProvider);
+      final categories = ref.read(categoryNotifierProvider).valueOrNull ?? [];
       final backup =
           await BackupService.export(isar: isar, categories: categories);
       await GoogleDriveService.uploadBackup(backup.file);
@@ -591,7 +614,7 @@ class SettingsScreen extends ConsumerWidget {
 
     try {
       final isar = ref.read(isarProvider);
-      final categories = ref.read(libraryCategoriesProvider);
+      final categories = ref.read(categoryNotifierProvider).valueOrNull ?? [];
       final backup = await BackupService.export(
         isar: isar,
         categories: categories,
@@ -617,6 +640,41 @@ class SettingsScreen extends ConsumerWidget {
       if (progressVisible) Navigator.of(context, rootNavigator: true).pop();
       _showAlert(context, 'Export Failed', e.toString());
     }
+  }
+
+  static Future<void> _editPassphrase(
+      BuildContext context, WidgetRef ref) async {
+    final passphrase = ref.read(backupPassphraseProvider.notifier);
+    if (passphrase.state == null) return _setPassphrase(context, passphrase);
+    await _pick(
+        context,
+        'Backup passphrase',
+        [(false, 'Change passphrase'), (true, 'Remove passphrase')], (remove) {
+      if (remove) {
+        passphrase.state = null;
+      } else {
+        _setPassphrase(context, passphrase);
+      }
+    });
+  }
+
+  static Future<void> _setPassphrase(
+      BuildContext context, StateController<String?> passphrase) async {
+    final entered = await promptBackupPassphrase(
+      context,
+      title: 'Backup passphrase',
+      message: 'Backups are encrypted with this passphrase so they can be '
+          'restored on any device. Without one, backups uploaded to Google '
+          'Drive are stored unencrypted.\n\nUse at least 8 characters. Yomi '
+          'cannot recover a forgotten passphrase.',
+      action: 'Set',
+    );
+    if (entered == null || !context.mounted) return;
+    if (entered.length < 8) {
+      _showAlert(context, 'Passphrase too short', 'Use at least 8 characters.');
+      return;
+    }
+    passphrase.state = entered;
   }
 
   static void _showAlert(BuildContext context, String title, String message) {

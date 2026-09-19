@@ -114,3 +114,24 @@ final wifiOnlyProvider = StateProvider<bool>((ref) {
 
 /// 0 Discover · 1 Library (yin-yang) · 2 Settings. In-memory.
 final rootTabProvider = StateProvider<int>((_) => 1);
+
+// ── Backup ────────────────────────────────────────────────────────────────────
+
+enum AutoBackup { off, daily, weekly }
+
+final autoBackupProvider = StateProvider<AutoBackup>((ref) {
+  final prefs = ref.watch(sharedPreferencesProvider);
+  ref.listenSelf((_, next) => prefs.setInt('backup.auto', next.index));
+  return readEnumPref(prefs, 'backup.auto', AutoBackup.values, AutoBackup.off);
+});
+
+/// Read by BackupService on export (mirrored there as a literal). Null = unset.
+const backupPassphrasePrefKey = 'backup.passphrase';
+
+final backupPassphraseProvider = StateProvider<String?>((ref) {
+  final prefs = ref.watch(sharedPreferencesProvider);
+  ref.listenSelf((_, next) => next == null
+      ? prefs.remove(backupPassphrasePrefKey)
+      : prefs.setString(backupPassphrasePrefKey, next));
+  return prefs.getString(backupPassphrasePrefKey);
+});

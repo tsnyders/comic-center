@@ -15,6 +15,7 @@ import '../database/models/manga_entry.dart';
 import '../extensions/extension_factory.dart';
 import '../extensions/source_interface.dart';
 import 'app_logger.dart';
+import 'backup_scheduler.dart';
 import 'downloaded_chapter_files.dart';
 
 const completedDownloadRetention = Duration(minutes: 2);
@@ -47,6 +48,10 @@ void downloadCallbackDispatcher() {
         if (taskName == _downloadCleanupTask) {
           await deleteExpiredCompletedDownloadRecords(isar);
           return true;
+        }
+
+        if (taskName == autoBackupTask) {
+          return BackupScheduler.runScheduled(isar);
         }
 
         return false;
