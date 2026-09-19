@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/providers/database_provider.dart';
+import '../../core/providers/library_provider.dart';
 import '../../core/services/backup_service.dart';
 import '../../core/services/google_drive_service.dart';
 import '../../core/theme/app_colors.dart';
@@ -201,7 +202,9 @@ class _DriveRestoreScreenState extends ConsumerState<DriveRestoreScreen> {
           await GoogleDriveService.downloadBackup(backup.id, backup.name);
       if (!mounted) return;
       final isar = ref.read(isarProvider);
+      final categories = ref.read(categoryNotifierProvider.notifier);
       final result = await BackupService.restore(isar: isar, file: file);
+      await categories.merge(result.categories);
       if (!mounted) return;
       Navigator.of(context).pop();
       showCupertinoDialog<void>(
@@ -209,7 +212,7 @@ class _DriveRestoreScreenState extends ConsumerState<DriveRestoreScreen> {
         builder: (_) => CupertinoAlertDialog(
           title: const Text('Restore Complete'),
           content: Text(
-              'Restored ${result.mangaCount} manga and ${result.chapterCount} chapters.'),
+              'Restored ${result.mangaCount} titles and ${result.chapterCount} chapter records. Downloaded chapters are not included.'),
           actions: [
             CupertinoDialogAction(
               onPressed: () => Navigator.pop(context),

@@ -40,15 +40,13 @@ class BackupService {
         await isar.mangaEntrys.filter().inLibraryEqualTo(true).findAll();
 
     final mangaData = await Future.wait(mangas.map((m) async {
-      final chapters = await isar.chapterEntrys
-          .filter()
-          .mangaIdEqualTo(m.id)
-          .isReadEqualTo(true)
-          .findAll();
+      final chapters =
+          await isar.chapterEntrys.filter().mangaIdEqualTo(m.id).findAll();
       return {
         'sourceKey': m.sourceKey,
         'sourceId': m.sourceId,
         'sourceMangaId': m.sourceMangaId,
+        'sourceUrl': m.sourceUrl,
         'title': m.title,
         'coverUrl': m.coverUrl,
         'author': m.author,
@@ -62,11 +60,16 @@ class BackupService {
         'lastReadPage': m.lastReadPage,
         'lastReadAt': m.lastReadAt?.toIso8601String(),
         'addedToLibrary': m.addedToLibrary?.toIso8601String(),
-        'readChapters': chapters
+        'chapters': chapters
             .map((c) => {
                   'sourceChapterId': c.sourceChapterId,
                   'title': c.title,
                   'number': c.number,
+                  'volume': c.volume,
+                  'scanlator': c.scanlator,
+                  'language': c.language,
+                  'uploadDate': c.uploadDate?.toIso8601String(),
+                  'pageCount': c.pageCount,
                   'isRead': c.isRead,
                   'lastPageRead': c.lastPageRead,
                   'readAt': c.readAt?.toIso8601String(),
@@ -137,6 +140,15 @@ class BackupService {
       json = decoded;
     }
 
+    return restorePayload(isar: isar, json: json);
+  }
+
+  /// Merge validated metadata from Yomi or Tachiyomi. Download state is never
+  /// imported, and existing local files and further reading progress survive.
+  static Future<RestoreResult> restorePayload({
+    required Isar isar,
+    required Map<String, Object?> json,
+  }) async {
     // Version Gate
     final version = json['version'];
     if (version == null) {
@@ -147,14 +159,68 @@ class BackupService {
           'Unsupported backup version $version (expected $_version).');
     }
 
-    final mangaList = (json['manga'] as List?) ?? [];
+    final mangaList = json['manga'];
+    if (mangaList is! List) {
+      throw const FormatException('Backup is missing its library entries.');
+    }
+    final categories = _strings(json['categories']);
     // Validate required per-item fields before touching the DB
     for (final item in mangaList) {
-      final m = item as Map<String, dynamic>;
+      if (item is! Map<String, Object?>) {
+        throw const FormatException('Invalid title record in backup.');
+      }
+      final m = item;
       final sourceKey = m['sourceKey'];
       if (sourceKey is! String || sourceKey.isEmpty) {
         throw const FormatException(
             'Backup contains a manga entry with a missing or empty sourceKey.');
+      }
+      for (final key in [
+        'sourceId',
+        'sourceMangaId',
+        'sourceUrl',
+        'title',
+        'coverUrl',
+        'author',
+        'artist',
+        'description',
+        'status',
+        'lastReadChapterId',
+        'lastReadAt',
+        'addedToLibrary'
+      ]) {
+        if (m[key] != null && m[key] is! String) {
+          throw FormatException('Invalid $key in backup.');
+        }
+      }
+      _strings(m['categories']);
+      _strings(m['genres']);
+      _number(m['lastReadChapterNumber']);
+      _nonnegativeInt(m['lastReadPage']);
+      for (final chapter in _chapters(m)) {
+        if (chapter is! Map<String, Object?> ||
+            chapter['sourceChapterId'] is! String ||
+            (chapter['sourceChapterId'] as String).isEmpty) {
+          throw const FormatException('Invalid chapter record in backup.');
+        }
+        for (final key in [
+          'title',
+          'scanlator',
+          'language',
+          'uploadDate',
+          'readAt'
+        ]) {
+          if (chapter[key] != null && chapter[key] is! String) {
+            throw FormatException('Invalid chapter $key in backup.');
+          }
+        }
+        if (chapter['isRead'] != null && chapter['isRead'] is! bool) {
+          throw const FormatException('Invalid chapter read state.');
+        }
+        _number(chapter['number']);
+        _number(chapter['volume']);
+        _nonnegativeInt(chapter['lastPageRead']);
+        _nonnegativeInt(chapter['pageCount']);
       }
     }
 
@@ -176,28 +242,40 @@ class BackupService {
           ..sourceMangaId = (m['sourceMangaId'] as String?) ?? ''
           ..sourceUrl = '';
 
+        final importedReadAt = _parseDate(m['lastReadAt']);
+        final useImportedResume = entry.lastReadChapterId == null ||
+            (importedReadAt != null &&
+                (entry.lastReadAt == null ||
+                    importedReadAt.isAfter(entry.lastReadAt!)));
+
         entry
           ..title = (m['title'] as String?) ?? 'Unknown'
-          ..coverUrl = m['coverUrl'] as String?
-          ..author = m['author'] as String?
-          ..artist = m['artist'] as String?
-          ..description = m['description'] as String?
-          ..genres = (m['genres'] as List?)?.cast<String>() ?? []
+          ..sourceUrl = (m['sourceUrl'] as String?) ?? entry.sourceUrl
+          ..coverUrl = m['coverUrl'] as String? ?? entry.coverUrl
+          ..author = m['author'] as String? ?? entry.author
+          ..artist = m['artist'] as String? ?? entry.artist
+          ..description = m['description'] as String? ?? entry.description
+          ..genres = {...entry.genres, ..._strings(m['genres'])}.toList()
           ..status = (m['status'] as String?) ?? 'unknown'
           ..inLibrary = true
-          ..categories = (m['categories'] as List?)?.cast<String>() ?? []
-          ..lastReadChapterId = m['lastReadChapterId'] as String?
-          ..lastReadChapterNumber =
-              (m['lastReadChapterNumber'] as num?)?.toDouble()
-          ..lastReadPage = (m['lastReadPage'] as int?) ?? 0
-          ..lastReadAt = _parseDate(m['lastReadAt'])
-          ..addedToLibrary = _parseDate(m['addedToLibrary']) ?? DateTime.now()
+          ..categories =
+              {...entry.categories, ..._strings(m['categories'])}.toList()
+          ..addedToLibrary = entry.addedToLibrary ??
+              _parseDate(m['addedToLibrary']) ??
+              DateTime.now()
           ..lastUpdated = DateTime.now();
+        if (useImportedResume && m['lastReadChapterId'] != null) {
+          entry
+            ..lastReadChapterId = m['lastReadChapterId'] as String?
+            ..lastReadChapterNumber = _number(m['lastReadChapterNumber'])
+            ..lastReadPage = _nonnegativeInt(m['lastReadPage'])
+            ..lastReadAt = importedReadAt;
+        }
 
         await isar.mangaEntrys.put(entry);
         mangaCount++;
 
-        for (final ch in (m['readChapters'] as List?) ?? []) {
+        for (final ch in _chapters(m)) {
           final c = ch as Map<String, dynamic>;
           final sid = (c['sourceChapterId'] as String?) ?? '';
 
@@ -215,9 +293,21 @@ class BackupService {
             ..number = (c['number'] as num?)?.toDouble();
 
           cEntry
-            ..isRead = (c['isRead'] as bool?) ?? true
-            ..lastPageRead = (c['lastPageRead'] as int?) ?? 0
-            ..readAt = _parseDate(c['readAt']);
+            ..volume = _number(c['volume']) ?? cEntry.volume
+            ..scanlator = c['scanlator'] as String? ?? cEntry.scanlator
+            ..language = c['language'] as String? ?? cEntry.language
+            ..uploadDate = _parseDate(c['uploadDate']) ?? cEntry.uploadDate
+            ..isRead = cEntry.isRead ||
+                ((c['isRead'] as bool?) ?? !m.containsKey('chapters'))
+            ..lastPageRead =
+                _max(cEntry.lastPageRead, _nonnegativeInt(c['lastPageRead']))
+            ..pageCount =
+                _max(cEntry.pageCount, _nonnegativeInt(c['pageCount']))
+            ..readAt = _later(cEntry.readAt, _parseDate(c['readAt']));
+
+          if (entry.lastReadChapterId == sid) {
+            entry.lastReadPage = _max(entry.lastReadPage, cEntry.lastPageRead);
+          }
 
           await isar.chapterEntrys.put(cEntry);
           chapterCount++;
@@ -242,12 +332,50 @@ class BackupService {
     // actually persisted, not just that the txn callback ran without error.
     final persistedInLibrary =
         await isar.mangaEntrys.filter().inLibraryEqualTo(true).count();
-    AppLogger.instance.info(
-        'Restore from ${file.path}: wrote $mangaCount manga / $chapterCount '
+    AppLogger.instance.info('Restore: wrote $mangaCount manga / $chapterCount '
         'chapters; inLibrary count immediately after commit = $persistedInLibrary');
 
-    return RestoreResult(mangaCount: mangaCount, chapterCount: chapterCount);
+    return RestoreResult(
+        mangaCount: mangaCount,
+        chapterCount: chapterCount,
+        categories: categories);
   }
+
+  static List<String> _strings(Object? value) {
+    if (value == null) return [];
+    if (value is! List || value.any((v) => v is! String)) {
+      throw const FormatException('Invalid text list in backup.');
+    }
+    return value.cast<String>();
+  }
+
+  static List<Object?> _chapters(Map<String, Object?> m) {
+    final value = m['chapters'] ?? m['readChapters'] ?? const [];
+    if (value is! List) {
+      throw const FormatException('Invalid chapters in backup.');
+    }
+    return value;
+  }
+
+  static double? _number(Object? value) {
+    if (value == null) return null;
+    if (value is! num || !value.isFinite) {
+      throw const FormatException('Invalid number in backup.');
+    }
+    return value.toDouble();
+  }
+
+  static int _nonnegativeInt(Object? value) {
+    if (value == null) return 0;
+    if (value is! int || value < 0) {
+      throw const FormatException('Invalid reading position in backup.');
+    }
+    return value;
+  }
+
+  static int _max(int a, int b) => a > b ? a : b;
+  static DateTime? _later(DateTime? a, DateTime? b) =>
+      a == null || (b != null && b.isAfter(a)) ? b : a;
 
   // ── Encryption ──────────────────────────────────────────────────────────────
 
@@ -327,7 +455,11 @@ class BackupFile {
 }
 
 class RestoreResult {
-  const RestoreResult({required this.mangaCount, required this.chapterCount});
+  const RestoreResult(
+      {required this.mangaCount,
+      required this.chapterCount,
+      this.categories = const []});
   final int mangaCount;
   final int chapterCount;
+  final List<String> categories;
 }

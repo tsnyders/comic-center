@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:extended_image/extended_image.dart'
     show clearDiskCachedImages, getCachedSizeBytes;
 import 'package:flutter/cupertino.dart';
@@ -11,6 +13,7 @@ import '../../core/providers/library_provider.dart';
 import '../../core/providers/reader_provider.dart';
 import '../../core/providers/settings_provider.dart';
 import '../../core/services/backup_service.dart';
+import '../../core/services/backup_file_picker.dart';
 import '../../core/services/google_drive_service.dart';
 import '../../core/services/update_service.dart';
 import '../../core/services/whats_new_service.dart';
@@ -69,7 +72,8 @@ class SettingsScreen extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  SumiOverline(theme.spec.copy.settingsKicker ?? 'SETTINGS', kanji: '設'),
+                  SumiOverline(theme.spec.copy.settingsKicker ?? 'SETTINGS',
+                      kanji: '設'),
                   DisplayText(theme.spec.copy.settingsTitle, size: 36),
                 ],
               ),
@@ -572,6 +576,7 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   static Future<void> _exportBackup(BuildContext context, WidgetRef ref) async {
+    var progressVisible = true;
     showCupertinoDialog<void>(
       context: context,
       barrierDismissible: false,
@@ -593,11 +598,23 @@ class SettingsScreen extends ConsumerWidget {
       );
       if (!context.mounted) return;
       Navigator.of(context, rootNavigator: true).pop();
+      progressVisible = false;
+      if (Platform.isAndroid) {
+        final saved = await BackupFilePicker.save(backup.file);
+        if (!context.mounted) return;
+        _showAlert(
+            context,
+            'Backup Exported',
+            saved
+                ? 'Saved ${backup.mangaCount ?? 0} titles and reading progress to system storage. Downloaded chapters are not included.'
+                : 'A copy is saved in Yomi. You can restore it under Saved in Yomi.');
+        return;
+      }
       _showAlert(context, 'Backup Exported',
           'Saved ${backup.mangaCount ?? 0} manga to:\n${backup.file.path}');
     } catch (e) {
       if (!context.mounted) return;
-      Navigator.of(context, rootNavigator: true).pop();
+      if (progressVisible) Navigator.of(context, rootNavigator: true).pop();
       _showAlert(context, 'Export Failed', e.toString());
     }
   }

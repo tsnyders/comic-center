@@ -21,8 +21,7 @@ class ChapterListTile extends ConsumerWidget {
   final VoidCallback onTap;
   final VoidCallback? onDownload;
 
-  bool get _inProgress =>
-      !chapter.isRead && chapter.lastPageRead > 0 && chapter.pageCount > 0;
+  bool get _inProgress => !chapter.isRead && chapter.lastPageRead > 0;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -33,7 +32,9 @@ class ChapterListTile extends ConsumerWidget {
     final meta = [
       if (chapter.uploadDate != null) _formatDate(chapter.uploadDate!),
       if (_inProgress)
-        'Page ${chapter.lastPageRead + 1} of ${chapter.pageCount}'
+        chapter.pageCount > 0
+            ? 'Page ${chapter.lastPageRead + 1} of ${chapter.pageCount}'
+            : 'Page ${chapter.lastPageRead + 1}'
       else
         chapter.isRead ? 'Read' : 'Unread',
     ].join(' · ');

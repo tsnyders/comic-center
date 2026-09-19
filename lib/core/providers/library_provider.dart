@@ -39,6 +39,18 @@ class CategoryNotifier extends AsyncNotifier<List<String>> {
   @override
   Future<List<String>> build() => _CategoryStore.load();
 
+  /// Merge backup category names in one persisted update.
+  Future<void> merge(Iterable<String> names) async {
+    final current = await future;
+    final updated = {
+      ...current,
+      ...names.map((name) => name.trim()).where((name) => name.isNotEmpty),
+    }.toList()
+      ..sort();
+    await _CategoryStore.save(updated);
+    state = AsyncData(updated);
+  }
+
   Future<void> add(String name) async {
     final t = name.trim();
     if (t.isEmpty) return;
@@ -141,14 +153,14 @@ final filteredLibraryProvider = Provider<AsyncValue<List<MangaEntry>>>((ref) {
 
   return library.whenData((mangas) {
     final shelf = switch (filter) {
-        ShelfFilter.all => mangas,
-        ShelfFilter.reading =>
-          mangas.where((m) => m.lastReadAt != null && !isFinished(m)).toList(),
-        ShelfFilter.finished => mangas.where(isFinished).toList(),
-        ShelfFilter.downloaded =>
-          mangas.where((m) => downloaded.contains(m.id)).toList(),
-        _ => mangas.where((m) => m.categories.contains(filter)).toList(),
-      };
+      ShelfFilter.all => mangas,
+      ShelfFilter.reading =>
+        mangas.where((m) => m.lastReadAt != null && !isFinished(m)).toList(),
+      ShelfFilter.finished => mangas.where(isFinished).toList(),
+      ShelfFilter.downloaded =>
+        mangas.where((m) => downloaded.contains(m.id)).toList(),
+      _ => mangas.where((m) => m.categories.contains(filter)).toList(),
+    };
     if (genre == null || genre.isEmpty) return shelf;
     return shelf
         .where((m) => m.genres.any((g) => g.trim().toLowerCase() == genre))

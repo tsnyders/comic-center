@@ -18,6 +18,7 @@ import java.io.File
 open class MainActivity : FlutterActivity() {
     private val channel = "yomi/platform"
     private val volumeKeyChannel = "yomi/volume_keys"
+    private val backupDocuments by lazy { BackupDocuments(this) }
 
     private var volumeKeyInterceptEnabled = false
     private var volumeEventSink: EventChannel.EventSink? = null
@@ -39,6 +40,10 @@ open class MainActivity : FlutterActivity() {
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, channel)
             .setMethodCallHandler { call, result ->
                 when (call.method) {
+                    "pickBackup" -> backupDocuments.pick(
+                        call.argument<Boolean>("tachiyomi") ?: false, result)
+                    "saveBackup" -> backupDocuments.save(
+                        call.argument<String>("path"), call.argument<String>("name"), result)
                     "setVolumeKeyIntercept" -> {
                         volumeKeyInterceptEnabled =
                             call.argument<Boolean>("enabled") ?: false
@@ -116,6 +121,18 @@ open class MainActivity : FlutterActivity() {
         "cinema" to ".MainActivityCinema",
         "pastel" to ".MainActivityPastel",
     )
+
+    @Deprecated("Uses the Flutter activity result bridge")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        if (!backupDocuments.onResult(requestCode, resultCode, data)) {
+            super.onActivityResult(requestCode, resultCode, data)
+        }
+    }
+
+    override fun onDestroy() {
+        backupDocuments.dispose()
+        super.onDestroy()
+    }
 
     private fun setLauncherAlias(look: String) {
         val target = launcherAliases[look] ?: launcherAliases.getValue("sumi")
