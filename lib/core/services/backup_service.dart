@@ -1,6 +1,9 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
+import 'dart:typed_data';
 
+import 'package:crypto/crypto.dart';
 import 'package:encrypt/encrypt.dart' as enc;
 import 'package:isar/isar.dart';
 import 'package:path_provider/path_provider.dart';
@@ -12,18 +15,49 @@ import 'app_logger.dart';
 
 // ── Backup / Restore service ──────────────────────────────────────────────────
 //
-// Backup contents are PII (full reading history) — see TODO #38. Files on
-// disk are AES-256-CBC encrypted with a per-device key generated on first
-// use and stored in SharedPreferences. The key never leaves the device, so
-// a backup encrypted on one device CANNOT be decrypted on another — this is
-// a deliberate trade-off: it stops a casual look at an exported file (the
-// threat the TODO describes — a shared/stolen device) at the cost of
-// cross-device portability via Drive restore. Legacy plaintext backups
-// (written before this change) are still readable on restore.
+// File format (v2): one JSON header line, a newline, then the body.
+//   {"v":2,"enc":"pbkdf2-aes256-cbc","salt":"<b64>","iter":N,"iv":"<b64>"}
+//   <base64 AES-256-CBC ciphertext of the payload JSON>
+// or, when no passphrase is set:
+//   {"v":2,"enc":"none"}
+//   <payload JSON>
+// The key is PBKDF2-HMAC-SHA256(passphrase, salt, iter), so a Drive backup can
+// be restored on another device. Legacy v1 files — the per-device-key envelope
+// `{"enc":true,"iv":..,"data":..}` or a bare plaintext payload — still restore.
+//
+// Payload: library titles + chapters, the category list, and app settings
+// (SharedPreferences under [settingsPrefixes]). Per-title reader overrides are
+// keyed by Isar id locally, which differs across devices, so they are exported
+// under the title's sourceKey and mapped back to the local id on restore.
+
+/// A passphrase-protected backup was opened with a wrong or missing passphrase.
+class BackupPassphraseException implements Exception {
+  const BackupPassphraseException();
+  @override
+  String toString() => 'Wrong backup passphrase.';
+}
 
 class BackupService {
   static const _version = 1;
+  static const _fileVersion = 2;
   static const _keyPrefKey = 'backup.encryptionKeyB64';
+
+  /// Mirrors backupPassphrasePrefKey in settings_provider.dart.
+  static const _passphrasePrefKey = 'backup.passphrase';
+  static const _encPassphrase = 'pbkdf2-aes256-cbc';
+  static const pbkdf2Iterations = 100000;
+  static const _maxIterations = 1000000;
+
+  /// SharedPreferences namespaces included in a backup. `backup.` is
+  /// deliberately absent: the device key and passphrase never leave the device.
+  static const settingsPrefixes = [
+    'reader.',
+    'theme.',
+    'settings.',
+    'library.',
+    'onboarding.',
+  ];
+  static const _titlePrefixes = ['reader.direction.manga.', 'reader.mode.manga.'];
 
   // ── Export ──────────────────────────────────────────────────────────────────
 
@@ -35,6 +69,7 @@ class BackupService {
     final dir = await _backupDir();
     final name = 'yomi_backup_${_stamp(now)}.json';
     final file = File('${dir.path}/$name');
+    final prefs = await SharedPreferences.getInstance();
 
     final mangas =
         await isar.mangaEntrys.filter().inLibraryEqualTo(true).findAll();
@@ -84,15 +119,16 @@ class BackupService {
       'createdAt': now.toIso8601String(),
       'categories': categories,
       'manga': mangaData,
+      'settings': await _exportSettings(isar, prefs),
     };
 
     final plainJson = const JsonEncoder.withIndent('  ').convert(payload);
-    final envelope = await _encrypt(plainJson);
-    await file.writeAsString(jsonEncode(envelope));
+    await file.writeAsString(
+        await encode(plainJson, passphrase: prefs.getString(_passphrasePrefKey)));
     return BackupFile(file: file, createdAt: now, mangaCount: mangas.length);
   }
 
-  // ── List local backups ──────────────────────────────────────────────────────
+  // ── List / prune local backups ──────────────────────────────────────────────
 
   static Future<List<BackupFile>> listBackups() async {
     final dir = await _backupDir(create: false);
@@ -106,41 +142,98 @@ class BackupService {
     return files.map((f) => BackupFile(file: f)).toList();
   }
 
+  /// Deletes local backups beyond the newest [keep].
+  static Future<void> prune({int keep = 3}) async {
+    for (final backup in (await listBackups()).skip(keep)) {
+      await backup.file.delete();
+    }
+  }
+
   // ── Restore ─────────────────────────────────────────────────────────────────
 
   static Future<RestoreResult> restore({
     required Isar isar,
     required File file,
-  }) async {
+    String? passphrase,
+    bool restoreSettings = true,
+  }) async =>
+      restorePayload(
+          isar: isar,
+          json: await decode(file, passphrase: passphrase),
+          restoreSettings: restoreSettings);
+
+  /// True when [file] is a v2 backup encrypted with a user passphrase.
+  static Future<bool> needsPassphrase(File file) async =>
+      _header(await file.readAsString())?['enc'] == _encPassphrase;
+
+  /// Reads a Yomi backup of any version and returns its payload. Throws
+  /// [BackupPassphraseException] on a wrong or missing passphrase.
+  static Future<Map<String, Object?>> decode(File file,
+      {String? passphrase}) async {
     final raw = await file.readAsString();
-
-    // Validate file is parseable and is the right format
-    final dynamic decoded;
-    try {
-      decoded = jsonDecode(raw);
-    } catch (_) {
-      throw const FormatException('Backup file is not valid JSON');
-    }
-
-    if (decoded is! Map<String, dynamic>) {
-      throw const FormatException('Backup file has an unexpected structure.');
-    }
-
-    Map<String, dynamic> json;
-    if (decoded['enc'] == true) {
-      final plain = await _decrypt(decoded);
-      final innerDecoded = jsonDecode(plain);
-      if (innerDecoded is! Map<String, dynamic>) {
-        throw const FormatException(
-            'Decrypted backup has an unexpected structure.');
+    final header = _header(raw);
+    final String plain;
+    if (header == null) {
+      // Legacy v1: device-key envelope, or a bare plaintext payload.
+      final decoded = _jsonMap(raw);
+      if (decoded == null) {
+        throw const FormatException('Backup file is not valid JSON');
       }
-      json = innerDecoded;
+      plain = decoded['enc'] == true ? await _decryptLegacy(decoded) : raw;
     } else {
-      // Legacy backup written before encryption was added — restore as-is.
-      json = decoded;
+      final body = raw.substring(raw.indexOf('\n') + 1);
+      switch (header['enc']) {
+        case 'none':
+          plain = body;
+        case _encPassphrase:
+          if (passphrase == null) throw const BackupPassphraseException();
+          final salt = header['salt'], iv = header['iv'], iter = header['iter'];
+          if (salt is! String ||
+              iv is! String ||
+              iter is! int ||
+              iter <= 0 ||
+              iter > _maxIterations) {
+            throw const FormatException(
+                'Encrypted backup header is incomplete.');
+          }
+          final key = await _deriveKey(passphrase, base64Decode(salt), iter);
+          try {
+            plain = enc.Encrypter(enc.AES(key, mode: enc.AESMode.cbc))
+                .decrypt64(body.trim(), iv: enc.IV.fromBase64(iv));
+          } catch (_) {
+            throw const BackupPassphraseException();
+          }
+        default:
+          throw FormatException(
+              'Unsupported backup encryption "${header['enc']}".');
+      }
     }
+    final json = _jsonMap(plain);
+    if (json == null) {
+      // AES-CBC padding accepts ~1/256 wrong keys; garbage output means the
+      // passphrase was wrong, not the file.
+      throw header?['enc'] == _encPassphrase
+          ? const BackupPassphraseException()
+          : const FormatException('Backup has an unexpected structure.');
+    }
+    return json;
+  }
 
-    return restorePayload(isar: isar, json: json);
+  /// Counts shown before a restore is confirmed.
+  static ({int titles, int chapters, int categories, int settings}) summarize(
+      Map<String, Object?> json) {
+    final manga = json['manga'], categories = json['categories'];
+    final settings = json['settings'];
+    final list = manga is List ? manga : const [];
+    return (
+      titles: list.length,
+      chapters: list.fold(
+          0,
+          (n, m) =>
+              n + (m is Map<String, Object?> ? _chapters(m).length : 0)),
+      categories: categories is List ? categories.length : 0,
+      settings: settings is Map ? settings.length : 0,
+    );
   }
 
   /// Merge validated metadata from Yomi or Tachiyomi. Download state is never
@@ -148,6 +241,7 @@ class BackupService {
   static Future<RestoreResult> restorePayload({
     required Isar isar,
     required Map<String, Object?> json,
+    bool restoreSettings = true,
   }) async {
     // Version Gate
     final version = json['version'];
@@ -162,6 +256,10 @@ class BackupService {
     final mangaList = json['manga'];
     if (mangaList is! List) {
       throw const FormatException('Backup is missing its library entries.');
+    }
+    final settings = json['settings'];
+    if (settings != null && settings is! Map<String, Object?>) {
+      throw const FormatException('Invalid settings in backup.');
     }
     final categories = _strings(json['categories']);
     // Validate required per-item fields before touching the DB
@@ -328,16 +426,23 @@ class BackupService {
       }
     });
 
+    // After the library commit so per-title overrides can find their ids.
+    final settingsCount = restoreSettings && settings != null
+        ? await _restoreSettings(isar, settings as Map<String, Object?>)
+        : 0;
+
     // Re-query after the transaction commits so the log proves the rows are
     // actually persisted, not just that the txn callback ran without error.
     final persistedInLibrary =
         await isar.mangaEntrys.filter().inLibraryEqualTo(true).count();
     AppLogger.instance.info('Restore: wrote $mangaCount manga / $chapterCount '
-        'chapters; inLibrary count immediately after commit = $persistedInLibrary');
+        'chapters / $settingsCount settings; inLibrary count immediately after '
+        'commit = $persistedInLibrary');
 
     return RestoreResult(
         mangaCount: mangaCount,
         chapterCount: chapterCount,
+        settingsCount: settingsCount,
         categories: categories);
   }
 
@@ -377,31 +482,125 @@ class BackupService {
   static DateTime? _later(DateTime? a, DateTime? b) =>
       a == null || (b != null && b.isAfter(a)) ? b : a;
 
-  // ── Encryption ──────────────────────────────────────────────────────────────
+  // ── Settings ────────────────────────────────────────────────────────────────
 
-  static Future<Map<String, dynamic>> _encrypt(String plainText) async {
-    final key = await _getOrCreateKey();
-    final iv = enc.IV.fromSecureRandom(16);
-    final encrypter = enc.Encrypter(enc.AES(key, mode: enc.AESMode.cbc));
-    final encrypted = encrypter.encrypt(plainText, iv: iv);
-    return {
-      'enc': true,
-      'iv': iv.base64,
-      'data': encrypted.base64,
-    };
+  static Future<Map<String, Object?>> _exportSettings(
+      Isar isar, SharedPreferences prefs) async {
+    final out = <String, Object?>{};
+    for (final key in prefs.getKeys()) {
+      if (!settingsPrefixes.any(key.startsWith)) continue;
+      final prefix = _titlePrefix(key);
+      if (prefix == null) {
+        out[key] = prefs.get(key);
+        continue;
+      }
+      final id = int.tryParse(key.substring(prefix.length));
+      final manga = id == null ? null : await isar.mangaEntrys.get(id);
+      if (manga != null) out['$prefix${manga.sourceKey}'] = prefs.get(key);
+    }
+    return out;
   }
 
-  static Future<String> _decrypt(Map<String, dynamic> envelope) async {
-    final ivB64 = envelope['iv'] as String?;
-    final dataB64 = envelope['data'] as String?;
-    if (ivB64 == null || dataB64 == null) {
+  /// Writes only keys under [settingsPrefixes]; per-title keys are mapped from
+  /// sourceKey back to the local Isar id and skipped when the title is absent.
+  static Future<int> _restoreSettings(
+      Isar isar, Map<String, Object?> settings) async {
+    final prefs = await SharedPreferences.getInstance();
+    var written = 0;
+    for (final entry in settings.entries) {
+      var key = entry.key;
+      if (!settingsPrefixes.any(key.startsWith)) continue;
+      final prefix = _titlePrefix(key);
+      if (prefix != null) {
+        final manga = await isar.mangaEntrys
+            .filter()
+            .sourceKeyEqualTo(key.substring(prefix.length))
+            .findFirst();
+        if (manga == null) continue;
+        key = '$prefix${manga.id}';
+      }
+      final value = entry.value;
+      final ok = await switch (value) {
+        bool() => prefs.setBool(key, value),
+        int() => prefs.setInt(key, value),
+        double() => prefs.setDouble(key, value),
+        String() => prefs.setString(key, value),
+        List() when value.every((v) => v is String) =>
+          prefs.setStringList(key, value.cast<String>()),
+        _ => Future.value(false),
+      };
+      if (ok) written++;
+    }
+    return written;
+  }
+
+  static String? _titlePrefix(String key) {
+    for (final p in _titlePrefixes) {
+      if (key.startsWith(p)) return p;
+    }
+    return null;
+  }
+
+  // ── Encryption ──────────────────────────────────────────────────────────────
+
+  /// Wraps [payloadJson] in the v2 file format, encrypting when [passphrase]
+  /// is set.
+  static Future<String> encode(String payloadJson, {String? passphrase}) async {
+    if (passphrase == null) {
+      return '${jsonEncode({'v': _fileVersion, 'enc': 'none'})}\n$payloadJson';
+    }
+    final salt = enc.IV.fromSecureRandom(16);
+    final iv = enc.IV.fromSecureRandom(16);
+    final key = await _deriveKey(passphrase, salt.bytes, pbkdf2Iterations);
+    final data = enc.Encrypter(enc.AES(key, mode: enc.AESMode.cbc))
+        .encrypt(payloadJson, iv: iv)
+        .base64;
+    final header = jsonEncode({
+      'v': _fileVersion,
+      'enc': _encPassphrase,
+      'salt': salt.base64,
+      'iter': pbkdf2Iterations,
+      'iv': iv.base64,
+    });
+    return '$header\n$data';
+  }
+
+  static Future<enc.Key> _deriveKey(
+          String passphrase, List<int> salt, int iterations) async =>
+      enc.Key(await Isolate.run(
+          () => pbkdf2Sha256(utf8.encode(passphrase), salt, iterations)));
+
+  /// PBKDF2-HMAC-SHA256 (RFC 8018 §5.2), one 32-byte block.
+  static Uint8List pbkdf2Sha256(
+      List<int> password, List<int> salt, int iterations) {
+    final mac = Hmac(sha256, password);
+    var u = mac.convert([...salt, 0, 0, 0, 1]).bytes;
+    final out = Uint8List.fromList(u);
+    for (var i = 1; i < iterations; i++) {
+      u = mac.convert(u).bytes;
+      for (var j = 0; j < out.length; j++) {
+        out[j] ^= u[j];
+      }
+    }
+    return out;
+  }
+
+  static Future<String> _decryptLegacy(Map<String, Object?> envelope) async {
+    final ivB64 = envelope['iv'], dataB64 = envelope['data'];
+    if (ivB64 is! String || dataB64 is! String) {
       throw const FormatException('Encrypted backup is missing iv/data.');
     }
-    final key = await _getOrCreateKey();
-    final iv = enc.IV.fromBase64(ivB64);
+    final prefs = await SharedPreferences.getInstance();
+    final keyB64 = prefs.getString(_keyPrefKey);
+    if (keyB64 == null) {
+      throw const FormatException(
+          'This backup was encrypted with a key from another device. '
+          'Set a backup passphrase on that device and export again.');
+    }
+    final key = enc.Key.fromBase64(keyB64);
     final encrypter = enc.Encrypter(enc.AES(key, mode: enc.AESMode.cbc));
     try {
-      return encrypter.decrypt64(dataB64, iv: iv);
+      return encrypter.decrypt64(dataB64, iv: enc.IV.fromBase64(ivB64));
     } catch (e) {
       throw FormatException(
           'Could not decrypt this backup — it may have been created on a '
@@ -409,16 +608,23 @@ class BackupService {
     }
   }
 
-  static Future<enc.Key> _getOrCreateKey() async {
-    final prefs = await SharedPreferences.getInstance();
-    final existing = prefs.getString(_keyPrefKey);
-    if (existing != null) return enc.Key.fromBase64(existing);
-    final key = enc.Key.fromSecureRandom(32); // AES-256
-    await prefs.setString(_keyPrefKey, key.base64);
-    return key;
+  // ── Helpers ─────────────────────────────────────────────────────────────────
+
+  /// The v2 header line, or null for legacy files.
+  static Map<String, Object?>? _header(String raw) {
+    final nl = raw.indexOf('\n');
+    final header = _jsonMap(nl < 0 ? raw : raw.substring(0, nl));
+    return header?['v'] == _fileVersion ? header : null;
   }
 
-  // ── Helpers ─────────────────────────────────────────────────────────────────
+  static Map<String, Object?>? _jsonMap(String text) {
+    try {
+      final decoded = jsonDecode(text);
+      return decoded is Map<String, Object?> ? decoded : null;
+    } on FormatException {
+      return null;
+    }
+  }
 
   static Future<Directory> _backupDir({bool create = true}) async {
     final base = await getApplicationDocumentsDirectory();
@@ -458,8 +664,10 @@ class RestoreResult {
   const RestoreResult(
       {required this.mangaCount,
       required this.chapterCount,
+      this.settingsCount = 0,
       this.categories = const []});
   final int mangaCount;
   final int chapterCount;
+  final int settingsCount;
   final List<String> categories;
 }

@@ -162,3 +162,24 @@ final keepScreenOnProvider = StateProvider<bool>((ref) {
   ref.listenSelf((_, next) => prefs.setBool('reader.keepScreenOn', next));
   return prefs.getBool('reader.keepScreenOn') ?? true;
 });
+
+// ── Backup ────────────────────────────────────────────────────────────────────
+
+enum AutoBackup { off, daily, weekly }
+
+final autoBackupProvider = StateProvider<AutoBackup>((ref) {
+  final prefs = ref.watch(sharedPreferencesProvider);
+  ref.listenSelf((_, next) => prefs.setInt('backup.auto', next.index));
+  return readEnumPref(prefs, 'backup.auto', AutoBackup.values, AutoBackup.off);
+});
+
+/// Read by BackupService on export (mirrored there as a literal). Null = unset.
+const backupPassphrasePrefKey = 'backup.passphrase';
+
+final backupPassphraseProvider = StateProvider<String?>((ref) {
+  final prefs = ref.watch(sharedPreferencesProvider);
+  ref.listenSelf((_, next) => next == null
+      ? prefs.remove(backupPassphrasePrefKey)
+      : prefs.setString(backupPassphrasePrefKey, next));
+  return prefs.getString(backupPassphrasePrefKey);
+});

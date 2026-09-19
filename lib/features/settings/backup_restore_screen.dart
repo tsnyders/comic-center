@@ -8,6 +8,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/providers/database_provider.dart';
 import '../../core/providers/google_drive_provider.dart';
 import '../../core/providers/library_provider.dart';
+import '../../core/providers/reader_provider.dart';
+import '../../core/providers/settings_provider.dart';
 import '../../core/providers/source_registry_provider.dart';
 import '../../core/services/backup_file_picker.dart';
 import '../../core/services/backup_service.dart';
@@ -141,17 +143,19 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
     try {
       file = await BackupFilePicker.pick(tachiyomi: tachiyomi);
       if (file == null || !mounted) return;
-      TachiyomiBackup? imported;
-      if (tachiyomi) {
-        if (await file.length() > TachiyomiBackup.maxFileBytes) {
-          throw const FormatException('The backup exceeds 32 MB.');
-        }
-        imported =
-            await compute(TachiyomiBackup.decode, await file.readAsBytes());
+      if (!tachiyomi) {
+        await _restoreYomi(file);
+        return;
       }
+      if (await file.length() > TachiyomiBackup.maxFileBytes) {
+        throw const FormatException('The backup exceeds 32 MB.');
+      }
+      final imported =
+          await compute(TachiyomiBackup.decode, await file.readAsBytes());
       if (!mounted) return;
-      final confirmed = await _confirm(imported);
-      if (confirmed && mounted) await _doRestore(file, imported: imported);
+      if (await _confirmTachiyomi(imported) && mounted) {
+        await _importTachiyomi(imported);
+      }
     } catch (error) {
       _showError(error);
     } finally {
@@ -169,21 +173,29 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
     if (_busy) return;
     setState(() => _busy = true);
     try {
-      if (await _confirm(null) && mounted) await _doRestore(file);
+      await _restoreYomi(file);
+    } catch (error) {
+      _showError(error);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
   }
 
-  Future<bool> _confirm(TachiyomiBackup? imported) async {
-    final warnings = imported == null ? '' : _sourceWarnings(imported);
+  Future<void> _restoreYomi(File file) async {
+    final result = await restoreYomiBackup(context, ref, file);
+    if (result != null && mounted) {
+      _alert('Restore complete', restoreSummary(result));
+    }
+  }
+
+  Future<bool> _confirmTachiyomi(TachiyomiBackup imported) async {
+    final warnings = _sourceWarnings(imported);
     return await showCupertinoDialog<bool>(
           context: context,
           builder: (dialogContext) => CupertinoAlertDialog(
-            title: Text(imported == null ? 'Restore backup' : 'Import backup'),
+            title: const Text('Import backup'),
             content: Text([
-              if (imported != null)
-                '${imported.mangaCount} titles and ${imported.chapterCount} chapter records.',
+              '${imported.mangaCount} titles and ${imported.chapterCount} chapter records.',
               'Your library, categories and reading progress will be merged. '
                   'Existing progress is kept. Downloaded chapters are not imported.',
               if (warnings.isNotEmpty) warnings,
@@ -194,7 +206,7 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
                   child: const Text('Cancel')),
               CupertinoDialogAction(
                   onPressed: () => Navigator.pop(dialogContext, true),
-                  child: Text(imported == null ? 'Restore' : 'Import')),
+                  child: const Text('Import')),
             ],
           ),
         ) ??
@@ -216,33 +228,17 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
     ].join('\n\n');
   }
 
-  Future<void> _doRestore(File file, {TachiyomiBackup? imported}) async {
-    showCupertinoDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => const PopScope(
-        canPop: false,
-        child: CupertinoAlertDialog(
-            title: Text('Restoring library'),
-            content: Padding(
-                padding: EdgeInsets.only(top: 12),
-                child: CupertinoActivityIndicator())),
-      ),
-    );
+  Future<void> _importTachiyomi(TachiyomiBackup imported) async {
+    _showProgress(context);
     try {
       final isar = ref.read(isarProvider);
       final categories = ref.read(categoryNotifierProvider.notifier);
-      final result = imported == null
-          ? await BackupService.restore(isar: isar, file: file)
-          : await BackupService.restorePayload(
-              isar: isar, json: imported.payload);
+      final result =
+          await BackupService.restorePayload(isar: isar, json: imported.payload);
       await categories.merge(result.categories);
       if (!mounted) return;
       Navigator.of(context, rootNavigator: true).pop();
-      _alert(
-          'Restore complete',
-          'Restored ${result.mangaCount} titles and ${result.chapterCount} chapter records. '
-              'No downloaded chapters were imported.');
+      _alert('Restore complete', restoreSummary(result));
     } catch (error) {
       if (!mounted) return;
       Navigator.of(context, rootNavigator: true).pop();
@@ -279,6 +275,167 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
                 child: const Text('OK'))
           ]),
     );
+  }
+}
+
+// ── Yomi restore flow (shared with DriveRestoreScreen) ────────────────────────
+
+/// Restores a Yomi backup file: asks for the passphrase only when the file
+/// needs one, previews counts with a "Restore settings too" toggle, then
+/// merges. Returns null when the user cancels; throws on failure.
+Future<RestoreResult?> restoreYomiBackup(
+    BuildContext context, WidgetRef ref, File file) async {
+  String? passphrase;
+  if (await BackupService.needsPassphrase(file)) {
+    if (!context.mounted) return null;
+    passphrase = await promptBackupPassphrase(context,
+        title: 'Backup passphrase',
+        message: 'This backup is encrypted. Enter the passphrase it was '
+            'created with.',
+        action: 'Unlock');
+    if (passphrase == null) return null;
+  }
+  final json = await BackupService.decode(file, passphrase: passphrase);
+  final counts = BackupService.summarize(json);
+  if (!context.mounted) return null;
+  final restoreSettings = await _confirmYomiRestore(context, counts);
+  if (restoreSettings == null || !context.mounted) return null;
+  _showProgress(context);
+  try {
+    final result = await BackupService.restorePayload(
+        isar: ref.read(isarProvider),
+        json: json,
+        restoreSettings: restoreSettings);
+    await ref.read(categoryNotifierProvider.notifier).merge(result.categories);
+    if (result.settingsCount > 0) _reloadSettings(ref);
+    return result;
+  } finally {
+    if (context.mounted) Navigator.of(context, rootNavigator: true).pop();
+  }
+}
+
+String restoreSummary(RestoreResult result) =>
+    'Restored ${result.mangaCount} titles, ${result.chapterCount} chapter '
+    'records and ${result.settingsCount} settings. No downloaded chapters '
+    'were imported.';
+
+/// Returns the entered passphrase, or null when cancelled or left empty.
+Future<String?> promptBackupPassphrase(BuildContext context,
+    {required String title,
+    required String message,
+    required String action}) async {
+  final controller = TextEditingController();
+  final entered = await showCupertinoDialog<String>(
+    context: context,
+    builder: (dialogContext) => CupertinoAlertDialog(
+      title: Text(title),
+      content: Column(mainAxisSize: MainAxisSize.min, children: [
+        Text(message),
+        Padding(
+          padding: const EdgeInsets.only(top: 12),
+          child: CupertinoTextField(
+            controller: controller,
+            placeholder: 'Passphrase',
+            obscureText: true,
+            autofocus: true,
+            autocorrect: false,
+            enableSuggestions: false,
+            onSubmitted: (value) => Navigator.pop(dialogContext, value),
+          ),
+        ),
+      ]),
+      actions: [
+        CupertinoDialogAction(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel')),
+        CupertinoDialogAction(
+            isDefaultAction: true,
+            onPressed: () => Navigator.pop(dialogContext, controller.text),
+            child: Text(action)),
+      ],
+    ),
+  );
+  controller.dispose();
+  return entered == null || entered.isEmpty ? null : entered;
+}
+
+Future<bool?> _confirmYomiRestore(BuildContext context,
+    ({int titles, int chapters, int categories, int settings}) counts) {
+  var restoreSettings = true;
+  return showCupertinoDialog<bool>(
+    context: context,
+    builder: (dialogContext) => StatefulBuilder(
+      builder: (_, setState) => CupertinoAlertDialog(
+        title: const Text('Restore backup'),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          Text('${counts.titles} titles, ${counts.chapters} chapter records, '
+              '${counts.categories} categories and ${counts.settings} '
+              'settings.\n\nYour library, categories and reading progress '
+              'will be merged. Existing progress is kept. Downloaded chapters '
+              'are not imported.'),
+          if (counts.settings > 0)
+            Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: Row(children: [
+                const Expanded(child: Text('Restore settings too')),
+                CupertinoSwitch(
+                    value: restoreSettings,
+                    onChanged: (value) =>
+                        setState(() => restoreSettings = value)),
+              ]),
+            ),
+        ]),
+        actions: [
+          CupertinoDialogAction(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancel')),
+          CupertinoDialogAction(
+              onPressed: () => Navigator.pop(dialogContext, restoreSettings),
+              child: const Text('Restore')),
+        ],
+      ),
+    ),
+  );
+}
+
+void _showProgress(BuildContext context) {
+  showCupertinoDialog<void>(
+    context: context,
+    barrierDismissible: false,
+    builder: (_) => const PopScope(
+      canPop: false,
+      child: CupertinoAlertDialog(
+          title: Text('Restoring library'),
+          content: Padding(
+              padding: EdgeInsets.only(top: 12),
+              child: CupertinoActivityIndicator())),
+    ),
+  );
+}
+
+/// Settings providers read SharedPreferences once when created, so restored
+/// values only show up after they are rebuilt.
+void _reloadSettings(WidgetRef ref) {
+  for (final provider in <ProviderOrFamily>[
+    readingDirectionProvider,
+    mangaReadingDirectionProvider,
+    pageScaleModeProvider,
+    readerBackgroundProvider,
+    defaultReaderModeProvider,
+    mangaReaderModeProvider,
+    downloadLocationProvider,
+    brightnessProvider,
+    autoCheckUpdatesProvider,
+    accentIndexProvider,
+    coverSizeProvider,
+    densityProvider,
+    lookProvider,
+    onboardingDoneProvider,
+    selectedGenresProvider,
+    hapticsProvider,
+    wifiOnlyProvider,
+  ]) {
+    ref.invalidate(provider);
   }
 }
 

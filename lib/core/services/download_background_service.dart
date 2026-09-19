@@ -15,6 +15,7 @@ import '../database/models/manga_entry.dart';
 import '../extensions/extension_factory.dart';
 import '../extensions/source_interface.dart';
 import 'app_logger.dart';
+import 'backup_scheduler.dart';
 import 'downloaded_chapter_files.dart';
 import 'library_update_service.dart';
 
@@ -51,6 +52,9 @@ void downloadCallbackDispatcher() {
 
         if (taskName == libraryUpdateTask) {
           return runLibraryUpdateTask(isar);
+        }
+        if (taskName == autoBackupTask) {
+          return BackupScheduler.runScheduled(isar);
         }
 
         return false;
