@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:comic_center/core/extensions/sources/comicextra_source.dart';
@@ -11,6 +12,12 @@ import 'package:comic_center/core/extensions/sources/mangataro_source.dart';
 import 'package:comic_center/core/extensions/sources/readcomiconline_source.dart';
 import 'package:comic_center/core/extensions/sources/reaperscans_source.dart';
 import 'package:comic_center/core/extensions/source_interface.dart';
+import 'package:comic_center/core/extensions/sources/madara_source.dart';
+import 'package:comic_center/core/extensions/sources/mangathemesia_source.dart';
+import 'package:comic_center/core/extensions/sources/flamecomics_source.dart';
+import 'package:comic_center/core/extensions/sources/webtoons_source.dart';
+import 'package:comic_center/core/extensions/sources/weebcentral_source.dart';
+import 'package:comic_center/core/extensions/sources/mangakakalot_source.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -54,6 +61,53 @@ Dio _dio(String baseUrl, _StubAdapter adapter) {
 }
 
 void main() {
+  for (final site in ['thunderscans', 'rizzfables']) {
+    test('$site theme genres retain native IDs on paged requests', () async {
+      final path = site == 'thunderscans' ? '/comics/' : '/series';
+      final adapter = _StubAdapter()..stub(path,
+          File('test/fixtures/$site/genres.html').readAsStringSync());
+      final source = MangaThemesiaSource(id: '${site}_en', name: site,
+          baseUrl: site == 'thunderscans' ? 'https://en-thunderscans.com' : 'https://rizzfables.com',
+          cataloguePath: path, filterPath: site == 'rizzfables' ? '/Index/filter_series' : null,
+          dio: _dio('https://fixture.test', adapter));
+      final genres = await source.fetchGenres();
+      final action = genres.firstWhere((g) => g.name.toLowerCase() == 'action');
+      expect(action.id, isNotEmpty);
+      if (site == 'rizzfables') {
+        adapter.stub('/Index/filter_series', File('test/fixtures/rizzfables/popular.json').readAsStringSync());
+      } else {
+        adapter.stub(path, File('test/fixtures/thunderscans/popular.html').readAsStringSync());
+      }
+      await source.fetchByGenre(action.id, page: 2);
+      if (site == 'rizzfables') {
+        expect(adapter.requests.last.method, 'POST');
+        expect(adapter.requests.last.data['genres_checked[]'], action.id);
+        expect(adapter.requests.last.data['OrderValue'], 'popular');
+      } else {
+        expect(adapter.requests.last.queryParameters['genre[]'], action.id);
+        expect(adapter.requests.last.queryParameters['page'], 2);
+      }
+    });
+  }
+  for (final site in ['manhwatop', 'manhuaplus', 'toonily']) {
+    test('$site Madara genres use same-site links and page paths', () async {
+      final path = site == 'toonily' ? '/serie/' : '/manga/';
+      final adapter = _StubAdapter()..stub(path,
+          '${File('test/fixtures/$site/genres.html').readAsStringSync()}<a href="https://other.test/manga-genre/fake/">Fake</a>');
+      final source = MadaraSource(id: '${site}_en', name: site, baseUrl: 'https://$site.com',
+          cataloguePath: path, genrePath: site == 'toonily' ? '/genre/' : '/manga-genre/', dio: _dio('https://fixture.test', adapter));
+      final genres = await source.fetchGenres();
+      expect(genres, isNotEmpty);
+      expect(genres.map((g) => g.name), isNot(contains('Fake')));
+      final genre = genres.first;
+      final pagePath = '${genre.id}page/2/';
+      adapter.stub(pagePath, File('test/fixtures/$site/popular.html').readAsStringSync());
+      expect(await source.fetchByGenre(genre.id, page: 2), isNotEmpty);
+      expect(adapter.requests.last.path, pagePath);
+      expect(adapter.requests.last.queryParameters['m_orderby'], 'views');
+    });
+  }
+
   test('sources without a proven genre route expose no genre choices', () async {
     final sources = <MangaSource>[
       AsuraScansSource(),
@@ -61,6 +115,11 @@ void main() {
       DemonicScansSource(),
       ReadComicOnlineSource(),
       ReaperScansSource(),
+      FlameComicsSource(),
+      WebtoonsSource(),
+      WeebCentralSource(),
+      MangakakalotSource(id: 'mangakakalot_en', name: 'Mangakakalot', baseUrl: 'https://www.mangakakalot.gg'),
+      MangakakalotSource(id: 'natomanga_en', name: 'NatoManga', baseUrl: 'https://www.natomanga.com'),
     ];
     for (final source in sources) {
       expect(await source.fetchGenres(), isEmpty, reason: source.name);

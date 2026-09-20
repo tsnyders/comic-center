@@ -247,6 +247,56 @@ class _SourceMapping {
           if (p.startsWith('chaptered.php?')) return p;
           return _after(p, 'manga/');
         };
+      case 'thunderscans':
+      case 'rizzfables':
+      case 'rizzcomic':
+      case 'realmscans':
+      case 'manhwatop':
+      case 'manhuaplus':
+      case 'toonily':
+        sourceId = switch (key) {
+          'rizzfables' || 'rizzcomic' || 'realmscans' => 'rizzfables_en',
+          _ => '${key}_en',
+        };
+        final prefix = switch (sourceId) {
+          'thunderscans_en' => 'comics/',
+          'rizzfables_en' => 'series/r2311170-',
+          'toonily_en' => 'serie/',
+          _ => 'manga/',
+        };
+        mangaId = path.startsWith(prefix) && !path.substring(prefix.length).contains('/') ? path : null;
+        convert = (s) {
+          final p = Uri.tryParse(s)?.path.replaceAll(RegExp(r'^/|/$'), '');
+          return p == null || p.isEmpty ? null : p;
+        };
+      case 'weebcentral':
+        sourceId = 'weebcentral_en';
+        mangaId = RegExp(r'^series/([A-Z0-9]{26})(?:/|$)').firstMatch(path)?.group(1);
+        convert = (s) => RegExp(r'(?:^|/)chapters/([A-Z0-9]{26})(?:/|$)')
+            .firstMatch(Uri.tryParse(s)?.path ?? '')?.group(1);
+      case 'flamecomics':
+      case 'flamescans':
+        sourceId = 'flamecomics_en';
+        mangaId = RegExp(r'^series/(\d+)$').firstMatch(path)?.group(1);
+        convert = (s) => RegExp(r'(?:^|/)series/(\d+/[a-zA-Z0-9]+)/*$')
+            .firstMatch(Uri.tryParse(s)?.path ?? '')?.group(1);
+      case 'webtoon':
+      case 'webtoons':
+      case 'webtoons.com':
+        sourceId = 'webtoons_en';
+        final titleNo = uri.queryParameters['title_no'] ?? uri.queryParameters['titleNo'];
+        if (titleNo != null && int.tryParse(titleNo) != null) {
+          mangaId = '${path.contains('/canvas/') || path.startsWith('challenge/') ? 'canvas' : 'webtoon'}/$titleNo';
+        }
+      case 'mangakakalot':
+      case 'natomanga':
+      case 'manganato':
+      case 'manganelo':
+        sourceId = key == 'mangakakalot' ? 'mangakakalot_en' : 'natomanga_en';
+        // Legacy numeric Manganato URLs cannot be converted to current slugs.
+        mangaId = RegExp(r'^manga/([^/]+)$').firstMatch(path)?.group(1);
+        convert = (s) => RegExp(r'(?:^|/)(manga/[^/]+/[^/]+)/*$')
+            .firstMatch(Uri.tryParse(s)?.path ?? '')?.group(1);
     }
     if (sourceId == null ||
         mangaId == null ||

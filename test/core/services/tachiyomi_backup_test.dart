@@ -21,6 +21,32 @@ void main() {
 
   test('converts supported comic and manga URLs to native reader IDs', () {
     for (final example in [
+      ('Thunder Scans (EN)', '/comics/example/', '/example-chapter-1/',
+        'thunderscans_en', 'comics/example', 'example-chapter-1'),
+      ('Rizz Comic', '/series/r2311170-example', '/chapter/r2311170-example-chapter-1',
+        'rizzfables_en', 'series/r2311170-example', 'chapter/r2311170-example-chapter-1'),
+      ('Realm Scans', '/series/r2311170-example/', '/chapter/r2311170-example-chapter-1/',
+        'rizzfables_en', 'series/r2311170-example', 'chapter/r2311170-example-chapter-1'),
+      ('ManhwaTop', '/manga/example/', '/manga/example/chapter-1/',
+        'manhwatop_en', 'manga/example', 'manga/example/chapter-1'),
+      ('Manhua Plus', 'https://manhuaplus.com/manga/example/', '/manga/example/chapter-1/',
+        'manhuaplus_en', 'manga/example', 'manga/example/chapter-1'),
+      ('Toonily', '/serie/example/', '/serie/example/chapter-1/',
+        'toonily_en', 'serie/example', 'serie/example/chapter-1'),
+      ('Weeb Central', '/series/01J76XY7E4JCPK14V53BVQWD9Y/Bleach', '/chapters/01J76XYY6FR49PR82YQB2FR3MK',
+        'weebcentral_en', '01J76XY7E4JCPK14V53BVQWD9Y', '01J76XYY6FR49PR82YQB2FR3MK'),
+      ('Flame Comics', '/series/2', '/series/2/0c9db8012fbd1257',
+        'flamecomics_en', '2', '2/0c9db8012fbd1257'),
+      ('Webtoons.com (EN)', '/en/drama/example/list?title_no=6054', '/en/drama/example/ep-1/viewer?title_no=6054&episode_no=1',
+        'webtoons_en', 'webtoon/6054', 'en/drama/example/ep-1/viewer?title_no=6054&episode_no=1'),
+      ('WEBTOON', '/challenge/episodeList?titleNo=42', '/en/canvas/example/ep-1/viewer?title_no=42&episode_no=1',
+        'webtoons_en', 'canvas/42', 'en/canvas/example/ep-1/viewer?title_no=42&episode_no=1'),
+      ('Mangakakalot', '/manga/example', '/manga/example/chapter-1',
+        'mangakakalot_en', 'example', 'manga/example/chapter-1'),
+      ('Manganato', '/manga/example', '/manga/example/chapter-1',
+        'natomanga_en', 'example', 'manga/example/chapter-1'),
+      ('NatoManga', '/manga/example', '/manga/example/chapter-1',
+        'natomanga_en', 'example', 'manga/example/chapter-1'),
       (
         'MangaDex (EN)',
         '/title/00000000-0000-4000-8000-000000000001',
@@ -117,6 +143,22 @@ void main() {
     final result =
         TachiyomiBackup.decode(backupFixture(sourceName: 'MangaPill (JA)'));
     expect(result.unavailableSources, ['MangaPill (JA)']);
+  });
+
+  test('retains legacy source URLs without guessing current slugs', () {
+    for (final example in [
+      ('Realm Scans', '/series/old-title/'),
+      ('Toonily', '/webtoon/old-title/'),
+      ('Manganato', '/manga-ab12345'),
+      ('Flame Scans', '/old-wordpress-slug/'),
+    ]) {
+      final result = TachiyomiBackup.decode([
+        ...pbBytes(1, [...pbInt(1, 42), ...pbText(2, example.$2), ...pbText(3, 'Example')]),
+        ...pbBytes(101, [...pbText(1, example.$1), ...pbInt(2, 42)]),
+      ]);
+      expect(result.manga.single['sourceId'], 'tachiyomi:42');
+      expect(result.manga.single['sourceMangaId'], example.$2);
+    }
   });
 
   test('supports old source/history field zero and packed category IDs', () {
