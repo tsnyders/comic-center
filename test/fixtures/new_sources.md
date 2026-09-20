@@ -18,6 +18,7 @@ No image binary content is stored.
 | webtoons | `/en/ranking/popular`; `/en/drama/the-price-is-your-everything/list?title_no=6054` | `m.webtoons.com/api/v1/webtoon/6054/episodes?pageSize=99999`; `/en/drama/the-price-is-your-everything/ep-1-murder-of-the-crown-princess/viewer?title_no=6054&episode_no=1` |
 | mangakakalot | `/` cards only; catalogue/detail returned 403 | `/api/manga/rise-of-the-limitless-necromancer/chapters?limit=-1`; reader returned 403 |
 | natomanga | `/` cards only; catalogue/detail returned 403 | `/api/manga/rise-of-the-limitless-necromancer/chapters?limit=-1`; reader returned 403 |
+| allmanga | POST `https://api.allanime.day/api` catalogue/detail | POST chapter list; `pages.json` is the browser-capture payload contract, not a live WebView capture |
 
 Base URLs are in `docs/SOURCES.md`. `genres.html` captures each theme's
 catalogue genre controls. Rizz's description script is retained because
@@ -32,5 +33,9 @@ responses, including successful fallback and propagated HTTP failures.
 Later Dio probes received 403 from ManhwaTop and Toonily and intermittent
 500/520 from ManhuaPlus (its complete Dio chain succeeded on recheck).
 A successful curl snapshot does not establish
-reliable Dart/Android access. No challenge bypass or cookie workaround is
-implemented. Cloudflare/device acceptance for these sources remains open.
+reliable Dart/Android access. The Madara and Mangakakalot-family requests now
+use `BrowserFetch.instance.userAgent`, matching the browser that supplies
+clearance cookies through the separately implemented interceptor. Their
+existing fixture-backed parsers need no further markup changes. Cloudflare
+and device acceptance remain open until that interceptor is integrated and
+verified on Android.

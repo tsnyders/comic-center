@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 
+import '../../browser/browser_fetch.dart';
 import '../models/chapter_info.dart';
 import '../models/filter.dart';
 import '../models/manga_detail.dart';
@@ -22,6 +23,7 @@ class AllMangaSource extends MangaSource {
   static const _apiBase = 'https://api.allanime.day';
   static const _coverBase =
       'https://wp.youtube-anime.com/aln.youtube-anime.com';
+  static const _defaultPageBase = 'https://ytimgf.youtube-anime.com/';
   static const _pageSize = 26;
   static const _userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
       'AppleWebKit/537.36 (KHTML, like Gecko) '
@@ -59,12 +61,33 @@ query($id:String!){
 }
 ''';
 
-  static const _pagesQuery = r'''
-query($mangaId:String!,$translationType:VaildTranslationTypeMangaEnumType!,$chapterString:String!){
-  chapterPages(mangaId:$mangaId,translationType:$translationType,chapterString:$chapterString){
-    edges{pictureUrlHead pictureUrls}
-  }
-}
+  static const _chapterPagesHook = r'''
+(() => {
+  const postChapterPages = (data) => {
+    if (
+      (data && data.chapterPages) ||
+      (data && data.data && data.data.chapterPages) ||
+      (data && Array.isArray(data.errors) && data.errors.length)
+    ) {
+      window.yomiAllManga.postMessage(JSON.stringify(data));
+    }
+  };
+
+  const originalJson = Response.prototype.json;
+  Response.prototype.json = function() {
+    return originalJson.call(this).then((data) => {
+      postChapterPages(data);
+      return data;
+    });
+  };
+
+  const originalParse = JSON.parse;
+  JSON.parse = function(...args) {
+    const data = originalParse.apply(this, args);
+    postChapterPages(data);
+    return data;
+  };
+})();
 ''';
 
   @override
@@ -86,9 +109,9 @@ query($mangaId:String!,$translationType:VaildTranslationTypeMangaEnumType!,$chap
   Uint8List get iconBytes => Uint8List(0);
 
   @override
-  Map<String, String> get imageHeaders => const {
+  Map<String, String> get imageHeaders => {
         'Referer': 'https://allmanga.to/',
-        'User-Agent': _userAgent,
+        'User-Agent': BrowserFetch.instance.userAgent,
       };
 
   @override
@@ -234,28 +257,50 @@ query($mangaId:String!,$translationType:VaildTranslationTypeMangaEnumType!,$chap
     }
     final mangaId = chapterId.substring(0, separator);
     final chapterString = chapterId.substring(separator + 1);
+    final chapterUrl = Uri.parse(
+      '$baseUrl/read/$mangaId/chapter-$chapterString-sub',
+    );
 
-    // ponytail: the page resolver may still issue a Cloudflare/crypto
-    // challenge on some networks; there is deliberately no GET/WebView bypass.
-    final data = await _query(_pagesQuery, {
-      'mangaId': mangaId,
-      'translationType': 'sub',
-      'chapterString': chapterString,
-    });
-    final chapterPages = data['chapterPages'];
+    // ponytail: chapter data is produced by the site's JavaScript, so page
+    // discovery is unavailable on Windows and in background isolates.
+    Map<String, dynamic> payload;
+    try {
+      payload = await BrowserFetch.instance.capture(
+        chapterUrl,
+        jsHook: _chapterPagesHook,
+        channel: 'yomiAllManga',
+      );
+      if (_graphQlError(payload) != null) {
+        payload = await BrowserFetch.instance.capture(
+          chapterUrl,
+          jsHook: _chapterPagesHook,
+          channel: 'yomiAllManga',
+          interactive: true,
+        );
+      }
+    } on BrowserFetchUnavailable {
+      throw Exception('AllManga pages need the in-app browser (Android).');
+    } on BrowserChallengeCancelled {
+      throw Exception('Site check cancelled.');
+    }
+
+    final error = _graphQlError(payload);
+    if (error != null) throw Exception('AllManga pages: $error');
+    final envelope = payload['data'];
+    final chapterPages = payload['chapterPages'] ??
+        (envelope is Map ? envelope['chapterPages'] : null);
     if (chapterPages is! Map || chapterPages['edges'] is! List) {
       throw Exception('AllManga returned no pages for chapter $chapterString.');
     }
-    for (final edge in (chapterPages['edges'] as List).whereType<Map>()) {
-      final pictures = edge['pictureUrls'];
-      if (pictures is! List || pictures.isEmpty) continue;
+    final edges = chapterPages['edges'] as List;
+    final edge = edges.firstOrNull;
+    if (edge is Map && edge['pictureUrls'] is List) {
       final head = _string(edge['pictureUrlHead']);
       final urls = <String>[];
-      for (final picture in pictures.whereType<Map>()) {
+      for (final picture in (edge['pictureUrls'] as List).whereType<Map>()) {
         final path = _string(picture['url']);
         if (path == null || path.isEmpty) continue;
-        final url = _pageUrl(head, path);
-        if (url != null) urls.add(url);
+        urls.add(_pageUrl(head, path));
       }
       if (urls.isNotEmpty) return urls;
     }
@@ -321,11 +366,10 @@ query($mangaId:String!,$translationType:VaildTranslationTypeMangaEnumType!,$chap
     return '$_coverBase/${value.replaceFirst(RegExp(r'^/+'), '')}?w=250';
   }
 
-  static String? _pageUrl(String? head, String path) {
+  static String _pageUrl(String? head, String path) {
     if (path.startsWith('http://') || path.startsWith('https://')) return path;
     if (path.startsWith('//')) return 'https:$path';
-    if (head == null || head.isEmpty) return null;
-    var normalizedHead = head;
+    var normalizedHead = head == null || head.isEmpty ? _defaultPageBase : head;
     if (normalizedHead.startsWith('//')) {
       normalizedHead = 'https:$normalizedHead';
     } else if (!normalizedHead.startsWith('http://') &&
@@ -334,6 +378,15 @@ query($mangaId:String!,$translationType:VaildTranslationTypeMangaEnumType!,$chap
     }
     return '${normalizedHead.replaceFirst(RegExp(r'/+$'), '')}/'
         '${path.replaceFirst(RegExp(r'^/+'), '')}';
+  }
+
+  static String? _graphQlError(Map<String, dynamic> payload) {
+    final errors = payload['errors'];
+    if (errors is! List || errors.isEmpty) return null;
+    final first = errors.first;
+    return first is Map
+        ? _string(first['message']) ?? 'unknown error'
+        : _string(first) ?? 'unknown error';
   }
 
   static String _status(String? value) => switch (value?.toLowerCase()) {

@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:comic_center/core/browser/browser_fetch.dart';
 import 'package:comic_center/core/extensions/extension_factory.dart';
 import 'package:comic_center/core/extensions/source_interface.dart';
 import 'package:comic_center/core/extensions/sources/flamecomics_source.dart';
@@ -331,6 +332,16 @@ void main() {
             ['manhwatop', 'toonily', 'weebcentral', 'mangakakalot', 'natomanga']
                 .contains(c.site));
         expect(source.imageHeaders['Referer'], startsWith('https://'));
+        if (source is MadaraSource || source is MangakakalotSource) {
+          expect(
+            source.imageHeaders['User-Agent'],
+            BrowserFetch.instance.userAgent,
+          );
+          expect(
+            dio.options.headers['User-Agent'],
+            BrowserFetch.instance.userAgent,
+          );
+        }
         expect(dio.options.connectTimeout, const Duration(seconds: 15));
         expect(dio.options.receiveTimeout, const Duration(seconds: 25));
         final manager =

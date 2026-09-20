@@ -7,6 +7,7 @@ import 'package:html/parser.dart' as html;
 
 import '../../browser/browser_cookie_store.dart';
 import '../../browser/cloudflare_interceptor.dart';
+import '../../browser/browser_fetch.dart';
 import '../models/chapter_info.dart';
 import '../models/filter.dart';
 import '../models/manga_detail.dart';
@@ -49,8 +50,7 @@ class MangakakalotSource extends MangaSource {
     return {
       'Referer': '$baseUrl/',
       'User-Agent': BrowserCookieStore.userAgent ??
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
-              '(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+          BrowserFetch.instance.userAgent,
       if (cookie != null) 'Cookie': cookie,
     };
   }
