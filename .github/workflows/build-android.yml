@@ -1,4 +1,4 @@
-name: Build Yomi
+name: Build Yomi (Android)
 
 on:
   workflow_dispatch:
@@ -12,7 +12,7 @@ permissions:
   contents: write
 
 jobs:
-  # ── Create the release stub first so both build jobs can upload to it ──────
+  # ── Create the release stub first so the build job can upload to it ───────
   create-release:
     runs-on: ubuntu-latest
     outputs:
@@ -67,13 +67,9 @@ jobs:
             2. On your device: **Settings → Apps → Special permissions → Install unknown apps**.
             3. Open the APK and tap **Install**.
 
-            ## Install — iOS (sideload)
-            1. Download **yomi-beta.ipa** below.
-            2. Install with [AltStore](https://altstore.io) or [Sideloadly](https://sideloadly.io).
-
-            > **Note:** This is an unsigned IPA built without Apple codesigning.
-            > A free Apple ID lets you sideload it, but you'll need to re-sign every 7 days.
-            > A paid Apple Developer account removes that limit.
+            > Always install the APK from this page rather than a locally built one.
+            > Local builds are signed with a different key and Android refuses to
+            > install them over a release build ("App not installed").
           generate_release_notes: true
           prerelease: true
         env:
@@ -123,13 +119,20 @@ jobs:
       - name: Build release APK
         run: flutter build apk --release
 
-      - name: Verify and rename APK
+      - name: Verify signature and rename APK
         run: |
           set -e
           APK=build/app/outputs/flutter-apk/app-release.apk
           if [ ! -f "$APK" ]; then
             echo "::error::APK not found at $APK"
             find build -name "*.apk" -ls
+            exit 1
+          fi
+          BUILD_TOOLS=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
+          "$BUILD_TOOLS/apksigner" verify --print-certs "$APK" | tee signer.txt
+          # A debug-signed release cannot update anyone's install, so never ship one.
+          if grep -q "CN=Android Debug" signer.txt; then
+            echo "::error::APK is signed with the debug key — check the keystore secrets"
             exit 1
           fi
           cp "$APK" yomi-beta.apk
@@ -140,52 +143,6 @@ jobs:
         with:
           tag_name: ${{ needs.create-release.outputs.tag_name }}
           files: yomi-beta.apk
-          fail_on_unmatched_files: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  # ── iOS ───────────────────────────────────────────────────────────────────────
-  build-ios:
-    runs-on: macos-latest
-    needs: create-release
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.44.1'
-          channel: 'stable'
-
-      - name: Flutter pub get
-        run: flutter pub get
-
-      - name: Generate iOS platform files
-        run: flutter create --platforms=ios --org com.comiccenter .
-
-      - name: Build iOS (no codesign)
-        run: flutter build ios --release --no-codesign
-
-      - name: Package unsigned IPA
-        run: |
-          set -e
-          APP=build/ios/iphoneos/Runner.app
-          if [ ! -d "$APP" ]; then
-            echo "::error::Runner.app not found at $APP"
-            find build -name "*.app" -maxdepth 5
-            exit 1
-          fi
-          mkdir -p Payload
-          cp -r "$APP" Payload/
-          zip -r yomi-beta.ipa Payload/
-          echo "IPA size: $(du -h yomi-beta.ipa)"
-
-      - name: Upload IPA to release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ needs.create-release.outputs.tag_name }}
-          files: yomi-beta.ipa
           fail_on_unmatched_files: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
