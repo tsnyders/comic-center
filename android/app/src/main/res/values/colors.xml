@@ -5,10 +5,4 @@
     <color name="ic_launcher_sumi_bg">#0B0B0A</color>
     <color name="ic_launcher_cinema_bg">#1C1917</color>
     <color name="ic_launcher_pastel_bg">#FBF6F3</color>
-    <color name="widget_background">#F5F5F5</color>
-    <color name="widget_text_primary">#1D1D1F</color>
-    <color name="widget_text_secondary">#86868B</color>
-    <color name="widget_accent">#007AFF</color>
-    <color name="widget_badge">#FF3B30</color>
-    <color name="widget_divider">#E5E5EA</color>
 </resources>

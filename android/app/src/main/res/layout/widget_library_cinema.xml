@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_library_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <ImageView android:id="@+id/widget_background_shape" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" android:src="@drawable/widget_shape_square" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:padding="12dp">
+
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="6dp" android:gravity="center_vertical" android:orientation="horizontal">
+            <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+                <TextView android:id="@+id/widget_overline" android:layout_width="wrap_content" android:layout_height="wrap_content" android:fontFamily="@font/barlow_regular" android:letterSpacing="0.28" android:text="NOW SHOWING" android:textSize="8sp" android:textStyle="bold" />
+                <TextView android:id="@+id/widget_title" android:layout_width="wrap_content" android:layout_height="wrap_content" android:fontFamily="@font/barlow_condensed_extra_bold" android:letterSpacing="0.05" android:maxLines="1" android:text="RECENTLY UPDATED" android:textSize="17sp" />
+            </LinearLayout>
+            <TextView android:id="@+id/widget_see_all" android:layout_width="wrap_content" android:layout_height="wrap_content" android:fontFamily="@font/barlow_condensed_extra_bold" android:letterSpacing="0.08" android:padding="6dp" android:text="SEE ALL" android:textSize="11sp" />
+        </LinearLayout>
+
+        <GridView android:id="@+id/widget_list" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:clipToPadding="false" android:columnWidth="64dp" android:gravity="center_horizontal" android:horizontalSpacing="6dp" android:numColumns="auto_fit" android:scrollbars="none" android:stretchMode="spacingWidthUniform" android:verticalSpacing="6dp" />
+        <TextView android:id="@+id/widget_empty" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:fontFamily="@font/barlow_regular" android:gravity="center" android:text="NO COMICS YET" android:textSize="12sp" android:visibility="gone" />
+    </LinearLayout>
+
+    <ImageView android:id="@+id/widget_border_top" android:layout_width="match_parent" android:layout_height="1dp" android:layout_gravity="top" />
+    <ImageView android:id="@+id/widget_border_bottom" android:layout_width="match_parent" android:layout_height="1dp" android:layout_gravity="bottom" />
+    <ImageView android:id="@+id/widget_border_start" android:layout_width="1dp" android:layout_height="match_parent" android:layout_gravity="start" />
+    <ImageView android:id="@+id/widget_border_end" android:layout_width="1dp" android:layout_height="match_parent" android:layout_gravity="end" />
+</FrameLayout>
