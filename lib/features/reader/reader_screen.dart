@@ -86,8 +86,10 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   static const _platform = MethodChannel('yomi/platform');
   static const _volumeKeys = EventChannel('yomi/volume_keys');
 
-  late PageController _pageController;
+  late ExtendedPageController _pageController;
   late final ScrollController _scrollController;
+  late final TransformationController _webtoonZoomController;
+  Offset _webtoonDoubleTapPosition = Offset.zero;
 
   /// Effective mode for this build (see [effectiveReaderModeProvider]).
   bool _strip = false;
@@ -127,8 +129,9 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     super.initState();
     _active = this;
     _library = ref.read(libraryNotifierProvider.notifier);
-    _pageController = PageController(initialPage: widget.initialPage);
+    _pageController = ExtendedPageController(initialPage: widget.initialPage);
     _scrollController = ScrollController();
+    _webtoonZoomController = TransformationController();
     SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle.light);
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     // Only fires while the strip view is attached; harmless otherwise.
@@ -159,6 +162,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     _webtoonProgress.dispose();
     _pageController.dispose();
     _scrollController.dispose();
+    _webtoonZoomController.dispose();
     super.dispose();
   }
 
@@ -401,7 +405,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     if (toStrip == _strip) return;
     if (!toStrip) {
       _pageController.dispose();
-      _pageController = PageController(initialPage: page);
+      _pageController = ExtendedPageController(initialPage: page);
     }
     ref.read(mangaReaderModeProvider(widget.mangaId).notifier).state = mode;
     if (toStrip) {
@@ -625,13 +629,12 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                 Navigator.of(context).maybePop();
               }
             },
-      child: PageView.builder(
+      // ponytail: Restore allowImplicitScrolling once extended_image exposes
+      // it on ExtendedImageGesturePageView; 8.3.x does not surface that flag.
+      child: ExtendedImageGesturePageView.builder(
         controller: _pageController,
         scrollDirection: isVertical ? Axis.vertical : Axis.horizontal,
         reverse: isRtl,
-        // Pre-builds the adjacent page so its image is decoded before the
-        // swipe starts, instead of showing a spinner mid-gesture.
-        allowImplicitScrolling: true,
         itemCount: pages.length,
         onPageChanged: (i) {
           ref.read(readerProvider.notifier).setPage(i);
@@ -662,34 +665,56 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     final gap = ref.watch(stripGapProvider).toDouble();
     return GestureDetector(
       onTap: () => ref.read(readerProvider.notifier).toggleChrome(),
-      child: ListView.builder(
-        controller: _scrollController,
-        physics: const ClampingScrollPhysics(),
-        padding: EdgeInsets.zero,
-        // The default cache extent (250px) means strips start loading only as
-        // they reach the viewport edge — the visible "image pops in while I
-        // scroll" stall. Read ahead by whole screens instead; low-spec devices
-        // get a smaller window to bound decoded-image memory.
-        scrollCacheExtent: DeviceProfile.current.lowSpec
-            ? const ScrollCacheExtent.viewport(1.0)
-            : const ScrollCacheExtent.viewport(2.5),
-        itemCount: pages.length + (hasFooter ? 1 : 0),
-        itemBuilder: (context, i) {
-          if (i == pages.length) {
-            return _NextChapterFooter(
-              title: _nextSummary.title,
-              onTap: () => _goToNextChapter(context),
+      onDoubleTapDown: (details) {
+        _webtoonDoubleTapPosition = details.localPosition;
+      },
+      onDoubleTap: () {
+        final currentScale = _webtoonZoomController.value.getMaxScaleOnAxis();
+        if (currentScale > 1.01) {
+          _webtoonZoomController.value = Matrix4.identity();
+          return;
+        }
+        const scale = 2.0;
+        final position = _webtoonDoubleTapPosition;
+        _webtoonZoomController.value = Matrix4.identity()
+          ..translateByDouble(position.dx, position.dy, 0, 1)
+          ..scaleByDouble(scale, scale, scale, 1)
+          ..translateByDouble(-position.dx, -position.dy, 0, 1);
+      },
+      child: InteractiveViewer(
+        transformationController: _webtoonZoomController,
+        minScale: 1.0,
+        maxScale: 3.0,
+        panAxis: PanAxis.horizontal,
+        child: ListView.builder(
+          controller: _scrollController,
+          physics: const ClampingScrollPhysics(),
+          padding: EdgeInsets.zero,
+          // The default cache extent (250px) means strips start loading only as
+          // they reach the viewport edge — the visible "image pops in while I
+          // scroll" stall. Read ahead by whole screens instead; low-spec devices
+          // get a smaller window to bound decoded-image memory.
+          scrollCacheExtent: DeviceProfile.current.lowSpec
+              ? const ScrollCacheExtent.viewport(1.0)
+              : const ScrollCacheExtent.viewport(2.5),
+          itemCount: pages.length + (hasFooter ? 1 : 0),
+          itemBuilder: (context, i) {
+            if (i == pages.length) {
+              return _NextChapterFooter(
+                title: _nextSummary.title,
+                onTap: () => _goToNextChapter(context),
+              );
+            }
+            final page = _WebtoonPage(
+              url: pages[i],
+              index: i,
+              headers: imageHeaders,
             );
-          }
-          final page = _WebtoonPage(
-            url: pages[i],
-            index: i,
-            headers: imageHeaders,
-          );
-          return gap > 0
-              ? Padding(padding: EdgeInsets.only(bottom: gap), child: page)
-              : page;
-        },
+            return gap > 0
+                ? Padding(padding: EdgeInsets.only(bottom: gap), child: page)
+                : page;
+          },
+        ),
       ),
     );
   }
@@ -1176,6 +1201,7 @@ class _ReaderPage extends ConsumerWidget {
         fit: fit,
         mode: ExtendedImageMode.gesture,
         initGestureConfigHandler: _gestureConfig,
+        onDoubleTap: _handleDoubleTap,
         loadStateChanged: _loadStateOverlay,
         cacheWidth: cacheWidth,
         clearMemoryCacheWhenDispose: evictOnDispose,
@@ -1188,6 +1214,7 @@ class _ReaderPage extends ConsumerWidget {
       fit: fit,
       mode: ExtendedImageMode.gesture,
       initGestureConfigHandler: _gestureConfig,
+      onDoubleTap: _handleDoubleTap,
       loadStateChanged: _loadStateOverlay,
       cacheWidth: cacheWidth,
       clearMemoryCacheWhenDispose: evictOnDispose,
@@ -1205,6 +1232,16 @@ class _ReaderPage extends ConsumerWidget {
         inPageView: true,
         initialAlignment: InitialAlignment.center,
       );
+
+  static void _handleDoubleTap(ExtendedImageGestureState state) {
+    final position = state.pointerDownPosition;
+    if (position == null) return;
+    final currentScale = state.gestureDetails?.totalScale ?? 1.0;
+    state.handleDoubleTap(
+      scale: currentScale > 1.01 ? 1.0 : 2.0,
+      doubleTapPosition: position,
+    );
+  }
 }
 
 // ── Webtoon strip image (full-width, natural height) ──────────────────────
@@ -1253,12 +1290,14 @@ class _WebtoonPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
-    // Decode at display resolution, not source resolution — webtoon strips
+    // Decode with bounded zoom headroom, not at full source resolution — strips
     // can be 2000px+ wide; a 60-page chapter decoded at full source size
-    // can consume 150-300MB of RAM. Capping to screen width * DPR keeps
-    // every visible page sharp while bounding memory per image.
+    // can consume 150-300MB of RAM. Device-tier headroom keeps zoom reasonably
+    // sharp while memory remains bounded per image.
+    final zoomHeadroom = DeviceProfile.current.lowSpec ? 1.25 : 2.0;
     final cacheWidth =
-        (screenWidth * MediaQuery.devicePixelRatioOf(context)).round();
+        (screenWidth * MediaQuery.devicePixelRatioOf(context) * zoomHeadroom)
+            .round();
 
     // See _ReaderPage: eager eviction only where heap headroom is scarce;
     // otherwise let the bounded LRU cache keep back-scroll smooth.
