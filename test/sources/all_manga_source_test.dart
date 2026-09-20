@@ -2,11 +2,14 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:comic_center/core/browser/browser_fetch.dart';
 import 'package:comic_center/core/extensions/extension_factory.dart';
 import 'package:comic_center/core/extensions/models/filter.dart';
 import 'package:comic_center/core/extensions/sources/all_manga_source.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import '../support/fake_browser_fetch.dart';
 
 class _MockAdapter implements HttpClientAdapter {
   _MockAdapter(List<Object?> responses) : _responses = [...responses];
@@ -40,6 +43,44 @@ class _MockAdapter implements HttpClientAdapter {
   void close({bool force = false}) {}
 }
 
+class _ScriptedCaptureBrowserFetch extends FakeBrowserFetch {
+  _ScriptedCaptureBrowserFetch(Iterable<Object> responses)
+      : _responses = [...responses],
+        super(userAgent: 'AllMangaTestBrowser/1.0');
+
+  final List<Object> _responses;
+  final List<({Uri url, String jsHook, String channel, bool interactive})>
+      captureCalls = [];
+
+  @override
+  Future<Map<String, dynamic>> capture(
+    Uri url, {
+    required String jsHook,
+    required String channel,
+    Duration timeout = const Duration(seconds: 30),
+    bool interactive = true,
+  }) async {
+    calls.add('capture $url channel=$channel interactive=$interactive');
+    captureCalls.add((
+      url: url,
+      jsHook: jsHook,
+      channel: channel,
+      interactive: interactive,
+    ));
+    if (_responses.isEmpty) {
+      throw StateError('No scripted AllManga capture response remains.');
+    }
+    final response = _responses.removeAt(0);
+    if (response is Exception) throw response;
+    if (response is! Map) {
+      throw StateError('AllManga capture response must be a map.');
+    }
+    return <String, dynamic>{
+      for (final entry in response.entries) entry.key.toString(): entry.value,
+    };
+  }
+}
+
 Map<String, Object?> _fixture(String name) =>
     (jsonDecode(File('test/fixtures/allmanga/$name.json').readAsStringSync())
             as Map)
@@ -59,7 +100,14 @@ Map<String, Object?> _variables(RequestOptions request) =>
 
 void main() {
   group('AllMangaSource', () {
+    late BrowserFetch previousBrowserFetch;
+
+    setUp(() => previousBrowserFetch = BrowserFetch.instance);
+    tearDown(() => BrowserFetch.instance = previousBrowserFetch);
+
     test('has stable metadata, filters, and catalogue registration', () {
+      BrowserFetch.instance =
+          FakeBrowserFetch(userAgent: 'AllMangaTestBrowser/1.0');
       final source = AllMangaSource();
 
       expect(source.id, 'all_manga_en');
@@ -72,21 +120,18 @@ void main() {
         'Show adult',
       );
       expect(source.imageHeaders['Referer'], 'https://allmanga.to/');
-      expect(source.imageHeaders['User-Agent'], contains('Chrome/'));
+      expect(source.imageHeaders['User-Agent'], 'AllMangaTestBrowser/1.0');
 
       expect(ExtensionFactory.create('all_manga_en'), isA<AllMangaSource>());
-      // Held out of the catalogue until pages fetch through an in-app
-      // WebView; the class stays resolvable for existing rows and imports.
       expect(
         ExtensionFactory
             .pkgToSourceId['eu.kanade.tachiyomi.extension.en.allmanga'],
-        isNull,
+        'all_manga_en',
       );
-      expect(
-        ExtensionFactory.builtInExtensions
-            .where((item) => item.sourceId == 'all_manga_en'),
-        isEmpty,
-      );
+      final entry = ExtensionFactory.builtInExtensions
+          .singleWhere((item) => item.sourceId == 'all_manga_en');
+      expect(entry.pkg, 'eu.kanade.tachiyomi.extension.en.allmanga');
+      expect(entry.isNsfw, isFalse);
     });
 
     test('popular parses recommendations and uses queryPopular variables',
@@ -214,8 +259,25 @@ void main() {
       );
     });
 
-    test('pages join pictureUrlHead with scalar pictureUrls', () async {
-      final (source, adapter) = _source([_fixture('pages')]);
+    test('pages capture the chapter route and join every URL shape', () async {
+      final browser = _ScriptedCaptureBrowserFetch([
+        _fixture('pages'),
+        <String, Object?>{
+          'chapterPages': {
+            'edges': [
+              {
+                'pictureUrls': [
+                  {'url': '/manga/example/001.webp'},
+                  {'url': '//images.example.test/002.webp'},
+                  {'url': 'https://images.example.test/003.webp'},
+                ],
+              },
+            ],
+          },
+        },
+      ]);
+      BrowserFetch.instance = browser;
+      final source = AllMangaSource();
 
       final pages = await source.fetchPageUrls('ex9vXC6gWYY9bGkSo|1193');
 
@@ -226,39 +288,90 @@ void main() {
             'manga/ex9vXC6gWYY9bGkSo/1193/002.webp',
         'https://images.example.test/page-003.webp',
       ]);
-      final body = _body(adapter.requests.single);
-      expect(body['query'].toString(), contains('chapterPages'));
-      expect(body['query'].toString(), isNot(matches(r'pictureUrls\s*\{')));
-      expect(_variables(adapter.requests.single), {
-        'mangaId': 'ex9vXC6gWYY9bGkSo',
-        'translationType': 'sub',
-        'chapterString': '1193',
-      });
+      expect(source.imageHeaders['User-Agent'], 'AllMangaTestBrowser/1.0');
+      final call = browser.captureCalls.single;
+      expect(
+        call.url,
+        Uri.parse(
+          'https://allmanga.to/read/ex9vXC6gWYY9bGkSo/chapter-1193-sub',
+        ),
+      );
+      expect(call.channel, 'yomiAllManga');
+      expect(call.interactive, isTrue);
+      expect(call.jsHook, contains('Response.prototype.json'));
+      expect(call.jsHook, contains('JSON.parse'));
+      expect(call.jsHook, contains('data.chapterPages'));
+      expect(call.jsHook, contains('data.data.chapterPages'));
+      expect(call.jsHook, contains('JSON.stringify(data)'));
+      expect(call.jsHook, contains('window.yomiAllManga.postMessage'));
+
+      expect(await source.fetchPageUrls('manga-id|1'), [
+        'https://ytimgf.youtube-anime.com/manga/example/001.webp',
+        'https://images.example.test/002.webp',
+        'https://images.example.test/003.webp',
+      ]);
+      expect(browser.captureCalls, hasLength(2));
     });
 
-    test('surfaces the first GraphQL error message', () async {
-      final (source, _) = _source([
-        {
-          'errors': [
-            {'message': 'AA_CRYPTO_MISSING'},
-          ],
-          'data': {'chapterPages': null},
-        },
+    test('page capture translates retries and browser failures', () async {
+      final errorPayload = <String, Object?>{
+        'errors': [
+          {'message': 'NEED_CAPTCHA'},
+        ],
+        'data': {'chapterPages': null},
+      };
+      final browser = _ScriptedCaptureBrowserFetch([
+        errorPayload,
+        errorPayload,
       ]);
+      BrowserFetch.instance = browser;
+      final source = AllMangaSource();
 
-      expect(
+      await expectLater(
         source.fetchPageUrls('ex9vXC6gWYY9bGkSo|1193'),
         throwsA(
           isA<Exception>().having(
             (error) => error.toString(),
             'message',
-            contains('AllManga API: AA_CRYPTO_MISSING'),
+            contains('AllManga pages: NEED_CAPTCHA'),
+          ),
+        ),
+      );
+      expect(browser.captureCalls, hasLength(2));
+      expect(browser.captureCalls.last.interactive, isTrue);
+
+      BrowserFetch.instance = _ScriptedCaptureBrowserFetch([
+        const BrowserFetchUnavailable(),
+      ]);
+
+      await expectLater(
+        AllMangaSource().fetchPageUrls('ex9vXC6gWYY9bGkSo|1193'),
+        throwsA(
+          isA<Exception>().having(
+            (error) => error.toString(),
+            'message',
+            contains('AllManga pages need the in-app browser (Android)'),
+          ),
+        ),
+      );
+
+      BrowserFetch.instance = _ScriptedCaptureBrowserFetch([
+        const BrowserChallengeCancelled(),
+      ]);
+
+      await expectLater(
+        AllMangaSource().fetchPageUrls('ex9vXC6gWYY9bGkSo|1193'),
+        throwsA(
+          isA<Exception>().having(
+            (error) => error.toString(),
+            'message',
+            contains('Site check cancelled'),
           ),
         ),
       );
     });
 
-    test('every API operation is POST with the required browser headers',
+    test('every GraphQL operation is POST with the required browser headers',
         () async {
       final (source, adapter) = _source([
         _fixture('popular'),
@@ -266,7 +379,6 @@ void main() {
         _fixture('search'),
         _fixture('detail'),
         _fixture('detail'),
-        _fixture('pages'),
       ]);
 
       await source.fetchPopular();
@@ -274,11 +386,11 @@ void main() {
       await source.search('One Piece');
       await source.fetchMangaDetail('ex9vXC6gWYY9bGkSo');
       await source.fetchChapterList('ex9vXC6gWYY9bGkSo');
-      await source.fetchPageUrls('ex9vXC6gWYY9bGkSo|1193');
 
-      expect(adapter.requests, hasLength(6));
+      expect(adapter.requests, hasLength(5));
       for (final request in adapter.requests) {
         expect(request.method, 'POST');
+        expect(request.uri.host, 'api.allanime.day');
         expect(request.uri.path, '/api');
         expect(request.headers['Origin'], 'https://allmanga.to');
         expect(request.headers['Referer'], 'https://allmanga.to/');

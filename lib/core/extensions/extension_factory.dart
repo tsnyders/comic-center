@@ -53,8 +53,8 @@ abstract final class ExtensionFactory {
     'eu.kanade.tachiyomi.extension.en.comicextra': 'comicextra_en',
     // ComicK (multi-language aggregator)
     'eu.kanade.tachiyomi.extension.all.comick': 'comick_en',
-    // AllManga is held out of the catalogue until page fetching runs through
-    // an in-app WebView (its page resolver needs a token the site's JS computes).
+    // AllManga
+    'eu.kanade.tachiyomi.extension.en.allmanga': 'all_manga_en',
   };
 
   /// Native sources that should always be installable from the catalogue, even
@@ -174,6 +174,13 @@ abstract final class ExtensionFactory {
       sourceId: 'comick_en',
       lang: 'all',
       isNsfw: true,
+    ),
+    (
+      name: 'AllManga',
+      pkg: 'eu.kanade.tachiyomi.extension.en.allmanga',
+      sourceId: 'all_manga_en',
+      lang: 'en',
+      isNsfw: false,
     ),
   ];
 

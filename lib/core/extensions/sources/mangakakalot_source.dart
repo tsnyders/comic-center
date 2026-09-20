@@ -5,6 +5,7 @@ import 'package:dio/dio.dart';
 import 'package:html/dom.dart';
 import 'package:html/parser.dart' as html;
 
+import '../../browser/browser_fetch.dart';
 import '../models/chapter_info.dart';
 import '../models/filter.dart';
 import '../models/manga_detail.dart';
@@ -39,9 +40,7 @@ class MangakakalotSource extends MangaSource {
   @override
   Map<String, String> get imageHeaders => {
         'Referer': '$baseUrl/',
-        'User-Agent':
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
-                '(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
+        'User-Agent': BrowserFetch.instance.userAgent,
       };
   // ponytail: inner HTML routes can challenge plain HTTP even when the home/API work.
   // Propagate HTTP failures; an empty list would incorrectly imply an empty library.

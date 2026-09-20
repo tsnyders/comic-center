@@ -170,10 +170,14 @@ the remaining sources are also excluded from `seedDefaults`:
 | `webtoons_en` | https://www.webtoons.com | `WebtoonsSource` (English) | No |
 | `mangakakalot_en` | https://www.mangakakalot.gg | `MangakakalotSource` | Yes |
 | `natomanga_en` | https://www.natomanga.com | `MangakakalotSource` | Yes |
-| `all_manga_en` | https://allmanga.to | `AllMangaSource` | No |
+| `all_manga_en` | https://allmanga.to | `AllMangaSource`; pages via in-app browser capture | No |
 
-AllManga uses POST-only GraphQL at `https://api.allanime.day/api`; a GET
-fallback is intentionally omitted because Cloudflare challenges that route.
+AllManga uses POST-only GraphQL at `https://api.allanime.day/api` for its
+catalogue, details and chapter list. Reader pages load
+`/read/<mangaId>/chapter-<chapter>-sub` in the Android in-app browser and
+capture the site's `chapterPages` response by hooking `Response.prototype.json`
+and `JSON.parse`. The site bundle referenced `api.allanime.day` on 2026-09-20;
+`api.mkissa.net` also answered a probe but is not used by the current bundle.
 
 WeebCentral uses `/search/data` (`sort`, `order`, `limit`, `offset`),
 `/series/<ULID>`, `/series/<ULID>/full-chapter-list`, and
@@ -213,7 +217,11 @@ requests encountered 403.
 ManhwaTop returned catalogue/detail HTML to curl but challenged chapter
 POSTs, reader pages, and later Dio requests. Both Mangakakalot-family
 homepages and chapter APIs worked; catalogue/detail/reader routes returned
-403. These are parser checks, not device or image-download acceptance.
+403. Their plain requests now use the in-app browser's user agent so browser
+clearance cookies and HTTP requests have matching identities. AllManga's
+catalogue, detail and chapter list passed a live Dio check on 2026-09-20;
+page capture could not run on Windows because it requires the Android
+WebView. These are parser checks, not device or image-download acceptance.
 See [`test/fixtures/new_sources.md`](../test/fixtures/new_sources.md) for
 captured versus explicitly synthetic fixture coverage and reproduction URLs.
 
