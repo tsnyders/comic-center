@@ -21,6 +21,9 @@ class AllMangaSource extends MangaSource {
   final Dio _dio;
 
   static const _apiBase = 'https://api.allanime.day';
+  // AllManga's old catalogue still works, but its reader moved to MKissa.
+  static const _readerBase = 'https://mkissa.to';
+  static const _pageTimeout = Duration(seconds: 90);
   static const _coverBase =
       'https://wp.youtube-anime.com/aln.youtube-anime.com';
   static const _defaultPageBase = 'https://ytimgf.youtube-anime.com/';
@@ -64,6 +67,11 @@ query($id:String!){
   static const _chapterPagesHook = r'''
 (() => {
   const postChapterPages = (data) => {
+    // The site retries this request after its security overlay is solved.
+    // Keep capture alive so BrowserHost can show that overlay.
+    if (data && Array.isArray(data.errors) && data.errors.some(
+      (error) => error && error.message === 'NEED_CAPTCHA'
+    )) return;
     if (
       (data && data.chapterPages) ||
       (data && data.data && data.data.chapterPages) ||
@@ -87,6 +95,51 @@ query($id:String!){
     postChapterPages(data);
     return data;
   };
+
+  // The reader uses a clean iframe realm to parse pages, bypassing our hook.
+  // Keep parsing in this document, but preserve real captcha frames.
+  const contentWindow = Object.getOwnPropertyDescriptor(
+    HTMLIFrameElement.prototype, 'contentWindow'
+  ).get;
+  const neuter = (element) => {
+    if (element.tagName && element.tagName.toUpperCase() === 'IFRAME') {
+      Object.defineProperty(element, 'contentWindow', {
+        get: () => /^https:\/\/(challenges\.cloudflare\.com|www\.google\.com|www\.recaptcha\.net)\//.test(element.src)
+          ? contentWindow.call(element) : null,
+        configurable: false,
+      });
+    }
+    return element;
+  };
+  for (const name of ['createElement', 'createElementNS']) {
+    const original = Document.prototype[name];
+    Document.prototype[name] = function(...args) {
+      return neuter(original.apply(this, args));
+    };
+  }
+})();
+''';
+
+  /// Loads the manga page, then navigates to the chapter inside the SPA:
+  /// the current reader handles data-href clicks after it mounts.
+  static String _chapterNavigationScript(String chapterPath) => '''
+(() => {
+  const go = () => {
+    const a = document.createElement('a');
+    a.href = a.dataset.href = '$chapterPath';
+    document.body.append(a);
+    a.click();
+    a.remove();
+  };
+  let attempts = 0;
+  const check = () => {
+    if (document.querySelector('[data-href]')) {
+      go();
+    } else if (attempts++ < 300) {
+      setTimeout(check, 50);
+    }
+  };
+  check();
 })();
 ''';
 
@@ -257,24 +310,28 @@ query($id:String!){
     }
     final mangaId = chapterId.substring(0, separator);
     final chapterString = chapterId.substring(separator + 1);
-    final chapterUrl = Uri.parse(
-      '$baseUrl/read/$mangaId/chapter-$chapterString-sub',
-    );
+    final mangaPage = Uri.parse('$_readerBase/manga/$mangaId');
+    final navigate =
+        _chapterNavigationScript('/manga/$mangaId/chapter-$chapterString-sub');
 
     // ponytail: chapter data is produced by the site's JavaScript, so page
     // discovery is unavailable on Windows and in background isolates.
     Map<String, dynamic> payload;
     try {
       payload = await BrowserFetch.instance.capture(
-        chapterUrl,
+        mangaPage,
         jsHook: _chapterPagesHook,
         channel: 'yomiAllManga',
+        afterLoad: navigate,
+        timeout: _pageTimeout,
       );
       if (_graphQlError(payload) != null) {
         payload = await BrowserFetch.instance.capture(
-          chapterUrl,
+          mangaPage,
           jsHook: _chapterPagesHook,
           channel: 'yomiAllManga',
+          afterLoad: navigate,
+          timeout: _pageTimeout,
           interactive: true,
         );
       }
@@ -295,7 +352,10 @@ query($id:String!){
     final edges = chapterPages['edges'] as List;
     final edge = edges.firstOrNull;
     if (edge is Map && edge['pictureUrls'] is List) {
-      final head = _string(edge['pictureUrlHead']);
+      // The site's own query names the image host serverUrl; older payloads
+      // used pictureUrlHead.
+      final head =
+          _string(edge['serverUrl']) ?? _string(edge['pictureUrlHead']);
       final urls = <String>[];
       for (final picture in (edge['pictureUrls'] as List).whereType<Map>()) {
         final path = _string(picture['url']);

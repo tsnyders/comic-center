@@ -69,6 +69,7 @@ dependencies:
 
   # "12 new chapters in 4 titles" after a background library update
   flutter_local_notifications: ^22.3.1
+  webview_flutter_android: ^4.14.1
 
 dev_dependencies:
   flutter_test:

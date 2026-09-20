@@ -33,6 +33,7 @@ class FakeBrowserFetch implements BrowserFetch {
   Future<Map<String, dynamic>> capture(Uri url,
       {required String jsHook,
       required String channel,
+      String? afterLoad,
       Duration timeout = const Duration(seconds: 30),
       bool interactive = true}) async {
     calls.add('capture $url channel=$channel interactive=$interactive');

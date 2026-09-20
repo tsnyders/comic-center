@@ -49,14 +49,21 @@ class _ScriptedCaptureBrowserFetch extends FakeBrowserFetch {
         super(userAgent: 'AllMangaTestBrowser/1.0');
 
   final List<Object> _responses;
-  final List<({Uri url, String jsHook, String channel, bool interactive})>
-      captureCalls = [];
+  final List<
+      ({
+        Uri url,
+        String jsHook,
+        String channel,
+        String? afterLoad,
+        bool interactive
+      })> captureCalls = [];
 
   @override
   Future<Map<String, dynamic>> capture(
     Uri url, {
     required String jsHook,
     required String channel,
+    String? afterLoad,
     Duration timeout = const Duration(seconds: 30),
     bool interactive = true,
   }) async {
@@ -65,6 +72,7 @@ class _ScriptedCaptureBrowserFetch extends FakeBrowserFetch {
       url: url,
       jsHook: jsHook,
       channel: channel,
+      afterLoad: afterLoad,
       interactive: interactive,
     ));
     if (_responses.isEmpty) {
@@ -259,7 +267,7 @@ void main() {
       );
     });
 
-    test('pages capture the chapter route and join every URL shape', () async {
+    test('pages navigate the current reader and join every URL shape', () async {
       final browser = _ScriptedCaptureBrowserFetch([
         _fixture('pages'),
         <String, Object?>{
@@ -270,6 +278,19 @@ void main() {
                   {'url': '/manga/example/001.webp'},
                   {'url': '//images.example.test/002.webp'},
                   {'url': 'https://images.example.test/003.webp'},
+                ],
+              },
+            ],
+          },
+        },
+        <String, Object?>{
+          'chapterPages': {
+            'edges': [
+              {
+                'serverUrl': 'images.example.test/',
+                'pictureUrlHead': 'https://old.example.test/',
+                'pictureUrls': [
+                  {'url': '/manga/example/1072.2/001.webp'},
                 ],
               },
             ],
@@ -292,10 +313,13 @@ void main() {
       final call = browser.captureCalls.single;
       expect(
         call.url,
-        Uri.parse(
-          'https://allmanga.to/read/ex9vXC6gWYY9bGkSo/chapter-1193-sub',
-        ),
+        Uri.parse('https://mkissa.to/manga/ex9vXC6gWYY9bGkSo'),
       );
+      expect(call.afterLoad,
+          contains("'/manga/ex9vXC6gWYY9bGkSo/chapter-1193-sub'"));
+      expect(call.afterLoad, contains('a.click()'));
+      expect(call.afterLoad, contains("document.querySelector('[data-href]')"));
+      expect(call.afterLoad, contains('a.remove()'));
       expect(call.channel, 'yomiAllManga');
       expect(call.interactive, isTrue);
       expect(call.jsHook, contains('Response.prototype.json'));
@@ -311,6 +335,11 @@ void main() {
         'https://images.example.test/003.webp',
       ]);
       expect(browser.captureCalls, hasLength(2));
+      expect(await source.fetchPageUrls('manga-id|1072.2'), [
+        'https://images.example.test/manga/example/1072.2/001.webp',
+      ]);
+      expect(browser.captureCalls.last.afterLoad,
+          contains('/manga/manga-id/chapter-1072.2-sub'));
     });
 
     test('page capture translates retries and browser failures', () async {

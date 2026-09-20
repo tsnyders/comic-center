@@ -25,11 +25,14 @@ abstract class BrowserFetch {
 
   /// Loads [url] with [jsHook] injected at document start and resolves with
   /// the first JSON object the page posts to the JavaScript channel
-  /// [channel]. Challenge handling as in [fetchHtml].
+  /// [channel]. [afterLoad], when given, runs once the page has loaded and
+  /// is clear of challenges (e.g. to trigger an in-page navigation).
+  /// Challenge handling as in [fetchHtml].
   Future<Map<String, dynamic>> capture(
     Uri url, {
     required String jsHook,
     required String channel,
+    String? afterLoad,
     Duration timeout = const Duration(seconds: 30),
     bool interactive = true,
   });
@@ -60,6 +63,7 @@ class UnavailableBrowserFetch implements BrowserFetch {
   Future<Map<String, dynamic>> capture(Uri url,
           {required String jsHook,
           required String channel,
+          String? afterLoad,
           Duration timeout = const Duration(seconds: 30),
           bool interactive = true}) =>
       throw const BrowserFetchUnavailable();
