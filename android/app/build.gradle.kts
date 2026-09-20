@@ -6,9 +6,42 @@ plugins {
 }
 
 val keystorePropertiesFile = rootProject.file("key.properties")
+val hasReleaseKeystore = keystorePropertiesFile.exists()
 val keystoreProperties = Properties()
-if (keystorePropertiesFile.exists()) {
+if (hasReleaseKeystore) {
     keystoreProperties.load(keystorePropertiesFile.inputStream())
+}
+
+// A release APK signed with the debug key cannot be installed over a
+// release-signed copy: Android refuses the signature change and the installer
+// only reports "App not installed". Releases therefore fail fast rather than
+// producing an APK that silently cannot update anyone. See
+// docs/RELEASE_SIGNING.md; pass -PallowDebugSigning=true for a throwaway
+// local build.
+val allowDebugSigning = (project.findProperty("allowDebugSigning") as String?) == "true"
+
+gradle.taskGraph.whenReady {
+    val buildingRelease = allTasks.any { task ->
+        task.name.contains("Release") && (
+            task.name.startsWith("assemble") ||
+                task.name.startsWith("bundle") ||
+                task.name.startsWith("package")
+            )
+    }
+    if (buildingRelease) {
+        if (!hasReleaseKeystore && !allowDebugSigning) {
+            throw GradleException(
+                "Release build blocked: android/key.properties is missing, so this APK " +
+                    "would be signed with the debug key and could not be installed over a " +
+                    "release-signed copy of Yomi. See docs/RELEASE_SIGNING.md. To build an " +
+                    "install-only-on-this-machine APK anyway, add -PallowDebugSigning=true."
+            )
+        }
+        println(
+            "Yomi release signing: " +
+                if (hasReleaseKeystore) "release keystore" else "DEBUG KEY (local only)"
+        )
+    }
 }
 
 android {
@@ -42,7 +75,7 @@ android {
 
     buildTypes {
         release {
-            signingConfig = if (keystorePropertiesFile.exists())
+            signingConfig = if (hasReleaseKeystore)
                 signingConfigs.getByName("release")
             else
                 signingConfigs.getByName("debug")
