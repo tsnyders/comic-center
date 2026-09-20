@@ -233,7 +233,7 @@ class _SourceResultsState extends ConsumerState<_SourceResults> {
           if (results.isEmpty && !loading && failure == null)
             Text('No results', style: YomiText.ui(13, color: c.fg2)),
           for (final item in results)
-            _ResultRow(
+            SearchResultRow(
               item: item,
               headers: widget.source.imageHeaders,
               onTap: () => widget.onOpen(item),
@@ -271,16 +271,20 @@ class _SourceResultsState extends ConsumerState<_SourceResults> {
   }
 }
 
-class _ResultRow extends StatelessWidget {
-  const _ResultRow({
+/// Shared cover/title row for global search and source migration results.
+class SearchResultRow extends StatelessWidget {
+  const SearchResultRow({
+    super.key,
     required this.item,
     required this.headers,
     required this.onTap,
+    this.subtitle,
   });
 
   final MangaSummary item;
   final Map<String, String> headers;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
+  final String? subtitle;
 
   @override
   Widget build(BuildContext context) {
@@ -304,11 +308,18 @@ class _ResultRow extends StatelessWidget {
             ),
             const SizedBox(width: 14),
             Expanded(
-              child: Text(
-                item.title,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: YomiText.ui(15, color: c.fg, weight: FontWeight.w600),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item.title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: YomiText.ui(15, color: c.fg, weight: FontWeight.w600),
+                  ),
+                  if (subtitle != null)
+                    Text(subtitle!, style: YomiText.ui(12, color: c.fg2)),
+                ],
               ),
             ),
             const SizedBox(width: 8),

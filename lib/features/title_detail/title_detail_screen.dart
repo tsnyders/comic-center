@@ -16,6 +16,7 @@ import '../../shared/widgets/cover_image.dart';
 import '../../shared/widgets/sumi.dart';
 import '../../shared/widgets/sumi_actions.dart';
 import '../library/widgets/manga_card.dart' show mangaCoverHeroTag;
+import '../library/migrate_screen.dart';
 import '../reader/open_reader.dart';
 import 'widgets/chapter_list_tile.dart';
 
@@ -158,6 +159,28 @@ class _TitleDetailScreenState extends ConsumerState<TitleDetailScreen> {
                         ),
                       ],
                     ],
+                  ),
+                  const SizedBox(height: 10),
+                  // Move this title to another installed source, keeping
+                  // read state; available for every title, not only dead ones.
+                  SumiButton(
+                    label: 'Migrate',
+                    height: 44,
+                    fontSize: 14,
+                    radius: context.look.isSumi ? 4 : null,
+                    onTap: () async {
+                      final moved = await Navigator.push<MangaEntry>(
+                          context,
+                          CupertinoPageRoute(
+                              builder: (_) => MigrateScreen(manga: live)));
+                      if (moved != null && context.mounted) {
+                        Navigator.pushReplacement(
+                            context,
+                            CupertinoPageRoute<void>(
+                                builder: (_) =>
+                                    TitleDetailScreen(manga: moved)));
+                      }
+                    },
                   ),
                   const SizedBox(height: 8),
                   Text(

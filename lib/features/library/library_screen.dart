@@ -21,6 +21,7 @@ import '../../shared/widgets/sumi_actions.dart';
 import '../../shared/widgets/unread_badge.dart';
 import '../reader/open_reader.dart';
 import '../title_detail/title_detail_screen.dart';
+import 'migrate_screen.dart';
 import 'widgets/manga_card.dart';
 
 /// Manga ids picked in shelf selection mode; null when not selecting.
@@ -46,6 +47,7 @@ class LibraryScreen extends ConsumerWidget {
 
     final library = ref.watch(filteredLibraryProvider);
     final total = ref.watch(libraryStreamProvider).valueOrNull?.length ?? 0;
+    final migrationCount = ref.watch(migrationTitlesProvider).valueOrNull?.length ?? 0;
     final continueItems = ref.watch(continueReadingProvider);
     final filter = ref.watch(shelfFilterProvider);
     final genre = ref.watch(libraryGenreProvider);
@@ -103,6 +105,17 @@ class LibraryScreen extends ConsumerWidget {
         physics: const BouncingScrollPhysics(),
         slivers: [
           SliverToBoxAdapter(child: SizedBox(height: insets.top + 12)),
+          if (migrationCount > 0)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: gutter, vertical: 8),
+                child: SumiTextAction(
+                  label: '$migrationCount titles need a source · Migrate',
+                  onTap: () => Navigator.push<void>(context,
+                      CupertinoPageRoute(builder: (_) => const MigrateScreen())),
+                ),
+              ),
+            ),
 
           // ── Header: overline + title, seal stamp ──────────────────────────
           SliverToBoxAdapter(
@@ -404,6 +417,11 @@ class LibraryScreen extends ConsumerWidget {
       builder: (sheet) => CupertinoActionSheet(
         title: Text('${picked.length} titles'),
         actions: [
+          sheetAction(sheet, 'Migrate', () {
+            done();
+            Navigator.push<void>(context, CupertinoPageRoute(
+                builder: (_) => MigrateScreen(titleIds: picked.map((m) => m.id).toSet())));
+          }),
           sheetAction(sheet, 'Set categories', () {
             showCategorySheet(
               context,

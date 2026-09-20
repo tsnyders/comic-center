@@ -14,9 +14,11 @@ import '../../core/providers/source_registry_provider.dart';
 import '../../core/services/backup_file_picker.dart';
 import '../../core/services/backup_service.dart';
 import '../../core/services/tachiyomi_backup.dart';
+import '../../core/services/source_migration.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import 'drive_restore_screen.dart';
+import '../library/migrate_screen.dart';
 
 class BackupRestoreScreen extends ConsumerStatefulWidget {
   const BackupRestoreScreen({super.key});
@@ -236,9 +238,14 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
       final result =
           await BackupService.restorePayload(isar: isar, json: imported.payload);
       await categories.merge(result.categories);
+      final missing = await titlesNeedingMigration(isar,
+          ref.read(sourceRegistryProvider).map((s) => s.id).toSet());
+      final importedKeys = imported.manga.map((m) => m['sourceKey']).toSet();
       if (!mounted) return;
       Navigator.of(context, rootNavigator: true).pop();
-      _alert('Restore complete', restoreSummary(result));
+      _alert('Restore complete', restoreSummary(result),
+          migrationIds: missing.where((m) => importedKeys.contains(m.sourceKey))
+              .map((m) => m.id).toSet());
     } catch (error) {
       if (!mounted) return;
       Navigator.of(context, rootNavigator: true).pop();
@@ -263,13 +270,22 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
         });
   }
 
-  void _alert(String title, String message) {
+  void _alert(String title, String message, {Set<int> migrationIds = const {}}) {
     showCupertinoDialog<void>(
       context: context,
       builder: (dialogContext) => CupertinoAlertDialog(
           title: Text(title),
           content: Text(message),
           actions: [
+            if (migrationIds.isNotEmpty)
+              CupertinoDialogAction(
+                onPressed: () {
+                  Navigator.pop(dialogContext);
+                  Navigator.push<void>(context, CupertinoPageRoute(
+                      builder: (_) => MigrateScreen(titleIds: migrationIds)));
+                },
+                child: Text('Migrate ${migrationIds.length} titles'),
+              ),
             CupertinoDialogAction(
                 onPressed: () => Navigator.pop(dialogContext),
                 child: const Text('OK'))
