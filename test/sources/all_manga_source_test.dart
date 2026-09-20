@@ -75,15 +75,18 @@ void main() {
       expect(source.imageHeaders['User-Agent'], contains('Chrome/'));
 
       expect(ExtensionFactory.create('all_manga_en'), isA<AllMangaSource>());
+      // Held out of the catalogue until pages fetch through an in-app
+      // WebView; the class stays resolvable for existing rows and imports.
       expect(
         ExtensionFactory
             .pkgToSourceId['eu.kanade.tachiyomi.extension.en.allmanga'],
-        'all_manga_en',
+        isNull,
       );
-      final entry = ExtensionFactory.builtInExtensions
-          .singleWhere((item) => item.sourceId == 'all_manga_en');
-      expect(entry.name, 'AllManga');
-      expect(entry.isNsfw, isFalse);
+      expect(
+        ExtensionFactory.builtInExtensions
+            .where((item) => item.sourceId == 'all_manga_en'),
+        isEmpty,
+      );
     });
 
     test('popular parses recommendations and uses queryPopular variables',

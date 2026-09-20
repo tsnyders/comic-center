@@ -192,13 +192,6 @@ abstract final class ExtensionManager {
         hasNsfw: false,
       ),
       (
-        sourceId: 'all_manga_en',
-        name: 'AllManga',
-        version: '1.0.0',
-        language: 'en',
-        hasNsfw: false,
-      ),
-      (
         sourceId: 'demonicscans_en',
         name: 'DemonicScans',
         version: '1.0.0',
