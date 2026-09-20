@@ -4,7 +4,9 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:isar/isar.dart';
 
+import '../../core/database/models/manga_entry.dart';
 import '../../core/providers/database_provider.dart';
 import '../../core/providers/google_drive_provider.dart';
 import '../../core/providers/library_provider.dart';
@@ -18,6 +20,7 @@ import '../../core/services/source_migration.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import 'drive_restore_screen.dart';
+import 'import_picker_screen.dart';
 import '../library/migrate_screen.dart';
 
 class BackupRestoreScreen extends ConsumerStatefulWidget {
@@ -155,8 +158,23 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
       final imported =
           await compute(TachiyomiBackup.decode, await file.readAsBytes());
       if (!mounted) return;
-      if (await _confirmTachiyomi(imported) && mounted) {
-        await _importTachiyomi(imported);
+      final existingKeys = await ref.read(isarProvider).mangaEntrys
+          .where()
+          .inLibraryEqualTo(true)
+          .sourceKeyProperty()
+          .findAll();
+      if (!mounted) return;
+      final selected = await Navigator.of(context)
+          .push<List<Map<String, Object?>>>(CupertinoPageRoute(
+        builder: (_) => ImportPickerScreen(
+          manga: imported.manga,
+          connectedSources: imported.connectedSources,
+          unavailableSources: imported.unavailableSources,
+          existingSourceKeys: existingKeys.toSet(),
+        ),
+      ));
+      if (selected != null && selected.isNotEmpty && mounted) {
+        await _importTachiyomi(imported.payloadFor(selected), selected);
       }
     } catch (error) {
       _showError(error);
@@ -190,57 +208,18 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
     }
   }
 
-  Future<bool> _confirmTachiyomi(TachiyomiBackup imported) async {
-    final warnings = _sourceWarnings(imported);
-    return await showCupertinoDialog<bool>(
-          context: context,
-          builder: (dialogContext) => CupertinoAlertDialog(
-            title: const Text('Import backup'),
-            content: Text([
-              '${imported.mangaCount} titles and ${imported.chapterCount} chapter records.',
-              'Your library, categories and reading progress will be merged. '
-                  'Existing progress is kept. Downloaded chapters are not imported.',
-              if (warnings.isNotEmpty) warnings,
-            ].join('\n\n')),
-            actions: [
-              CupertinoDialogAction(
-                  onPressed: () => Navigator.pop(dialogContext, false),
-                  child: const Text('Cancel')),
-              CupertinoDialogAction(
-                  onPressed: () => Navigator.pop(dialogContext, true),
-                  child: const Text('Import')),
-            ],
-          ),
-        ) ??
-        false;
-  }
-
-  String _sourceWarnings(TachiyomiBackup imported) {
-    final installed = ref.read(sourceRegistryProvider).map((s) => s.id).toSet();
-    final disabled = imported.connectedSources.entries
-        .where((source) => !installed.contains(source.key))
-        .map((source) => source.value)
-        .toSet();
-    return [
-      if (imported.unavailableSources.isNotEmpty)
-        'Yomi cannot connect these sources yet: ${imported.unavailableSources.join(', ')}. '
-            'Their titles and progress will be saved, but their chapters cannot be read online.',
-      if (disabled.isNotEmpty)
-        'Enable these sources in Browse to read online: ${disabled.join(', ')}.',
-    ].join('\n\n');
-  }
-
-  Future<void> _importTachiyomi(TachiyomiBackup imported) async {
+  Future<void> _importTachiyomi(Map<String, Object?> payload,
+      List<Map<String, Object?>> selected) async {
     _showProgress(context);
     try {
       final isar = ref.read(isarProvider);
       final categories = ref.read(categoryNotifierProvider.notifier);
       final result =
-          await BackupService.restorePayload(isar: isar, json: imported.payload);
+          await BackupService.restorePayload(isar: isar, json: payload);
       await categories.merge(result.categories);
       final missing = await titlesNeedingMigration(isar,
           ref.read(sourceRegistryProvider).map((s) => s.id).toSet());
-      final importedKeys = imported.manga.map((m) => m['sourceKey']).toSet();
+      final importedKeys = selected.map((m) => m['sourceKey']).toSet();
       if (!mounted) return;
       Navigator.of(context, rootNavigator: true).pop();
       _alert('Restore complete', restoreSummary(result),

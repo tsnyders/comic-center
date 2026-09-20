@@ -1,24 +1,38 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:comic_center/core/database/models/chapter_entry.dart';
+import 'package:comic_center/core/database/models/manga_entry.dart';
+import 'package:comic_center/core/providers/database_provider.dart';
+import 'package:comic_center/core/providers/library_provider.dart';
 import 'package:comic_center/core/services/backup_service.dart';
+import 'package:comic_center/core/services/tachiyomi_backup.dart';
 import 'package:comic_center/features/settings/backup_restore_screen.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:isar/isar.dart';
 
 import '../../core/services/tachiyomi_backup_test.dart' show backupFixture;
+import '../../support/local_isar.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   late Directory dir;
+  late Isar isar;
+  late ProviderContainer container;
   final calls = <MethodCall>[];
   String? selected;
+  setUpAll(initializeLocalIsar);
   setUp(() async {
     calls.clear();
     selected = null;
     dir = await Directory.systemTemp.createTemp('yomi_picker_test_');
+    isar = await Isar.open([MangaEntrySchema, ChapterEntrySchema],
+        directory: dir.path, name: 'restore_picker', inspector: false);
+    container =
+        ProviderContainer(overrides: [isarProvider.overrideWithValue(isar)]);
     final messenger =
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
     messenger.setMockMethodCallHandler(
@@ -31,13 +45,25 @@ void main() {
     });
   });
   tearDown(() async {
-    await dir.delete(recursive: true);
+    container.dispose();
+    await isar.close(deleteFromDisk: true);
+    for (var attempt = 0;; attempt++) {
+      try {
+        await dir.delete(recursive: true);
+        break;
+      } on FileSystemException {
+        if (attempt == 40) rethrow;
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+      }
+    }
   });
 
   Future<void> open(WidgetTester tester) async {
+    addTearDown(() => tester.pumpWidget(const SizedBox.shrink()));
     await tester.runAsync(() async {
-      await tester.pumpWidget(const ProviderScope(
-          child: CupertinoApp(home: BackupRestoreScreen())));
+      await tester.pumpWidget(UncontrolledProviderScope(
+          container: container,
+          child: const CupertinoApp(home: BackupRestoreScreen())));
       for (var i = 0;
           i < 200 &&
               find.byType(CupertinoActivityIndicator).evaluate().isNotEmpty;
@@ -71,7 +97,7 @@ void main() {
   });
 
   testWidgets(
-      'Tachiyomi preview shows counts and cancelling cleans temporary file',
+      'Tachiyomi picker cancellation leaves Isar untouched and cleans temporary file',
       (tester) async {
     final file = File('${dir.path}/selected.backup');
     await tester.runAsync(
@@ -91,8 +117,11 @@ void main() {
     // The import activity indicator intentionally stays active behind preview.
     await tester.pump(const Duration(milliseconds: 300));
     expect(find.text('Import backup'), findsOneWidget);
-    expect(find.textContaining('1 titles'), findsOneWidget);
-    expect(find.textContaining('Missing source'), findsOneWidget);
+    expect(find.text('1 of 1 selected'), findsOneWidget);
+    expect(
+        find.textContaining(
+            'Yomi cannot connect these sources yet: Missing source.'),
+        findsOneWidget);
     await tester.runAsync(() async {
       await tester.tap(find.text('Cancel'));
       for (var i = 0; i < 200 && await file.exists(); i++) {
@@ -100,6 +129,70 @@ void main() {
       }
     });
     await tester.pumpAndSettle();
+    expect(await tester.runAsync(file.exists), false);
+    expect(await tester.runAsync(() => isar.mangaEntrys.count()), 0);
+    expect(await tester.runAsync(() => isar.chapterEntrys.count()), 0);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Tachiyomi picker imports only the chosen fixture title',
+      (tester) async {
+    final fixture = File('test/fixtures/tachiyomi/library.tachibk');
+    final backup = TachiyomiBackup.decode(fixture.readAsBytesSync());
+    // The excluded title already needs migration: it must not inflate the offer.
+    await tester
+        .runAsync(() => isar.writeTxn(() => isar.mangaEntrys.put(MangaEntry()
+          ..title = 'Existing excluded title'
+          ..sourceKey = backup.manga.first['sourceKey'] as String
+          ..sourceId = backup.manga.first['sourceId'] as String
+          ..sourceMangaId = backup.manga.first['sourceMangaId'] as String
+          ..sourceUrl = backup.manga.first['sourceUrl'] as String
+          ..inLibrary = true)));
+    final file = File('${dir.path}/selected.tachibk');
+    await tester.runAsync(() => fixture.copy(file.path));
+    selected = file.path;
+    await open(tester);
+    await tester.runAsync(() async {
+      await tester.tap(find.text('Import from Tachiyomi'));
+      for (var i = 0;
+          i < 200 && find.text('Import backup').evaluate().isEmpty;
+          i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+        await tester.pump();
+      }
+    });
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.text('2 of 2 selected'), findsOneWidget);
+    expect(find.text('IN LIBRARY'), findsOneWidget);
+    await tester.tap(find.text('Synthetic manga'));
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(find.text('Import 1 titles'), findsOneWidget);
+    await tester.runAsync(() async {
+      await tester.tap(find.text('Import 1 titles'));
+      for (var i = 0;
+          i < 200 &&
+              (find.text('Restore complete').evaluate().isEmpty ||
+                  await file.exists());
+          i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+        await tester.pump();
+      }
+    });
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Restored 1 titles, 1 chapter records'),
+        findsOneWidget);
+    expect(find.text('Migrate 1 titles'), findsOneWidget);
+    final titles =
+        await tester.runAsync(() => isar.mangaEntrys.where().findAll());
+    expect(
+        titles!.map((manga) => manga.title),
+        unorderedEquals(
+            ['Existing excluded title', 'Synthetic unavailable comic']));
+    final chapters =
+        await tester.runAsync(() => isar.chapterEntrys.where().findAll());
+    expect(chapters, hasLength(1));
+    expect(chapters!.single.isRead, true);
+    expect(container.read(categoryNotifierProvider).valueOrNull, isEmpty);
     expect(await tester.runAsync(file.exists), false);
     expect(tester.takeException(), isNull);
   });
@@ -113,7 +206,9 @@ void main() {
     await tester.runAsync(() async {
       await tester.tap(find.text('Import from Tachiyomi'));
       for (var i = 0;
-          i < 200 && find.text('Could not restore').evaluate().isEmpty;
+          i < 200 &&
+              (find.text('Could not restore').evaluate().isEmpty ||
+                  await file.exists());
           i++) {
         await Future<void>.delayed(const Duration(milliseconds: 20));
         await tester.pump();
@@ -138,8 +233,8 @@ void main() {
         });
     final backups = Directory('${dir.path}/backups')..createSync();
     final file = File('${backups.path}/yomi_backup_20260101_0900.json');
-    await tester.runAsync(() async => file.writeAsString(
-        await BackupService.encode(
+    await tester
+        .runAsync(() async => file.writeAsString(await BackupService.encode(
             jsonEncode({
               'version': 1,
               'categories': ['Reading'],

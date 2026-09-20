@@ -6,6 +6,31 @@ import 'package:comic_center/core/services/tachiyomi_backup.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test('payloadFor keeps selected titles and referenced categories in order', () {
+    final backup = TachiyomiBackup.decode([
+      ...backupFixture(),
+      ...pbBytes(2, [...pbText(1, 'Unused'), ...pbInt(2, 3)]),
+      ...pbBytes(2, [...pbText(1, 'Finished'), ...pbInt(2, 4)]),
+      for (final (url, category) in [('/manga/skipped', 3), ('/manga/chosen', 4)])
+        ...pbBytes(1, [
+          ...pbInt(1, 9007199254740993),
+          ...pbText(2, url),
+          ...pbText(3, url),
+          ...pbInt(17, category),
+        ]),
+    ]);
+    final selected = [backup.manga.first, backup.manga.last];
+    final payload = backup.payloadFor(selected);
+    expect(payload['manga'], selected);
+    expect(payload['categories'], ['Reading', 'Finished']);
+    expect(payload['version'], 1);
+    expect(payload['app'], 'Yomi');
+    expect(backup.manga, hasLength(3));
+    expect(backup.categories, ['Reading', 'Unused', 'Finished']);
+    expect(backup.payloadFor([])['categories'], isEmpty);
+    expect(backup.payloadFor([])['manga'], isEmpty);
+  });
+
   test('reads independently encoded protobuf fixture', () {
     final result = TachiyomiBackup.decode(
         File('test/fixtures/tachiyomi/library.tachibk').readAsBytesSync());

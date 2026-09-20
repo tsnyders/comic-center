@@ -24,6 +24,19 @@ class TachiyomiBackup {
         'manga': manga,
       };
 
+  /// Keeps the selected order and the backup's order of referenced categories.
+  Map<String, Object?> payloadFor(Iterable<Map<String, Object?>> selected) {
+    final entries = selected.toList();
+    final referenced = entries
+        .expand((entry) => (entry['categories'] as List).cast<String>())
+        .toSet();
+    return {
+      ...payload,
+      'manga': entries,
+      'categories': categories.where(referenced.contains).toList(),
+    };
+  }
+
   /// Accepts .tachibk / .proto.gz gzip files and uncompressed protobuf.
   /// Never reads image archives, download directories, or extension APKs.
   static TachiyomiBackup decode(List<int> input) {
@@ -135,6 +148,7 @@ class TachiyomiBackup {
       manga.add({
         'sourceKey': '$sourceId::$mangaId',
         'sourceId': sourceId,
+        'sourceName': sourceName,
         'sourceMangaId': mangaId,
         'sourceUrl': url,
         'title': record.string(3).isEmpty ? 'Untitled comic' : record.string(3),
