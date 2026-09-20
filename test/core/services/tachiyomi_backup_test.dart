@@ -104,6 +104,22 @@ void main() {
         'example',
         'chaptered.php?manga=12&chapter=1'
       ),
+      (
+        'AllManga (EN)',
+        'ex9vXC6gWYY9bGkSo',
+        '1193',
+        'all_manga_en',
+        'ex9vXC6gWYY9bGkSo',
+        'ex9vXC6gWYY9bGkSo|1193'
+      ),
+      (
+        'All Manga',
+        '/manga/ex9vXC6gWYY9bGkSo/one-piece',
+        '/read/ex9vXC6gWYY9bGkSo/one-piece/chapter-1192.5-sub',
+        'all_manga_en',
+        'ex9vXC6gWYY9bGkSo',
+        'ex9vXC6gWYY9bGkSo|1192.5'
+      ),
     ]) {
       final result = TachiyomiBackup.decode([
         ...pbBytes(1, [

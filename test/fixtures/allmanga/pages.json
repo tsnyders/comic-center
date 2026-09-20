@@ -1,0 +1,25 @@
+{
+  "data": {
+    "chapterPages": {
+      "edges": [
+        {
+          "pictureUrlHead": "https://ytimgf.youtube-anime.com/",
+          "pictureUrls": [
+            {
+              "url": "/manga/ex9vXC6gWYY9bGkSo/1193/001.webp",
+              "num": 1
+            },
+            {
+              "url": "manga/ex9vXC6gWYY9bGkSo/1193/002.webp",
+              "num": 2
+            },
+            {
+              "url": "https://images.example.test/page-003.webp",
+              "num": 3
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

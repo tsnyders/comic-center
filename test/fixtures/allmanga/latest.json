@@ -1,0 +1,26 @@
+{
+  "data": {
+    "mangas": {
+      "edges": [
+        {
+          "_id": "6aaf5a5671e36839afe800e3",
+          "name": "Super Robot Wars Tribute",
+          "englishName": null,
+          "thumbnail": "mcovers/m_tbs/6aaf5a5671e36839afe800e3/001.webp"
+        },
+        {
+          "_id": "wfu4XGFzLmLBsmAYd",
+          "name": "Ki ni Natteru Hito ga Otoko ja Nakatta",
+          "englishName": "The Guy She Was Interested in Wasn't a Guy at All",
+          "thumbnail": "mcovers/m_tbs/PNMr3NjCbKT4QFiwJ/001.webp"
+        },
+        {
+          "_id": "6a8c11092356a1a95659a3a1",
+          "name": "Survivalism",
+          "englishName": null,
+          "thumbnail": "mcovers/m_tbs/6a8c11092356a1a95659a3a1/001.webp"
+        }
+      ]
+    }
+  }
+}

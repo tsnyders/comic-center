@@ -154,8 +154,9 @@ tries embedded chapters, then the series `/ajax/chapters/` POST, then
 `wp-admin/admin-ajax.php` with `action=manga_get_chapters` and the manga ID.
 New sources use 15-second connect and 25-second receive timeouts.
 
-These sources are optional catalogue installs, excluded from both
-`seedDefaults` and `ensureRequiredSources`:
+These sources are optional catalogue installs, excluded from
+`ensureRequiredSources`. AllManga keeps its existing first-run seed entry;
+the remaining sources are also excluded from `seedDefaults`:
 
 | ID | Base URL | Implementation | NSFW catalogue flag |
 | --- | --- | --- | --- |
@@ -169,6 +170,10 @@ These sources are optional catalogue installs, excluded from both
 | `webtoons_en` | https://www.webtoons.com | `WebtoonsSource` (English) | No |
 | `mangakakalot_en` | https://www.mangakakalot.gg | `MangakakalotSource` | Yes |
 | `natomanga_en` | https://www.natomanga.com | `MangakakalotSource` | Yes |
+| `all_manga_en` | https://allmanga.to | `AllMangaSource` | No |
+
+AllManga uses POST-only GraphQL at `https://api.allanime.day/api`; a GET
+fallback is intentionally omitted because Cloudflare challenges that route.
 
 WeebCentral uses `/search/data` (`sort`, `order`, `limit`, `offset`),
 `/series/<ULID>`, `/series/<ULID>/full-chapter-list`, and

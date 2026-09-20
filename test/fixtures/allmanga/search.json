@@ -1,0 +1,26 @@
+{
+  "data": {
+    "mangas": {
+      "edges": [
+        {
+          "_id": "ex9vXC6gWYY9bGkSo",
+          "name": "One Piece",
+          "englishName": "One Piece",
+          "thumbnail": "mcovers/m_tbs/ex9vXC6gWYY9bGkSo/115.webp"
+        },
+        {
+          "_id": "6a9f7369e4fc9866854bd2d1",
+          "name": "One Piece dj - Futanari Pirates!",
+          "englishName": null,
+          "thumbnail": null
+        },
+        {
+          "_id": "XQ9eBb8v2XhaKsH4T",
+          "name": "One Piece Log Book Omake",
+          "englishName": null,
+          "thumbnail": "mcovers/m_tbs/qEyAgRic3Xu2iMx66/001.webp"
+        }
+      ]
+    }
+  }
+}
