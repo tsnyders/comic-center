@@ -5,121 +5,147 @@ import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
 import android.content.Context
 import android.content.Intent
-import android.graphics.Bitmap
-import android.graphics.Canvas
-import android.graphics.Paint
-import android.graphics.PorterDuff
-import android.graphics.PorterDuffXfermode
-import android.graphics.RectF
 import android.os.Build
+import android.os.Bundle
 import android.util.SizeF
+import android.view.View
 import android.widget.RemoteViews
 import org.json.JSONObject
 
 class ContinueReadingWidgetProvider : AppWidgetProvider() {
-
-    override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray) {
-        for (appWidgetId in appWidgetIds) {
-            updateWidget(context, appWidgetManager, appWidgetId)
-        }
+    override fun onUpdate(
+        context: Context,
+        appWidgetManager: AppWidgetManager,
+        appWidgetIds: IntArray,
+    ) {
+        for (appWidgetId in appWidgetIds) updateWidget(context, appWidgetManager, appWidgetId)
     }
 
-    private fun updateWidget(context: Context, appWidgetManager: AppWidgetManager, appWidgetId: Int) {
-        val prefs = context.getSharedPreferences("HomeWidgetPreferences", Context.MODE_PRIVATE)
-        val dataStr = prefs.getString("continue_reading_manga", null)
-        val manga = dataStr?.let { runCatching { JSONObject(it) }.getOrNull() }
+    override fun onAppWidgetOptionsChanged(
+        context: Context,
+        appWidgetManager: AppWidgetManager,
+        appWidgetId: Int,
+        newOptions: Bundle,
+    ) {
+        updateWidget(context, appWidgetManager, appWidgetId, newOptions)
+    }
 
-        // Render text-only views immediately so the widget is never blank
+    private fun updateWidget(
+        context: Context,
+        manager: AppWidgetManager,
+        appWidgetId: Int,
+        options: Bundle = manager.getAppWidgetOptions(appWidgetId),
+    ) {
+        val payload = WidgetPayload.load(context)
+        updateRemoteViews(context, manager, appWidgetId, options, payload, null)
+
+        val manga = payload.continueReading ?: return
+        val coverUrl = if (manga.isNull("coverUrl")) "" else manga.optString("coverUrl", "")
+        if (coverUrl.isEmpty()) return
+        Thread {
+            val bitmap = WidgetCoverCache.render(context, coverUrl, 80, 116, payload.theme)
+                ?: return@Thread
+            val current = WidgetPayload.load(context)
+            if (current.theme != payload.theme ||
+                current.continueReading?.optLong("id") != manga.optLong("id")) return@Thread
+            updateRemoteViews(context, manager, appWidgetId, options, current, bitmap)
+        }.start()
+    }
+
+    private fun updateRemoteViews(
+        context: Context,
+        manager: AppWidgetManager,
+        appWidgetId: Int,
+        options: Bundle,
+        payload: WidgetPayload,
+        cover: android.graphics.Bitmap?,
+    ) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            val sizeMap = mapOf(
-                SizeF(110f, 110f) to buildSmallViews(context, appWidgetId, manga),
-                SizeF(250f, 110f) to buildLargeViews(context, appWidgetId, manga, null)
+            val views = sizeBuckets.associateWith { size ->
+                val compact = isCompact(size.width.toInt(), size.height.toInt())
+                buildViews(context, appWidgetId, payload, compact, cover)
+            }
+            manager.updateAppWidget(appWidgetId, RemoteViews(views))
+        } else {
+            val width = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 250)
+            val height = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 140)
+            manager.updateAppWidget(
+                appWidgetId,
+                buildViews(context, appWidgetId, payload, isCompact(width, height), cover),
             )
-            appWidgetManager.updateAppWidget(appWidgetId, RemoteViews(sizeMap))
-        } else {
-            appWidgetManager.updateAppWidget(appWidgetId, buildLargeViews(context, appWidgetId, manga, null))
-        }
-
-        // Load the cover image in the background, then push a second update
-        val coverUrl = manga?.optString("coverUrl", "") ?: ""
-        if (coverUrl.isNotEmpty()) {
-            Thread {
-                val bitmap = runCatching {
-                    com.squareup.picasso.Picasso.get()
-                        .load(coverUrl)
-                        .resize(160, 232)
-                        .centerCrop()
-                        .get()
-                        .let { roundedBitmap(it, 20f) }
-                }.getOrNull()
-
-                if (bitmap != null) {
-                    val mgr = AppWidgetManager.getInstance(context)
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                        val sizeMap = mapOf(
-                            SizeF(110f, 110f) to buildSmallViews(context, appWidgetId, manga),
-                            SizeF(250f, 110f) to buildLargeViews(context, appWidgetId, manga, bitmap)
-                        )
-                        mgr.updateAppWidget(appWidgetId, RemoteViews(sizeMap))
-                    } else {
-                        mgr.updateAppWidget(appWidgetId, buildLargeViews(context, appWidgetId, manga, bitmap))
-                    }
-                }
-            }.start()
         }
     }
 
-    // ── Small layout (2×2 or smaller): label + title + chapter, no cover ──────
-
-    private fun buildSmallViews(context: Context, appWidgetId: Int, manga: JSONObject?): RemoteViews {
-        val views = RemoteViews(context.packageName, R.layout.widget_continue_reading_small)
-
-        if (manga != null) {
-            views.setTextViewText(R.id.widget_cr_small_title, manga.optString("title", "Unknown"))
-            views.setTextViewText(R.id.widget_cr_small_subtitle, chapterLabel(manga))
-        } else {
-            views.setTextViewText(R.id.widget_cr_small_title, "No active reading")
-            views.setTextViewText(R.id.widget_cr_small_subtitle, "Start a comic!")
-        }
-
-        views.setOnClickPendingIntent(R.id.widget_cr_small_root, openPendingIntent(context, appWidgetId, manga))
-        return views
-    }
-
-    // ── Large layout (4×2 or bigger): cover + info + Open button ─────────────
-
-    private fun buildLargeViews(context: Context, appWidgetId: Int, manga: JSONObject?, cover: Bitmap?): RemoteViews {
-        val views = RemoteViews(context.packageName, R.layout.widget_continue_reading)
+    private fun buildViews(
+        context: Context,
+        appWidgetId: Int,
+        payload: WidgetPayload,
+        compact: Boolean,
+        cover: android.graphics.Bitmap?,
+    ): RemoteViews {
+        val theme = payload.theme
+        val manga = payload.continueReading
+        val views = RemoteViews(context.packageName, theme.continueLayout(compact))
+        views.applyWidgetFrame(theme)
+        views.setTextColor(R.id.widget_cr_label, theme.ac)
+        views.setTextColor(R.id.widget_cr_title, theme.fg)
+        views.setTextColor(R.id.widget_cr_subtitle, theme.fg2)
+        views.setInt(R.id.widget_cr_cover_placeholder, "setColorFilter", theme.card)
+        views.setImageViewResource(R.id.widget_cr_cover, android.R.color.transparent)
 
         if (manga != null) {
-            views.setTextViewText(R.id.widget_cr_title, manga.optString("title", "Unknown Title"))
+            val rawTitle = manga.optString("title", "Unknown title")
+            views.setTextViewText(
+                R.id.widget_cr_title,
+                if (theme.isCinema) rawTitle.uppercase() else rawTitle,
+            )
             views.setTextViewText(R.id.widget_cr_subtitle, chapterLabel(manga))
         } else {
             views.setTextViewText(R.id.widget_cr_title, "No active reading")
-            views.setTextViewText(R.id.widget_cr_subtitle, "Start reading a comic!")
+            views.setTextViewText(R.id.widget_cr_subtitle, "Start a comic")
         }
-
         cover?.let { views.setImageViewBitmap(R.id.widget_cr_cover, it) }
+
+        if (!compact) {
+            val progress = manga?.let(::progressLabel).orEmpty()
+            views.setTextColor(R.id.widget_cr_progress, theme.fg2)
+            views.setTextViewText(R.id.widget_cr_progress, progress)
+            views.setViewVisibility(
+                R.id.widget_cr_progress,
+                if (progress.isEmpty()) View.GONE else View.VISIBLE,
+            )
+            views.setInt(R.id.widget_cr_progress_rule, "setBackgroundColor", theme.ac)
+            views.setInt(R.id.widget_cr_button_background, "setColorFilter", theme.ac)
+            views.setTextColor(R.id.widget_cr_button, theme.onAc)
+        }
 
         val intent = openPendingIntent(context, appWidgetId, manga)
         views.setOnClickPendingIntent(R.id.widget_cr_root, intent)
-        views.setOnClickPendingIntent(R.id.widget_cr_button, intent)
+        if (!compact) views.setOnClickPendingIntent(R.id.widget_cr_button_container, intent)
         return views
     }
 
-    // ── Helpers ────────────────────────────────────────────────────────────────
-
     private fun chapterLabel(manga: JSONObject): String {
-        val num = manga.optDouble("lastReadChapterNumber", 0.0)
-        return if (num > 0) {
-            val str = if (num % 1 == 0.0) num.toInt().toString() else num.toString()
-            "Chapter $str"
-        } else {
-            "Tap to read"
-        }
+        val number = manga.optDouble("lastReadChapterNumber", 0.0)
+        if (number <= 0) return "Tap to read"
+        val text = if (number % 1 == 0.0) number.toInt().toString() else number.toString()
+        return "Chapter $text"
     }
 
-    private fun openPendingIntent(context: Context, appWidgetId: Int, manga: JSONObject?): PendingIntent {
+    private fun progressLabel(manga: JSONObject): String {
+        val parts = mutableListOf<String>()
+        val page = manga.optInt("lastReadPage", 0)
+        if (page > 0) parts += "Page ${page + 1}"
+        val unread = manga.optInt("unreadCount", 0)
+        if (unread > 0) parts += "$unread unread"
+        return parts.joinToString("  ·  ")
+    }
+
+    private fun openPendingIntent(
+        context: Context,
+        appWidgetId: Int,
+        manga: JSONObject?,
+    ): PendingIntent {
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
             action = "com.comiccenter.WIDGET_CONTINUE_READING"
@@ -131,20 +157,23 @@ class ContinueReadingWidgetProvider : AppWidgetProvider() {
             }
         }
         return PendingIntent.getActivity(
-            context, appWidgetId,
+            context,
+            appWidgetId,
             intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
     }
 
-    private fun roundedBitmap(src: Bitmap, radius: Float): Bitmap {
-        val out = Bitmap.createBitmap(src.width, src.height, Bitmap.Config.ARGB_8888)
-        val canvas = Canvas(out)
-        val paint = Paint(Paint.ANTI_ALIAS_FLAG)
-        val rect = RectF(0f, 0f, src.width.toFloat(), src.height.toFloat())
-        canvas.drawRoundRect(rect, radius, radius, paint)
-        paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.SRC_IN)
-        canvas.drawBitmap(src, 0f, 0f, paint)
-        return out
+    private fun isCompact(width: Int, height: Int): Boolean = width < 250 || height < 150
+
+    companion object {
+        private val sizeBuckets = listOf(
+            SizeF(110f, 110f),
+            SizeF(180f, 110f),
+            SizeF(250f, 110f),
+            SizeF(250f, 160f),
+            SizeF(330f, 180f),
+            SizeF(420f, 220f),
+        )
     }
 }

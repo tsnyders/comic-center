@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/item_root"
+    android:layout_width="match_parent"
+    android:layout_height="108dp"
+    android:paddingStart="2dp"
+    android:paddingEnd="2dp">
+
+    <ImageView android:id="@+id/item_cover_placeholder" android:layout_width="64dp" android:layout_height="88dp" android:layout_gravity="top|center_horizontal" android:scaleType="fitXY" android:src="@drawable/widget_cover_square" />
+    <ImageView android:id="@+id/item_cover" android:layout_width="64dp" android:layout_height="88dp" android:layout_gravity="top|center_horizontal" android:contentDescription="Comic cover" android:scaleType="centerCrop" />
+    <ImageView android:id="@+id/item_badge_background" android:layout_width="42dp" android:layout_height="18dp" android:layout_gravity="top|start" android:scaleType="fitXY" android:src="@drawable/widget_cover_square" android:visibility="gone" />
+    <TextView android:id="@+id/item_badge" android:layout_width="42dp" android:layout_height="18dp" android:layout_gravity="top|start" android:fontFamily="@font/barlow_condensed_extra_bold" android:gravity="center" android:letterSpacing="0.05" android:maxLines="1" android:textSize="9sp" android:visibility="gone" />
+    <TextView android:id="@+id/item_title" android:layout_width="match_parent" android:layout_height="18dp" android:layout_gravity="bottom" android:ellipsize="end" android:fontFamily="@font/barlow_condensed_extra_bold" android:gravity="center_vertical" android:letterSpacing="0.04" android:maxLines="1" android:textSize="12sp" />
+</FrameLayout>

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/item_root"
+    android:layout_width="match_parent"
+    android:layout_height="110dp"
+    android:paddingStart="2dp"
+    android:paddingEnd="2dp">
+
+    <ImageView android:id="@+id/item_cover_placeholder" android:layout_width="64dp" android:layout_height="88dp" android:layout_gravity="top|center_horizontal" android:scaleType="fitXY" android:src="@drawable/widget_cover_round" />
+    <ImageView android:id="@+id/item_cover" android:layout_width="64dp" android:layout_height="88dp" android:layout_gravity="top|center_horizontal" android:contentDescription="Comic cover" android:scaleType="centerCrop" />
+    <ImageView android:id="@+id/item_badge_background" android:layout_width="28dp" android:layout_height="22dp" android:layout_gravity="top|end" android:scaleType="fitXY" android:src="@drawable/widget_pill" android:visibility="gone" />
+    <TextView android:id="@+id/item_badge" android:layout_width="28dp" android:layout_height="22dp" android:layout_gravity="top|end" android:fontFamily="@font/gaegu_bold" android:gravity="center" android:maxLines="1" android:textSize="12sp" android:visibility="gone" />
+    <TextView android:id="@+id/item_title" android:layout_width="match_parent" android:layout_height="20dp" android:layout_gravity="bottom" android:ellipsize="end" android:fontFamily="@font/quicksand" android:gravity="center_vertical" android:maxLines="1" android:textSize="11sp" android:textStyle="bold" />
+</FrameLayout>
