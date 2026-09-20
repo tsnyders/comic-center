@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 
+import '../../core/browser/browser_fetch.dart';
 import '../../core/services/app_logger.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
@@ -16,6 +17,7 @@ class DiagnosticsScreen extends StatefulWidget {
 class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
   String _log = '';
   bool _loading = true;
+  bool _clearingCookies = false;
 
   @override
   void initState() {
@@ -70,6 +72,33 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
               if (mounted) setState(() => _log = '');
             },
             child: const Text('Clear'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _clearSiteCookies() async {
+    setState(() => _clearingCookies = true);
+    String title = 'Site cookies cleared';
+    String message = 'Saved browser checks will be requested again as needed.';
+    try {
+      await BrowserFetch.instance.clearCookies();
+    } catch (error) {
+      title = 'Could not clear cookies';
+      message = error.toString();
+    }
+    if (!mounted) return;
+    setState(() => _clearingCookies = false);
+    showCupertinoDialog<void>(
+      context: context,
+      builder: (dialogContext) => CupertinoAlertDialog(
+        title: Text(title),
+        content: Text(message),
+        actions: [
+          CupertinoDialogAction(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('OK'),
           ),
         ],
       ),
@@ -155,6 +184,37 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
                           ),
                         ),
                       ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: context.surfaceColor,
+                border: Border.all(color: context.borderColor),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: CupertinoButton(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                onPressed: _clearingCookies ? null : _clearSiteCookies,
+                child: Row(
+                  children: [
+                    Icon(CupertinoIcons.globe,
+                        size: 20, color: context.textPrimaryColor),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Clear site cookies',
+                        style: AppTextStyles.bodyMedium.copyWith(
+                          color: context.textPrimaryColor,
+                        ),
+                      ),
+                    ),
+                    if (_clearingCookies)
+                      const CupertinoActivityIndicator(radius: 8),
+                  ],
+                ),
+              ),
+            ),
           ),
           Padding(
             padding: EdgeInsets.fromLTRB(20, 0, 20, bottomPadding + 20),

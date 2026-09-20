@@ -28,6 +28,7 @@ dependencies:
 
   # HTML parsing for web-based extensions
   html: ^0.15.4
+  webview_flutter: ^4.14.1
 
   # Image loading & reader canvas
   cached_network_image: ^3.3.1

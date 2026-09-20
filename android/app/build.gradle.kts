@@ -78,5 +78,8 @@ flutter {
 
 dependencies {
     implementation("com.squareup.picasso:picasso:2.8")
+    // webview_flutter already resolves this artifact; expose its document-start
+    // API to MainActivity's capture-hook bridge at compile time.
+    implementation("androidx.webkit:webkit:1.15.0")
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 }

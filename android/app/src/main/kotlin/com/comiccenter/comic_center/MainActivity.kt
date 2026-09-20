@@ -8,7 +8,14 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.view.KeyEvent
+import android.view.View
+import android.view.ViewGroup
+import android.webkit.CookieManager
+import android.webkit.WebView
 import androidx.core.content.FileProvider
+import androidx.webkit.ScriptHandler
+import androidx.webkit.WebViewCompat
+import androidx.webkit.WebViewFeature
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.EventChannel
@@ -22,6 +29,7 @@ open class MainActivity : FlutterActivity() {
 
     private var volumeKeyInterceptEnabled = false
     private var volumeEventSink: EventChannel.EventSink? = null
+    private var documentStartScript: ScriptHandler? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -48,6 +56,57 @@ open class MainActivity : FlutterActivity() {
                         volumeKeyInterceptEnabled =
                             call.argument<Boolean>("enabled") ?: false
                         result.success(null)
+                    }
+                    "getCookies" -> {
+                        val url = call.argument<String>("url")
+                        if (url == null) {
+                            result.error("INVALID_URL", "URL argument is null", null)
+                        } else {
+                            result.success(CookieManager.getInstance().getCookie(url))
+                        }
+                    }
+                    "setDocumentStartScript" -> {
+                        try {
+                            documentStartScript?.remove()
+                            documentStartScript = null
+                            val script = call.argument<String>("script")
+                            if (script == null) {
+                                result.success(true)
+                            } else if (!WebViewFeature.isFeatureSupported(
+                                    WebViewFeature.DOCUMENT_START_SCRIPT)) {
+                                result.success(false)
+                            } else {
+                                // ponytail: BrowserHost owns exactly one WebView, so the
+                                // first WebView in the Activity is the capture surface.
+                                val webView = findBrowserWebView(window.decorView)
+                                if (webView == null) {
+                                    result.error(
+                                        "WEBVIEW_NOT_READY",
+                                        "The browser platform view is not attached yet.",
+                                        null,
+                                    )
+                                } else {
+                                    val origin = call.argument<String>("origin")
+                                    if (origin == null) {
+                                        result.error(
+                                            "INVALID_ORIGIN",
+                                            "Origin argument is null",
+                                            null,
+                                        )
+                                    } else {
+                                        documentStartScript =
+                                            WebViewCompat.addDocumentStartJavaScript(
+                                                webView,
+                                                script,
+                                                setOf(origin),
+                                            )
+                                        result.success(true)
+                                    }
+                                }
+                            }
+                        } catch (e: Exception) {
+                            result.error("DOCUMENT_SCRIPT_FAILED", e.message, null)
+                        }
                     }
                     // Hardware/OS profile used by the Dart side to decide
                     // whether to run in reduced-motion / low-spec mode.
@@ -148,8 +207,20 @@ open class MainActivity : FlutterActivity() {
     }
 
     override fun onDestroy() {
+        documentStartScript?.remove()
+        documentStartScript = null
         backupDocuments.dispose()
         super.onDestroy()
+    }
+
+    private fun findBrowserWebView(view: View): WebView? {
+        if (view is WebView) return view
+        if (view !is ViewGroup) return null
+        for (index in 0 until view.childCount) {
+            val match = findBrowserWebView(view.getChildAt(index))
+            if (match != null) return match
+        }
+        return null
     }
 
     private fun setLauncherAlias(look: String) {

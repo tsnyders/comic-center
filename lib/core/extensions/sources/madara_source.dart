@@ -4,6 +4,8 @@ import 'package:dio/dio.dart';
 import 'package:html/dom.dart';
 import 'package:html/parser.dart' as html;
 
+import '../../browser/browser_cookie_store.dart';
+import '../../browser/cloudflare_interceptor.dart';
 import '../models/chapter_info.dart';
 import '../models/filter.dart';
 import '../models/manga_detail.dart';
@@ -22,11 +24,16 @@ class MadaraSource extends MangaSource {
       this.genrePath = '/manga-genre/',
       Dio? dio})
       : _dio = dio ?? Dio() {
+    final requestHeaders = Map<String, String>.of(imageHeaders)
+      ..remove('Cookie');
     _dio.options = _dio.options.copyWith(
         baseUrl: baseUrl,
         connectTimeout: const Duration(seconds: 15),
         receiveTimeout: const Duration(seconds: 25),
-        headers: {..._dio.options.headers, ...imageHeaders});
+        headers: {..._dio.options.headers, ...requestHeaders});
+    if (dio == null) {
+      _dio.interceptors.add(CloudflareInterceptor(_dio, interactive: true));
+    }
   }
   final Dio _dio;
   @override
@@ -45,12 +52,16 @@ class MadaraSource extends MangaSource {
   @override
   Uint8List get iconBytes => Uint8List(0);
   @override
-  Map<String, String> get imageHeaders => {
-        'Referer': '$baseUrl/',
-        'User-Agent':
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
-                '(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
-      };
+  Map<String, String> get imageHeaders {
+    final cookie = BrowserCookieStore.cookieForHost(Uri.parse(baseUrl).host);
+    return {
+      'Referer': '$baseUrl/',
+      'User-Agent': BrowserCookieStore.userAgent ??
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
+              '(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+      if (cookie != null) 'Cookie': cookie,
+    };
+  }
 
   Future<Document> _get(String path, [Map<String, Object?>? params]) async =>
       html.parse((await _dio.get<String>(path,

@@ -8,6 +8,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:workmanager/workmanager.dart';
 
+import '../browser/cloudflare_interceptor.dart';
 import '../database/isar_service.dart';
 import '../database/models/chapter_entry.dart';
 import '../database/models/download_entry.dart';
@@ -173,7 +174,11 @@ class DownloadQueueProcessor {
             Dio(BaseOptions(
               connectTimeout: const Duration(seconds: 15),
               receiveTimeout: const Duration(seconds: 30),
-            ));
+            )) {
+    if (dio == null) {
+      _dio.interceptors.add(CloudflareInterceptor(_dio, interactive: false));
+    }
+  }
 
   final Dio _dio;
   CancelToken? _activeRequest;

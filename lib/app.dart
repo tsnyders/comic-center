@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'core/browser/browser_host.dart';
 import 'core/providers/download_provider.dart';
 import 'core/providers/settings_provider.dart';
 import 'core/services/app_icon_service.dart';
@@ -52,9 +53,11 @@ class YomiApp extends ConsumerWidget {
           debugShowCheckedModeBanner: false,
           theme: AppTheme.cupertino(theme, colors),
           // Washi grain sits over every route, pointer-transparent.
-          builder: (context, child) => Stack(
-            fit: StackFit.expand,
-            children: [child ?? const SizedBox.shrink(), const WashiGrain()],
+          builder: (context, child) => BrowserHost(
+            child: Stack(
+              fit: StackFit.expand,
+              children: [child ?? const SizedBox.shrink(), const WashiGrain()],
+            ),
           ),
           home: onboarded ? const RootScaffold() : const OnboardingScreen(),
         ),

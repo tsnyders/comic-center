@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app.dart';
+import 'core/browser/browser_cookie_store.dart';
 import 'core/database/isar_service.dart';
 import 'core/extensions/source_registry.dart';
 import 'core/providers/database_provider.dart';
@@ -55,10 +56,11 @@ void main() async {
   };
 
   final prefs = await SharedPreferences.getInstance();
+  BrowserCookieStore.hydrate(prefs);
   // Launcher icon follows the persisted look (the manifest default is Sumi,
   // so a reinstall or restore needs a one-time sync). Fire-and-forget.
-  unawaited(AppIconService.setLook(readEnumPref(
-      prefs, lookPrefKey, YomiLook.values, YomiLook.sumi)));
+  unawaited(AppIconService.setLook(
+      readEnumPref(prefs, lookPrefKey, YomiLook.values, YomiLook.sumi)));
   final isar = await IsarService.init();
 
   // Android WorkManager owns chapter downloads, so they survive the Flutter UI
