@@ -1,0 +1,26 @@
+{
+  "result": {
+    "episodeList": [
+      {
+        "episodeNo": 1,
+        "thumbnail": "/20240207_253/1707256647532kWvRb_PNG/thumb_17072565732172563_The_Price_Is_Your_Everything_Ep__1_-_Murder_of_the_Crown.png",
+        "episodeTitle": "Ep. 1 - Murder of the Crown Princess",
+        "viewerLink": "/en/drama/the-price-is-your-everything/ep-1-murder-of-the-crown-princess/viewer?title_no=6054&episode_no=1",
+        "exposureDateMillis": 1709082036000,
+        "displayUp": false,
+        "hasBgm": false
+      },
+      {
+        "episodeNo": 2,
+        "thumbnail": "/20240207_268/1707262373507V2EFW_PNG/thumb_1707262114639355_ThePriceIsYourEverything_EN_002_05_04.png",
+        "episodeTitle": "Ep. 2 - Returning to the Past",
+        "viewerLink": "/en/drama/the-price-is-your-everything/ep-2-returning-to-the-past/viewer?title_no=6054&episode_no=2",
+        "exposureDateMillis": 1709082036000,
+        "displayUp": false,
+        "hasBgm": false
+      }
+    ],
+    "nextCursor": 0
+  },
+  "success": true
+}

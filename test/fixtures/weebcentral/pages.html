@@ -1,0 +1,18 @@
+<html><head>
+<meta charset="utf-8">
+<section id="chapter-images" class="w-full flex-1 flex flex-col pb-4 cursor-pointer" x-data="{
+		scrollDown() { window.scrollBy({ top: window.innerHeight * 0.75, behavior: 'smooth' }); },
+		scrollUp() { window.scrollBy({ top: -window.innerHeight * 0.75, behavior: 'smooth' }); },
+		handleClick(e) {
+			const clickX = e.clientX;
+			const sectionWidth = e.currentTarget.getBoundingClientRect().width;
+			const isLeftHalf = clickX &lt; sectionWidth / 2;
+
+			if (isLeftHalf) {
+				this.scrollUp();
+			} else {
+				this.scrollDown();
+			}
+		},
+	}"><img src="https://hot.planeptune.us/manga/Bleach/0001-001.png" class="max-w-full h-auto mx-auto" alt="Page 1"><img src="https://hot.planeptune.us/manga/Bleach/0001-002.png" class="max-w-full h-auto mx-auto" alt="Page 2"><img src="https://hot.planeptune.us/manga/Bleach/0001-003.png" class="max-w-full h-auto mx-auto" alt="Page 3"></section>
+</head></html>

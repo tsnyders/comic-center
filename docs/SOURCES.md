@@ -143,6 +143,75 @@ Two flavors exist among the bundled sources:
 Both flavors implement the same `MangaSource` contract — pick whichever
 fits the target site.
 
+### Theme bases and optional sources
+
+`MangaThemesiaSource` and `MadaraSource` each take an ID, display name, base
+URL, language, NSFW flag, and optional route overrides. They share their
+respective theme's listing, genre, metadata, chapter and reader parsers.
+Rizz Fables retains MangaThemesia markup but uses a configurable POST
+catalogue endpoint; its complete filtered result is paged locally. Madara
+tries embedded chapters, then the series `/ajax/chapters/` POST, then
+`wp-admin/admin-ajax.php` with `action=manga_get_chapters` and the manga ID.
+New sources use 15-second connect and 25-second receive timeouts.
+
+These sources are optional catalogue installs, excluded from both
+`seedDefaults` and `ensureRequiredSources`:
+
+| ID | Base URL | Implementation | NSFW catalogue flag |
+| --- | --- | --- | --- |
+| `thunderscans_en` | https://en-thunderscans.com | `MangaThemesiaSource`, `/comics/` | No |
+| `rizzfables_en` | https://rizzfables.com | `MangaThemesiaSource`, `/series`, `/Index/filter_series` | No |
+| `manhwatop_en` | https://manhwatop.com | `MadaraSource` | Yes |
+| `manhuaplus_en` | https://manhuaplus.com | `MadaraSource` | No |
+| `toonily_en` | https://toonily.com | `MadaraSource`, `/serie/`, `/genre/` | Yes |
+| `weebcentral_en` | https://weebcentral.com | `WeebCentralSource` | Yes |
+| `flamecomics_en` | https://flamecomics.xyz | `FlameComicsSource` | No |
+| `webtoons_en` | https://www.webtoons.com | `WebtoonsSource` (English) | No |
+| `mangakakalot_en` | https://www.mangakakalot.gg | `MangakakalotSource` | Yes |
+| `natomanga_en` | https://www.natomanga.com | `MangakakalotSource` | Yes |
+
+WeebCentral uses `/search/data` (`sort`, `order`, `limit`, `offset`),
+`/series/<ULID>`, `/series/<ULID>/full-chapter-list`, and
+`/chapters/<ULID>/images?is_prev=False&reading_style=long_strip`.
+Flame reads `__NEXT_DATA__` page props from `/browse`, `/`, `/series/<id>`
+and `/series/<id>/<token>`; no build ID is cached. Its catalogue/feed are
+paged locally and split spreads remain separate image URLs.
+WEBTOON uses desktop ranking, daily Originals and Originals search pages,
+desktop `/episodeList?titleNo=...` for canonical detail redirects, the mobile
+`/api/v1/{webtoon|canvas}/<titleNo>/episodes` JSON API, and viewer `data-url`
+images. Images receive `Referer: https://www.webtoons.com`. Only publicly
+available image episodes are supported, not paid/app-only or motion episodes.
+The Mangakakalot family uses `/manga-list/{hot-manga|latest-manga}?page=...`,
+`/search/story/<query>?page=...`, `/manga/<slug>`,
+`/api/manga/<slug>/chapters?limit=-1`, and `/manga/<slug>/<chapter>`.
+
+Package names were checked on 2026-09-20. The requested keiyoushi
+`index.min.json` now contains only upgrade notices; the current gzip
+protobuf [`index.pb`](https://raw.githubusercontent.com/keiyoushi/extensions/repo/index.pb)
+lists Rizz Fables as `en.rizzcomic` and NatoManga/Manganato as `en.manganelo`.
+The other package suffixes match their site IDs, except WEBTOON's
+`all.webtoons`. NSFW flags follow the current index (including mixed
+catalogues). Built-in entries keep all ten installable without that index.
+
+Import IDs are full relative paths without outer slashes for the two themes,
+ULIDs for WeebCentral, numeric series IDs and `<series>/<token>` chapters
+for Flame, `webtoon/<titleNo>` or `canvas/<titleNo>` plus relative viewer
+URLs for WEBTOON, and manga slugs plus `manga/<slug>/<chapter>` for the
+Mangakakalot family. Historical Realm/Toonily/Manganato URLs whose paths
+cannot be converted exactly stay unavailable; no title matching is used.
+
+Live checks on 2026-09-20 covered catalogue, detail, chapters and page URL
+extraction for ThunderScans, Rizz Fables, WeebCentral, Flame, WEBTOON and
+ManhuaPlus with Dio. ManhuaPlus initially returned 500/520 before succeeding
+on recheck. Toonily returned readable HTML/page URLs to curl, but later Dio
+requests encountered 403.
+ManhwaTop returned catalogue/detail HTML to curl but challenged chapter
+POSTs, reader pages, and later Dio requests. Both Mangakakalot-family
+homepages and chapter APIs worked; catalogue/detail/reader routes returned
+403. These are parser checks, not device or image-download acceptance.
+See [`test/fixtures/new_sources.md`](../test/fixtures/new_sources.md) for
+captured versus explicitly synthetic fixture coverage and reproduction URLs.
+
 ---
 
 ## Wiring up a new source

@@ -1,0 +1,26 @@
+{
+  "success": true,
+  "data": {
+    "chapters": [
+      {
+        "chapter_name": "Chapter 2",
+        "chapter_slug": "chapter-2",
+        "chapter_num": 2,
+        "updated_at": "2026-07-17T22:41:50.000000Z",
+        "view": 9446
+      },
+      {
+        "chapter_name": "Chapter 1",
+        "chapter_slug": "chapter-1",
+        "chapter_num": 1,
+        "updated_at": "2026-07-17T22:40:48.000000Z",
+        "view": 12739
+      }
+    ],
+    "pagination": {
+      "total": 43,
+      "limit": -1,
+      "offset": 0
+    }
+  }
+}
