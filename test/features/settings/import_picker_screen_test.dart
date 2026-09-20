@@ -62,7 +62,9 @@ void main() {
   late bool returned;
 
   Future<void> open(WidgetTester tester,
-      {List<Map<String, Object?>> manga = _manga}) async {
+      {List<Map<String, Object?>> manga = _manga,
+      List<Map<String, Object?>> skippedManga = const [],
+      Set<String> defaultUnselectedSourceKeys = const {}}) async {
     tester.view.physicalSize = const Size(600, 1000);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -90,6 +92,9 @@ void main() {
                                     'Missing Two'
                                   ],
                                   existingSourceKeys: const {'native::a'},
+                                  skippedManga: skippedManga,
+                                  defaultUnselectedSourceKeys:
+                                      defaultUnselectedSourceKeys,
                                 )),
                       );
                       returned = true;
@@ -216,6 +221,33 @@ void main() {
     await tester.pumpAndSettle();
     expect(returned, true);
     expect(result, isNull);
+  });
+
+  testWidgets('skipped footer lists names and cross-source matches start off',
+      (tester) async {
+    await open(
+      tester,
+      skippedManga: const [
+        {'title': 'Downloaded duplicate'}
+      ],
+      defaultUnselectedSourceKeys: const {'disabled::b'},
+    );
+    expect(find.text('3 of 4 selected'), findsOneWidget);
+    expect(find.text('ALREADY IN LIBRARY'), findsOneWidget);
+    expect(find.text('IN LIBRARY'), findsOneWidget);
+    final checks =
+        tester.widgetList<CupertinoCheckbox>(find.byType(CupertinoCheckbox));
+    expect(checks.elementAt(0).value, true);
+    expect(checks.elementAt(1).value, false);
+    expect(
+        find.text('1 titles skipped: already in your library with downloads'),
+        findsOneWidget);
+    await tester.tap(find.text('See skipped'));
+    await tester.pumpAndSettle();
+    expect(find.text('Skipped titles'), findsOneWidget);
+    expect(find.text('Downloaded duplicate'), findsOneWidget);
+    await tester.tap(find.text('Done'));
+    await tester.pumpAndSettle();
   });
 
   testWidgets(

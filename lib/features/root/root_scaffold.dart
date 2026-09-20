@@ -4,7 +4,10 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/providers/database_provider.dart';
 import '../../core/providers/settings_provider.dart';
+import '../../core/providers/source_registry_provider.dart';
+import '../../core/services/duplicate_scan.dart';
 import '../../core/services/library_update_service.dart';
 import '../../core/services/update_service.dart';
 import '../../core/services/whats_new_service.dart';
@@ -14,6 +17,7 @@ import '../../core/theme/yomi_theme.dart';
 import '../../shared/widgets/sumi.dart';
 import '../browse/browse_screen.dart';
 import '../history/history_screen.dart';
+import '../library/duplicate_resolver_sheet.dart';
 import '../library/library_screen.dart';
 import '../settings/changelog_screen.dart';
 import '../settings/settings_screen.dart';
@@ -38,17 +42,36 @@ class _RootScaffoldState extends ConsumerState<RootScaffold> {
     if (ref.read(autoCheckUpdatesProvider)) {
       unawaited(LibraryUpdateService.schedule());
     }
-    if (ref.read(showWhatsNewProvider)) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _showWhatsNewDialog(context);
-      });
-    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) unawaited(_runStartupModals());
+    });
   }
 
   void _onTap(int index) {
     if (ref.read(rootTabProvider) == index) return;
     HapticFeedback.selectionClick();
     ref.read(rootTabProvider.notifier).state = index;
+  }
+
+  Future<void> _runStartupModals() async {
+    if (ref.read(showWhatsNewProvider)) await _showWhatsNewDialog(context);
+    if (!mounted) return;
+    try {
+      final ignored = await loadIgnoredDuplicateKeys();
+      final groups = await findDuplicateGroups(ref.read(isarProvider),
+          ignoredKeys: ignored);
+      if (groups.isEmpty || !mounted) return;
+      final sourceNames = {
+        for (final source in ref.read(sourceRegistryProvider))
+          source.id: source.name,
+      };
+      await showDuplicateResolverSheet(context,
+          isar: ref.read(isarProvider),
+          groups: groups,
+          sourceNames: sourceNames);
+    } catch (_) {
+      // Startup remains usable if local duplicate inspection cannot complete.
+    }
   }
 
   Future<void> _showWhatsNewDialog(BuildContext context) async {
@@ -59,10 +82,15 @@ class _RootScaffoldState extends ConsumerState<RootScaffold> {
       return;
     }
     if (release == null || !context.mounted) return;
-    showCupertinoDialog<void>(
+    final fullChangelog = await showCupertinoDialog<bool>(
       context: context,
       builder: (_) => _WhatsNewDialog(release: release!),
     );
+    if (fullChangelog == true && context.mounted) {
+      await Navigator.of(context, rootNavigator: true).push(
+        CupertinoPageRoute<void>(builder: (_) => const ChangelogScreen()),
+      );
+    }
   }
 
   @override
@@ -496,18 +524,11 @@ class _WhatsNewDialog extends StatelessWidget {
       ),
       actions: [
         CupertinoDialogAction(
-          onPressed: () => Navigator.pop(context),
+          onPressed: () => Navigator.pop(context, false),
           child: const Text('Dismiss'),
         ),
         CupertinoDialogAction(
-          onPressed: () {
-            Navigator.pop(context);
-            Navigator.of(context, rootNavigator: true).push(
-              CupertinoPageRoute<void>(
-                builder: (_) => const ChangelogScreen(),
-              ),
-            );
-          },
+          onPressed: () => Navigator.pop(context, true),
           child: const Text('Full Changelog'),
         ),
       ],

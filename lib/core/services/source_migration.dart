@@ -125,12 +125,18 @@ Future<List<MigrationCandidate>> findCandidates(
   return candidates;
 }
 
-bool _sameNumber(double? a, double? b) =>
+bool sameChapterNumber(double? a, double? b) =>
     a != null && b != null && a.isFinite && b.isFinite && (a - b).abs() <= 1e-6;
 
-DateTime? _latest(DateTime? a, DateTime? b) => a == null
+DateTime? latestDate(DateTime? a, DateTime? b) => a == null
     ? b
     : b == null || a.isAfter(b)
+        ? a
+        : b;
+
+DateTime? earliestDate(DateTime? a, DateTime? b) => a == null
+    ? b
+    : b == null || a.isBefore(b)
         ? a
         : b;
 
@@ -159,22 +165,145 @@ List<ChapterEntry> mapChapterState(
       ..downloadedAt = chapter.downloadedAt
       ..dateFetched = chapter.dateFetched;
     for (final old in oldChapters) {
-      if (!_sameNumber(old.number, chapter.number)) continue;
+      if (!sameChapterNumber(old.number, chapter.number)) continue;
       mapped
         ..isRead = mapped.isRead || old.isRead
-        ..readAt = _latest(mapped.readAt, old.readAt)
+        ..readAt = latestDate(mapped.readAt, old.readAt)
         ..lastPageRead = math.max(mapped.lastPageRead, old.lastPageRead);
     }
     return mapped;
   }).toList();
 }
 
-const _preferencePrefixes = [
+const titlePreferencePrefixes = [
   'reader.direction.manga.',
   'reader.mode.manga.',
   'chapters.sort.',
   'chapters.filter.',
 ];
+
+/// Copies per-title preferences without replacing values already chosen for
+/// the destination title.
+Future<void> copyTitlePreferences(
+  SharedPreferences prefs, {
+  required int fromId,
+  required int toId,
+}) async {
+  for (final prefix in titlePreferencePrefixes) {
+    final value = prefs.getInt('$prefix$fromId');
+    if (value != null && !prefs.containsKey('$prefix$toId')) {
+      if (!await prefs.setInt('$prefix$toId', value)) {
+        throw StateError(
+            'Could not copy reading preferences. Your old title is kept.');
+      }
+    }
+  }
+}
+
+Future<void> removeTitlePreferences(
+    SharedPreferences prefs, Iterable<int> mangaIds) async {
+  for (final mangaId in mangaIds) {
+    for (final prefix in titlePreferencePrefixes) {
+      await prefs.remove('$prefix$mangaId');
+    }
+  }
+}
+
+class ChapterDownloadMerge {
+  const ChapterDownloadMerge({
+    required this.targetsBySourceChapterId,
+    required this.downloadsToDelete,
+  });
+
+  final Map<int, ChapterEntry> targetsBySourceChapterId;
+  final List<ChapterEntry> downloadsToDelete;
+}
+
+/// Rebinds exact-number downloads onto free destination chapters. Destination
+/// rows are mutated so they can be persisted with the mapped reading state.
+ChapterDownloadMerge planChapterDownloadMerge(
+  List<ChapterEntry> sourceChapters,
+  List<ChapterEntry> destinationChapters, {
+  required bool deleteUnmatched,
+  String blockedMessage = 'Some downloads have no free matching chapter. '
+      'Choose another match or allow their deletion. Your old title is kept.',
+}) {
+  final targets = <int, ChapterEntry>{};
+  final deletions = <ChapterEntry>[];
+  for (final chapter in sourceChapters.where((c) => c.isDownloaded)) {
+    final matches = destinationChapters
+        .where((c) =>
+            sameChapterNumber(chapter.number, c.number) && !c.isDownloaded)
+        .toList()
+      ..sort((a, b) => (b.scanlator == chapter.scanlator ? 1 : 0)
+          .compareTo(a.scanlator == chapter.scanlator ? 1 : 0));
+    // ponytail: never guess for unnumbered downloads, and never let two
+    // chapter variants share one directory (deleting either would break both).
+    if (matches.isEmpty) {
+      if (!deleteUnmatched) throw StateError(blockedMessage);
+      deletions.add(chapter);
+      continue;
+    }
+    final match = matches.first
+      ..isDownloaded = true
+      ..downloadPath = chapter.downloadPath
+      ..pageCount = chapter.pageCount
+      ..downloadedAt = chapter.downloadedAt;
+    targets[chapter.id] = match;
+  }
+  return ChapterDownloadMerge(
+      targetsBySourceChapterId: targets, downloadsToDelete: deletions);
+}
+
+/// Moves completed download rows to their rebound chapter and removes every
+/// stale/active row that still belongs to a discarded title.
+Future<void> mergeDownloadQueueRows(
+  Isar isar, {
+  required List<DownloadEntry> sourceQueue,
+  required List<DownloadEntry> targetQueue,
+  required MangaEntry destination,
+  required Map<int, ChapterEntry> targetsBySourceChapterId,
+}) async {
+  final targetChapterIds =
+      targetsBySourceChapterId.values.map((chapter) => chapter.id).toSet();
+  for (final download in targetQueue) {
+    if (targetChapterIds.contains(download.chapterId)) {
+      await isar.downloadEntrys.delete(download.id);
+    }
+  }
+  for (final download in sourceQueue) {
+    final match = targetsBySourceChapterId[download.chapterId];
+    if (match == null) {
+      await isar.downloadEntrys.delete(download.id);
+      continue;
+    }
+    download
+      ..mangaId = destination.id
+      ..chapterId = match.id
+      ..mangaTitle = destination.title
+      ..chapterTitle = match.title
+      ..chapterNumber = match.number!
+      ..downloadPath = match.downloadPath
+      ..status = DownloadStatus.completed
+      ..totalPages = match.pageCount
+      ..downloadedPages = match.pageCount
+      ..completedAt = match.downloadedAt ?? DateTime.now()
+      ..errorMessage = null;
+    await isar.downloadEntrys.put(download);
+  }
+}
+
+/// Removes a title and all rows that cannot outlive it. Call inside the
+/// caller's transaction, after any valid download rows have been rebound.
+Future<void> deleteMangaRows(
+  Isar isar, {
+  required MangaEntry manga,
+  required List<ChapterEntry> chapters,
+}) async {
+  await isar.downloadEntrys.filter().mangaIdEqualTo(manga.id).deleteAll();
+  await isar.chapterEntrys.deleteAll(chapters.map((c) => c.id).toList());
+  await isar.mangaEntrys.delete(manga.id);
+}
 
 Future<MangaEntry> migrate(
   Isar isar, {
@@ -227,84 +356,29 @@ Future<MangaEntry> migrate(
         await isar.downloadEntrys.filter().mangaIdEqualTo(old.id).findAll();
     final targetQueue =
         await isar.downloadEntrys.filter().mangaIdEqualTo(entry.id).findAll();
-    final downloadTargets = <int, ChapterEntry>{};
-    if (keepDownloads) {
-      for (final chapter in oldChapters.where((c) => c.isDownloaded)) {
-        final matches = newChapters
-            .where(
-                (c) => _sameNumber(chapter.number, c.number) && !c.isDownloaded)
-            .toList()
-          ..sort((a, b) => (b.scanlator == chapter.scanlator ? 1 : 0)
-              .compareTo(a.scanlator == chapter.scanlator ? 1 : 0));
-        // ponytail: no guessed mapping for unnumbered/missing downloads and
-        // no shared paths across scanlator variants (deleting one breaks both).
-        if (matches.isEmpty) {
-          throw StateError('Some downloads have no free matching chapter. '
-              'Choose another match or turn off Keep downloads. Your old title is kept.');
-        }
-        final match = matches.first
-          ..isDownloaded = true
-          ..downloadPath = chapter.downloadPath
-          ..pageCount = chapter.pageCount
-          ..downloadedAt = chapter.downloadedAt;
-        downloadTargets[chapter.id] = match;
-      }
-    }
+    final downloadMerge = planChapterDownloadMerge(
+        keepDownloads ? oldChapters : const <ChapterEntry>[], newChapters,
+        deleteUnmatched: false,
+        blockedMessage: 'Some downloads have no free matching chapter. '
+            'Choose another match or turn off Keep downloads. Your old title is kept.');
 
     // ponytail: preferences/files cannot roll back with Isar. Copy only after
     // validation and before deleting the old row; remove old keys after commit.
     // Existing destination overrides win when merging two library titles.
-    for (final prefix in _preferencePrefixes) {
-      final value = prefs.getInt('$prefix${old.id}');
-      if (value != null && !prefs.containsKey('$prefix${entry.id}')) {
-        if (!await prefs.setInt('$prefix${entry.id}', value)) {
-          throw StateError(
-              'Could not copy reading preferences. Your old title is kept.');
-        }
-      }
-    }
+    await copyTitlePreferences(prefs, fromId: old.id, toId: entry.id);
 
     // Removing queue rows also cancels active requests. The existing worker
     // rechecks the row/status inside its completion transaction before writing.
     // A target queue row must not overwrite the transferred local pages.
-    for (final download in targetQueue) {
-      if (downloadTargets.values.any((c) => c.id == download.chapterId)) {
-        await isar.downloadEntrys.delete(download.id);
-      }
-    }
-
-    for (final download in queue) {
-      final match = downloadTargets[download.chapterId];
-      // Only completed local downloads remain valid across sources. Pending,
-      // failed and partial queue records refer to the old source's page URLs.
-      if (match == null) {
-        await isar.downloadEntrys.delete(download.id);
-      } else {
-        download
-          ..mangaId = entry.id
-          ..chapterId = match.id
-          ..mangaTitle = entry.title
-          ..chapterTitle = match.title
-          ..chapterNumber = match.number!
-          ..downloadPath = match.downloadPath
-          ..status = DownloadStatus.completed
-          ..totalPages = match.pageCount
-          ..downloadedPages = match.pageCount
-          ..completedAt = match.downloadedAt ?? DateTime.now()
-          ..errorMessage = null;
-        await isar.downloadEntrys.put(download);
-      }
-    }
+    await mergeDownloadQueueRows(isar,
+        sourceQueue: queue,
+        targetQueue: targetQueue,
+        destination: entry,
+        targetsBySourceChapterId: downloadMerge.targetsBySourceChapterId);
     entry
       ..inLibrary = true
       ..categories = {...entry.categories, ...old.categories}.toList()
-      ..addedToLibrary = entry.addedToLibrary == null
-          ? old.addedToLibrary
-          : old.addedToLibrary == null
-              ? entry.addedToLibrary
-              : entry.addedToLibrary!.isBefore(old.addedToLibrary!)
-                  ? entry.addedToLibrary
-                  : old.addedToLibrary
+      ..addedToLibrary = earliestDate(entry.addedToLibrary, old.addedToLibrary)
       ..chapterCount = newChapters.length
       ..unreadCount = newChapters.where((c) => !c.isRead).length;
     if (entry.lastReadAt == null ||
@@ -317,7 +391,8 @@ Future<MangaEntry> migrate(
           break;
         }
       }
-      final matches = newChapters.where((c) => _sameNumber(number, c.number));
+      final matches =
+          newChapters.where((c) => sameChapterNumber(number, c.number));
       final match = matches.isEmpty ? null : matches.first;
       entry
         ..lastReadAt = old.lastReadAt
@@ -328,12 +403,9 @@ Future<MangaEntry> migrate(
     }
     await isar.chapterEntrys.putAll(newChapters);
     await isar.mangaEntrys.put(entry);
-    await isar.chapterEntrys.deleteAll(oldChapters.map((c) => c.id).toList());
-    await isar.mangaEntrys.delete(old.id);
+    await deleteMangaRows(isar, manga: old, chapters: oldChapters);
     return entry;
   });
-  for (final prefix in _preferencePrefixes) {
-    await prefs.remove('$prefix${from.id}');
-  }
+  await removeTitlePreferences(prefs, [from.id]);
   return migrated;
 }

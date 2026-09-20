@@ -154,7 +154,24 @@ Future<void> deleteChapterDownloads(
     }
   });
 
-  for (final path in paths) {
+  await deleteDownloadPaths(paths);
+}
+
+/// Resolves the on-disk directory used by a chapter download. This is shared
+/// by destructive merge flows that delete database rows in their own txn.
+Future<String> chapterDownloadPath({
+  required int mangaId,
+  required int chapterId,
+  String? path,
+}) async {
+  if (path != null && path.isNotEmpty) return path;
+  final documents = await getApplicationDocumentsDirectory();
+  return '${documents.path}/downloads/$mangaId/$chapterId';
+}
+
+/// Deletes chapter page directories after their database transaction commits.
+Future<void> deleteDownloadPaths(Iterable<String> paths) async {
+  for (final path in paths.toSet()) {
     final directory = Directory(path);
     if (await directory.exists()) await directory.delete(recursive: true);
   }

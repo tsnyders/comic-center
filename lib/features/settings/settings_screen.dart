@@ -12,9 +12,11 @@ import '../../core/providers/google_drive_provider.dart';
 import '../../core/providers/library_provider.dart';
 import '../../core/providers/reader_provider.dart';
 import '../../core/providers/settings_provider.dart';
+import '../../core/providers/source_registry_provider.dart';
 import '../../core/services/backup_service.dart';
 import '../../core/services/backup_file_picker.dart';
 import '../../core/services/backup_scheduler.dart';
+import '../../core/services/duplicate_scan.dart';
 import '../../core/services/google_drive_service.dart';
 import '../../core/services/update_service.dart';
 import '../../core/services/whats_new_service.dart';
@@ -22,6 +24,7 @@ import '../../core/theme/yomi_theme.dart';
 import '../../shared/widgets/sumi.dart';
 import '../downloads/downloads_screen.dart';
 import '../library/category_management_screen.dart';
+import '../library/duplicate_resolver_sheet.dart';
 import 'backup_restore_screen.dart';
 import 'changelog_screen.dart';
 import 'diagnostics_screen.dart';
@@ -252,6 +255,10 @@ class SettingsScreen extends ConsumerWidget {
               onTap: () => push(const CategoryManagementScreen()),
             ),
             _Row(
+              label: 'Find duplicates',
+              onTap: () => _findDuplicates(context, ref),
+            ),
+            _Row(
               label: 'Check for chapter updates',
               trailing: SumiToggle(
                 label: 'Check for chapter updates',
@@ -352,9 +359,7 @@ class SettingsScreen extends ConsumerWidget {
             _Row(
               label: 'Automatic backups',
               value: _cap(ref.watch(autoBackupProvider).name),
-              onTap: () => _pick(
-                  context,
-                  'Automatic backups',
+              onTap: () => _pick(context, 'Automatic backups',
                   [for (final m in AutoBackup.values) (m, _cap(m.name))], (v) {
                 ref.read(autoBackupProvider.notifier).state = v;
                 BackupScheduler.apply(switch (v) {
@@ -486,6 +491,31 @@ class SettingsScreen extends ConsumerWidget {
       if (!context.mounted) return;
       Navigator.of(context, rootNavigator: true).pop();
       _showAlert(context, 'Error', e.toString());
+    }
+  }
+
+  static Future<void> _findDuplicates(
+      BuildContext context, WidgetRef ref) async {
+    try {
+      final ignored = await loadIgnoredDuplicateKeys();
+      final isar = ref.read(isarProvider);
+      final groups = await findDuplicateGroups(isar, ignoredKeys: ignored);
+      if (!context.mounted) return;
+      if (groups.isEmpty) {
+        _showAlert(context, 'No duplicates found',
+            'Your library has no matching duplicate titles.');
+        return;
+      }
+      final sourceNames = {
+        for (final source in ref.read(sourceRegistryProvider))
+          source.id: source.name,
+      };
+      await showDuplicateResolverSheet(context,
+          isar: isar, groups: groups, sourceNames: sourceNames);
+    } catch (error) {
+      if (context.mounted) {
+        _showAlert(context, 'Could not scan library', error.toString());
+      }
     }
   }
 
@@ -685,9 +715,7 @@ class SettingsScreen extends ConsumerWidget {
       BuildContext context, WidgetRef ref) async {
     final passphrase = ref.read(backupPassphraseProvider.notifier);
     if (passphrase.state == null) return _setPassphrase(context, passphrase);
-    await _pick(
-        context,
-        'Backup passphrase',
+    await _pick(context, 'Backup passphrase',
         [(false, 'Change passphrase'), (true, 'Remove passphrase')], (remove) {
       if (remove) {
         passphrase.state = null;

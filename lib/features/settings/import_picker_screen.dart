@@ -16,12 +16,16 @@ class ImportPickerScreen extends ConsumerStatefulWidget {
     this.connectedSources = const {},
     this.unavailableSources = const [],
     this.existingSourceKeys = const {},
+    this.skippedManga = const [],
+    this.defaultUnselectedSourceKeys = const {},
   });
 
   final List<Map<String, Object?>> manga;
   final Map<String, String> connectedSources;
   final List<String> unavailableSources;
   final Set<String> existingSourceKeys;
+  final List<Map<String, Object?>> skippedManga;
+  final Set<String> defaultUnselectedSourceKeys;
 
   @override
   ConsumerState<ImportPickerScreen> createState() => _ImportPickerScreenState();
@@ -51,7 +55,12 @@ class _ImportPickerScreenState extends ConsumerState<ImportPickerScreen> {
   };
   late final _categories =
       _entries.expand((entry) => entry.categories).toSet().toList();
-  late final _selected = _entries.asMap().keys.toSet();
+  late final _selected = {
+    for (final (index, entry) in _entries.indexed)
+      if (!widget.defaultUnselectedSourceKeys
+          .contains(entry.manga['sourceKey']))
+        index,
+  };
   late List<int> _visible = _entries.asMap().keys.toList();
   String _query = '';
   String? _source;
@@ -97,6 +106,32 @@ class _ImportPickerScreenState extends ConsumerState<ImportPickerScreen> {
       if (disabled.isNotEmpty)
         'Enable these sources in Browse to read online: ${disabled.join(', ')}.',
     ].join('\n\n');
+  }
+
+  void _showSkipped() {
+    showCupertinoModalPopup<void>(
+      context: context,
+      builder: (sheetContext) => CupertinoActionSheet(
+        title: const Text('Skipped titles'),
+        message: ConstrainedBox(
+          constraints: BoxConstraints(
+              maxHeight: MediaQuery.sizeOf(sheetContext).height / 2),
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (final manga in widget.skippedManga)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 5),
+                    child: Text(manga['title'] as String? ?? 'Untitled comic'),
+                  ),
+              ],
+            ),
+          ),
+        ),
+        cancelButton: sheetAction(sheetContext, 'Done', () {}),
+      ),
+    );
   }
 
   @override
@@ -244,12 +279,32 @@ class _ImportPickerScreenState extends ConsumerState<ImportPickerScreen> {
                         constraints: BoxConstraints(
                             maxHeight: constraints.maxHeight / 5),
                         child: SingleChildScrollView(
-                            child: Text(
-                          'Your library, categories and reading progress will be merged. '
-                          'Existing progress is kept. Downloaded chapters are not imported.'
-                          '${warnings.isEmpty ? '' : '\n\n$warnings'}',
-                          style: YomiText.ui(12, color: c.fg2),
-                        )),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (widget.skippedManga.isNotEmpty)
+                                Row(children: [
+                                  Expanded(
+                                    child: Text(
+                                      '${widget.skippedManga.length} titles skipped: '
+                                      'already in your library with downloads',
+                                      style: YomiText.ui(12, color: c.fg2),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  SumiTextAction(
+                                      label: 'See skipped',
+                                      onTap: _showSkipped),
+                                ]),
+                              Text(
+                                'Your library, categories and reading progress will be merged. '
+                                'Existing progress is kept. Downloaded chapters are not imported.'
+                                '${warnings.isEmpty ? '' : '\n\n$warnings'}',
+                                style: YomiText.ui(12, color: c.fg2),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                       const SizedBox(height: 12),
                     ],
@@ -309,6 +364,10 @@ class _ImportPickerScreenState extends ConsumerState<ImportPickerScreen> {
                     style: YomiText.ui(12, color: c.fg2)),
                 if (widget.existingSourceKeys.contains(manga['sourceKey']))
                   const SumiOverline('In library'),
+                if (!widget.existingSourceKeys.contains(manga['sourceKey']) &&
+                    widget.defaultUnselectedSourceKeys
+                        .contains(manga['sourceKey']))
+                  const SumiOverline('Already in library'),
                 if (entry.categories.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.only(top: 6),

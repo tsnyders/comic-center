@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:isar/isar.dart';
 
+import '../../core/database/models/chapter_entry.dart';
 import '../../core/database/models/manga_entry.dart';
 import '../../core/providers/database_provider.dart';
 import '../../core/providers/google_drive_provider.dart';
@@ -15,6 +16,7 @@ import '../../core/providers/settings_provider.dart';
 import '../../core/providers/source_registry_provider.dart';
 import '../../core/services/backup_file_picker.dart';
 import '../../core/services/backup_service.dart';
+import '../../core/services/duplicate_scan.dart';
 import '../../core/services/tachiyomi_backup.dart';
 import '../../core/services/source_migration.dart';
 import '../../core/theme/app_colors.dart';
@@ -158,19 +160,30 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
       final imported =
           await compute(TachiyomiBackup.decode, await file.readAsBytes());
       if (!mounted) return;
-      final existingKeys = await ref.read(isarProvider).mangaEntrys
-          .where()
-          .inLibraryEqualTo(true)
-          .sourceKeyProperty()
-          .findAll();
+      final isar = ref.read(isarProvider);
+      final library =
+          await isar.mangaEntrys.filter().inLibraryEqualTo(true).findAll();
+      final downloadedMangaIds = (await isar.chapterEntrys
+              .filter()
+              .isDownloadedEqualTo(true)
+              .mangaIdProperty()
+              .findAll())
+          .toSet();
+      final partition = partitionImportEntries(
+        imported.manga,
+        libraryByNormalizedTitle:
+            indexLibraryTitlesForImport(library, downloadedMangaIds),
+      );
       if (!mounted) return;
       final selected = await Navigator.of(context)
           .push<List<Map<String, Object?>>>(CupertinoPageRoute(
         builder: (_) => ImportPickerScreen(
-          manga: imported.manga,
+          manga: partition.included,
           connectedSources: imported.connectedSources,
           unavailableSources: imported.unavailableSources,
-          existingSourceKeys: existingKeys.toSet(),
+          existingSourceKeys: library.map((entry) => entry.sourceKey).toSet(),
+          skippedManga: partition.excluded,
+          defaultUnselectedSourceKeys: partition.defaultUnselectedSourceKeys,
         ),
       ));
       if (selected != null && selected.isNotEmpty && mounted) {
@@ -208,8 +221,8 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
     }
   }
 
-  Future<void> _importTachiyomi(Map<String, Object?> payload,
-      List<Map<String, Object?>> selected) async {
+  Future<void> _importTachiyomi(
+      Map<String, Object?> payload, List<Map<String, Object?>> selected) async {
     _showProgress(context);
     try {
       final isar = ref.read(isarProvider);
@@ -217,14 +230,16 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
       final result =
           await BackupService.restorePayload(isar: isar, json: payload);
       await categories.merge(result.categories);
-      final missing = await titlesNeedingMigration(isar,
-          ref.read(sourceRegistryProvider).map((s) => s.id).toSet());
+      final missing = await titlesNeedingMigration(
+          isar, ref.read(sourceRegistryProvider).map((s) => s.id).toSet());
       final importedKeys = selected.map((m) => m['sourceKey']).toSet();
       if (!mounted) return;
       Navigator.of(context, rootNavigator: true).pop();
       _alert('Restore complete', restoreSummary(result),
-          migrationIds: missing.where((m) => importedKeys.contains(m.sourceKey))
-              .map((m) => m.id).toSet());
+          migrationIds: missing
+              .where((m) => importedKeys.contains(m.sourceKey))
+              .map((m) => m.id)
+              .toSet());
     } catch (error) {
       if (!mounted) return;
       Navigator.of(context, rootNavigator: true).pop();
@@ -249,7 +264,8 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
         });
   }
 
-  void _alert(String title, String message, {Set<int> migrationIds = const {}}) {
+  void _alert(String title, String message,
+      {Set<int> migrationIds = const {}}) {
     showCupertinoDialog<void>(
       context: context,
       builder: (dialogContext) => CupertinoAlertDialog(
@@ -260,8 +276,11 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
               CupertinoDialogAction(
                 onPressed: () {
                   Navigator.pop(dialogContext);
-                  Navigator.push<void>(context, CupertinoPageRoute(
-                      builder: (_) => MigrateScreen(titleIds: migrationIds)));
+                  Navigator.push<void>(
+                      context,
+                      CupertinoPageRoute(
+                          builder: (_) =>
+                              MigrateScreen(titleIds: migrationIds)));
                 },
                 child: Text('Migrate ${migrationIds.length} titles'),
               ),
