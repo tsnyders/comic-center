@@ -1,0 +1,38 @@
+{
+  "data": {
+    "manga": {
+      "_id": "ex9vXC6gWYY9bGkSo",
+      "name": "One Piece",
+      "englishName": "One Piece",
+      "thumbnail": "mcovers/m_tbs/ex9vXC6gWYY9bGkSo/115.webp",
+      "description": "Gol D. Roger, a man referred to as the King of the Pirates, is set to be executed by the World Government.",
+      "authors": [
+        "Oda Eiichiro",
+        "Oda Eiichirou (尾田栄一郎)"
+      ],
+      "genres": [
+        "Action",
+        "Adventure",
+        "Comedy",
+        "Fantasy",
+        "Shounen"
+      ],
+      "status": "Releasing",
+      "availableChaptersDetail": {
+        "sub": [
+          "1193",
+          "1192",
+          "1191",
+          "1072.2"
+        ],
+        "raw": []
+      },
+      "lastChapterInfo": {
+        "sub": {
+          "chapterString": "1193",
+          "pictureUrlsProcessed": 17
+        }
+      }
+    }
+  }
+}

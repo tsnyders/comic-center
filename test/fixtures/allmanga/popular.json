@@ -1,0 +1,32 @@
+{
+  "data": {
+    "queryPopular": {
+      "recommendations": [
+        {
+          "anyCard": {
+            "_id": "JJHbe9N2pe94w7t2S",
+            "name": "All-Class Awakening: God Slayer",
+            "englishName": "All-Class Awakening: God Slayer",
+            "thumbnail": "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/b197224-Pvwfb85Sswpl.jpg"
+          }
+        },
+        {
+          "anyCard": {
+            "_id": "4GMDWHpR2znG8jzcj",
+            "name": "Tsuihou Sareta Tensei Juukishi wa Game Sashiki de Musou Suru",
+            "englishName": "The Exiled Heavy Knight Knows How to Game the System",
+            "thumbnail": "https://s4.anilist.co/file/anilistcdn/media/manga/cover/large/bx150193-XBdISLm3IDr1.jpg"
+          }
+        },
+        {
+          "anyCard": {
+            "_id": "ZtdPo5ARPfPyGBnQT",
+            "name": "God-Tier Assassin: I Am the Shadow",
+            "englishName": "God-Tier Assassin: I Am the Shadow",
+            "thumbnail": "https://s4.anilist.co/file/anilistcdn/media/manga/cover/large/bx189647-srBbXhZMhZ8b.jpg"
+          }
+        }
+      ]
+    }
+  }
+}

@@ -215,6 +215,34 @@ class _SourceMapping {
     String? sourceId;
     String? Function(String) convert = _pathAndQuery;
     switch (key) {
+      case 'allmanga':
+        sourceId = 'all_manga_en';
+        final legacyManga =
+            RegExp(r'^manga/([^/]+)(?:/[^/]+)?$').firstMatch(path);
+        final allMangaId = legacyManga?.group(1) ??
+            (path.isNotEmpty && !path.contains('/') ? path : null);
+        mangaId = allMangaId;
+        convert = (s) {
+          if (allMangaId == null) return null;
+          final chapterPath =
+              Uri.tryParse(s)?.path.replaceAll(RegExp(r'^/|/$'), '');
+          if (chapterPath == null || chapterPath.isEmpty) return null;
+          if (!chapterPath.contains('/')) {
+            return '$allMangaId|$chapterPath';
+          }
+          final legacyChapter =
+              RegExp(r'^read/([^/]+)/[^/]+/chapter-(.+)-(?:sub|raw)$')
+                  .firstMatch(chapterPath);
+          final currentChapter =
+              RegExp(r'^manga/([^/]+)/chapter-(.+)-(?:sub|raw)$')
+                  .firstMatch(chapterPath);
+          final match = legacyChapter ?? currentChapter;
+          if (match == null || match.group(1) != allMangaId) return null;
+          final chapter = match.group(2);
+          return chapter == null || chapter.isEmpty
+              ? null
+              : '$allMangaId|$chapter';
+        };
       case 'mangapill':
         sourceId = 'mangapill_en';
         mangaId = _after(path, 'manga/');
