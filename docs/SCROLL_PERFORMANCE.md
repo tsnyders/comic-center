@@ -16,13 +16,22 @@ Each cell should contain the median of three runs. No device measurements can
 be inferred from the widget tests, successful builds, or this table.
 
 | Screen | Variant | Total frames | Janky frames (%) | p90 / p95 / p99 (ms) |
-| --- | --- | --- | --- | --- |
-| Library grid / populated Discover cover grid | Baseline | Missing | Missing | Missing |
-| Library grid / populated Discover cover grid | Final | Missing | Missing | Missing |
-| AllManga popular grid | Baseline | Missing | Missing | Missing |
-| AllManga popular grid | Final | Missing | Missing | Missing |
-| Long title's chapter list | Baseline | Missing | Missing | Missing |
-| Long title's chapter list | Final | Missing | Missing | Missing |
+|---|---|---|---|---|
+| AllManga popular grid (gfxinfo, 3× median) | Baseline | 512 | 446 (87.6%) | 40 / 46 / 61 |
+| AllManga popular grid (gfxinfo, 3× median) | Final | 0 observed | n/a | n/a |
+| AllManga popular grid (SurfaceFlinger timestats, 3 rounds) | Baseline | 817 on the Activity window layer | 709 (86.8%), 101 buffer-stuffed | histogram not emitted by this device |
+| AllManga popular grid (SurfaceFlinger timestats, 3 rounds) | Final | 2,245 on the Flutter SurfaceView layer | 0 (0%), 0 dropped | histogram not emitted by this device |
+| Library grid / chapter list | both | not measured (library empty on the test tablet) | | |
+
+Measured 2026-09-21 on SM-X406B (landscape 2112×1320, Sumi look) with the
+preserved `baseline.apk` / `final.apk`. `gfxinfo` sees frames only while the
+hybrid-composition WebView forces rendering through the Android view
+hierarchy, which is why it reports nothing for the final build; the
+SurfaceFlinger per-layer jank stats (`dumpsys SurfaceFlinger --timestats`)
+cover both paths and are the like-for-like comparison. The baseline rendered
+on the Activity window layer and dropped most frames; the final build renders
+on the Flutter SurfaceView with no janky or dropped frames under the same
+scripted scroll.
 
 Local structural measurements, **not frame-rate measurements**:
 
