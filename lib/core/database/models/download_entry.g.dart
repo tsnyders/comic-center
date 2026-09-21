@@ -62,33 +62,38 @@ const DownloadEntrySchema = CollectionSchema(
       name: r'mangaTitle',
       type: IsarType.string,
     ),
-    r'progress': PropertySchema(
+    r'pageUrls': PropertySchema(
       id: 9,
+      name: r'pageUrls',
+      type: IsarType.stringList,
+    ),
+    r'progress': PropertySchema(
+      id: 10,
       name: r'progress',
       type: IsarType.double,
     ),
     r'queuedAt': PropertySchema(
-      id: 10,
+      id: 11,
       name: r'queuedAt',
       type: IsarType.dateTime,
     ),
     r'retryCount': PropertySchema(
-      id: 11,
+      id: 12,
       name: r'retryCount',
       type: IsarType.long,
     ),
     r'startedAt': PropertySchema(
-      id: 12,
+      id: 13,
       name: r'startedAt',
       type: IsarType.dateTime,
     ),
     r'status': PropertySchema(
-      id: 13,
+      id: 14,
       name: r'status',
       type: IsarType.string,
     ),
     r'totalPages': PropertySchema(
-      id: 14,
+      id: 15,
       name: r'totalPages',
       type: IsarType.long,
     )
@@ -167,6 +172,13 @@ int _downloadEntryEstimateSize(
     }
   }
   bytesCount += 3 + object.mangaTitle.length * 3;
+  bytesCount += 3 + object.pageUrls.length * 3;
+  {
+    for (var i = 0; i < object.pageUrls.length; i++) {
+      final value = object.pageUrls[i];
+      bytesCount += value.length * 3;
+    }
+  }
   bytesCount += 3 + object.status.length * 3;
   return bytesCount;
 }
@@ -186,12 +198,13 @@ void _downloadEntrySerialize(
   writer.writeString(offsets[6], object.errorMessage);
   writer.writeLong(offsets[7], object.mangaId);
   writer.writeString(offsets[8], object.mangaTitle);
-  writer.writeDouble(offsets[9], object.progress);
-  writer.writeDateTime(offsets[10], object.queuedAt);
-  writer.writeLong(offsets[11], object.retryCount);
-  writer.writeDateTime(offsets[12], object.startedAt);
-  writer.writeString(offsets[13], object.status);
-  writer.writeLong(offsets[14], object.totalPages);
+  writer.writeStringList(offsets[9], object.pageUrls);
+  writer.writeDouble(offsets[10], object.progress);
+  writer.writeDateTime(offsets[11], object.queuedAt);
+  writer.writeLong(offsets[12], object.retryCount);
+  writer.writeDateTime(offsets[13], object.startedAt);
+  writer.writeString(offsets[14], object.status);
+  writer.writeLong(offsets[15], object.totalPages);
 }
 
 DownloadEntry _downloadEntryDeserialize(
@@ -211,11 +224,12 @@ DownloadEntry _downloadEntryDeserialize(
   object.id = id;
   object.mangaId = reader.readLong(offsets[7]);
   object.mangaTitle = reader.readString(offsets[8]);
-  object.queuedAt = reader.readDateTimeOrNull(offsets[10]);
-  object.retryCount = reader.readLong(offsets[11]);
-  object.startedAt = reader.readDateTimeOrNull(offsets[12]);
-  object.status = reader.readString(offsets[13]);
-  object.totalPages = reader.readLong(offsets[14]);
+  object.pageUrls = reader.readStringList(offsets[9]) ?? [];
+  object.queuedAt = reader.readDateTimeOrNull(offsets[11]);
+  object.retryCount = reader.readLong(offsets[12]);
+  object.startedAt = reader.readDateTimeOrNull(offsets[13]);
+  object.status = reader.readString(offsets[14]);
+  object.totalPages = reader.readLong(offsets[15]);
   return object;
 }
 
@@ -245,16 +259,18 @@ P _downloadEntryDeserializeProp<P>(
     case 8:
       return (reader.readString(offset)) as P;
     case 9:
-      return (reader.readDouble(offset)) as P;
+      return (reader.readStringList(offset) ?? []) as P;
     case 10:
-      return (reader.readDateTimeOrNull(offset)) as P;
+      return (reader.readDouble(offset)) as P;
     case 11:
-      return (reader.readLong(offset)) as P;
-    case 12:
       return (reader.readDateTimeOrNull(offset)) as P;
+    case 12:
+      return (reader.readLong(offset)) as P;
     case 13:
-      return (reader.readString(offset)) as P;
+      return (reader.readDateTimeOrNull(offset)) as P;
     case 14:
+      return (reader.readString(offset)) as P;
+    case 15:
       return (reader.readLong(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -1545,6 +1561,231 @@ extension DownloadEntryQueryFilter
   }
 
   QueryBuilder<DownloadEntry, DownloadEntry, QAfterFilterCondition>
+      pageUrlsElementEqualTo(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'pageUrls',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<DownloadEntry, DownloadEntry, QAfterFilterCondition>
+      pageUrlsElementGreaterThan(
+    String value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'pageUrls',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<DownloadEntry, DownloadEntry, QAfterFilterCondition>
+      pageUrlsElementLessThan(
+    String value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'pageUrls',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<DownloadEntry, DownloadEntry, QAfterFilterCondition>
+      pageUrlsElementBetween(
+    String lower,
+    String upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'pageUrls',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<DownloadEntry, DownloadEntry, QAfterFilterCondition>
+      pageUrlsElementStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'pageUrls',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<DownloadEntry, DownloadEntry, QAfterFilterCondition>
+      pageUrlsElementEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'pageUrls',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<DownloadEntry, DownloadEntry, QAfterFilterCondition>
+      pageUrlsElementContains(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'pageUrls',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<DownloadEntry, DownloadEntry, QAfterFilterCondition>
+      pageUrlsElementMatches(String pattern, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'pageUrls',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<DownloadEntry, DownloadEntry, QAfterFilterCondition>
+      pageUrlsElementIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'pageUrls',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<DownloadEntry, DownloadEntry, QAfterFilterCondition>
+      pageUrlsElementIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'pageUrls',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<DownloadEntry, DownloadEntry, QAfterFilterCondition>
+      pageUrlsLengthEqualTo(int length) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'pageUrls',
+        length,
+        true,
+        length,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<DownloadEntry, DownloadEntry, QAfterFilterCondition>
+      pageUrlsIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'pageUrls',
+        0,
+        true,
+        0,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<DownloadEntry, DownloadEntry, QAfterFilterCondition>
+      pageUrlsIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'pageUrls',
+        0,
+        false,
+        999999,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<DownloadEntry, DownloadEntry, QAfterFilterCondition>
+      pageUrlsLengthLessThan(
+    int length, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'pageUrls',
+        0,
+        true,
+        length,
+        include,
+      );
+    });
+  }
+
+  QueryBuilder<DownloadEntry, DownloadEntry, QAfterFilterCondition>
+      pageUrlsLengthGreaterThan(
+    int length, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'pageUrls',
+        length,
+        include,
+        999999,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<DownloadEntry, DownloadEntry, QAfterFilterCondition>
+      pageUrlsLengthBetween(
+    int lower,
+    int upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'pageUrls',
+        lower,
+        includeLower,
+        upper,
+        includeUpper,
+      );
+    });
+  }
+
+  QueryBuilder<DownloadEntry, DownloadEntry, QAfterFilterCondition>
       progressEqualTo(
     double value, {
     double epsilon = Query.epsilon,
@@ -2490,6 +2731,12 @@ extension DownloadEntryQueryWhereDistinct
     });
   }
 
+  QueryBuilder<DownloadEntry, DownloadEntry, QDistinct> distinctByPageUrls() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'pageUrls');
+    });
+  }
+
   QueryBuilder<DownloadEntry, DownloadEntry, QDistinct> distinctByProgress() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'progress');
@@ -2591,6 +2838,13 @@ extension DownloadEntryQueryProperty
   QueryBuilder<DownloadEntry, String, QQueryOperations> mangaTitleProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'mangaTitle');
+    });
+  }
+
+  QueryBuilder<DownloadEntry, List<String>, QQueryOperations>
+      pageUrlsProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'pageUrls');
     });
   }
 

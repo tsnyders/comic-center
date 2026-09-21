@@ -1,3 +1,5 @@
+import 'dart:async';
+
 /// Browser-backed fetching for sites that need a real browser: Cloudflare
 /// clearance cookies, and pages whose data is only produced by the site's own
 /// JavaScript (AllManga's chapter pages).
@@ -7,7 +9,18 @@
 /// (Windows, tests, the background download isolate) the instance stays
 /// [UnavailableBrowserFetch] and callers get [BrowserFetchUnavailable].
 abstract class BrowserFetch {
-  static BrowserFetch instance = const UnavailableBrowserFetch();
+  static BrowserFetch _instance = const UnavailableBrowserFetch();
+  static final _changes = StreamController<BrowserFetch>.broadcast();
+
+  static BrowserFetch get instance => _instance;
+  static set instance(BrowserFetch browser) {
+    if (identical(_instance, browser)) return;
+    _instance = browser;
+    _changes.add(browser);
+  }
+
+  /// Lets foreground work resume when the browser host mounts after startup.
+  static Stream<BrowserFetch> get changes => _changes.stream;
 
   /// The user agent the WebView sends. Sources reuse it so plain HTTP
   /// requests match the cookies the browser earned.

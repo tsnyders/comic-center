@@ -1,17 +1,20 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:isar/isar.dart';
 import 'package:path_provider/path_provider.dart';
 
+import '../browser/browser_fetch.dart';
 import '../database/models/chapter_entry.dart';
 import '../database/models/download_entry.dart';
 import '../database/models/manga_entry.dart';
 import '../services/app_logger.dart';
 import '../services/download_background_service.dart';
 import '../services/download_enqueue.dart';
+import '../services/download_page_preparer.dart';
 import 'database_provider.dart';
 
 final downloadQueueProvider = StreamProvider<List<DownloadEntry>>((ref) {
@@ -114,16 +117,42 @@ class DownloadManager extends AsyncNotifier<void> {
   bool _fallbackIsRunning = false;
   Timer? _historyCleanupTimer;
   StreamSubscription<List<DownloadEntry>>? _completedSubscription;
+  StreamSubscription<List<(int, DateTime?)>>? _preparationSubscription;
+  StreamSubscription<BrowserFetch>? _browserSubscription;
+  late DownloadPagePreparer _pagePreparer;
 
   @override
   Future<void> build() async {
     final isar = ref.read(isarProvider);
+    _pagePreparer = DownloadPagePreparer(
+      isar,
+      scheduleQueue: () => _scheduleQueue(isar),
+    );
+    // Covers all enqueue paths, including download-ahead and library updates
+    // written by another isolate. Marker-only writes must not retrigger a
+    // browser that has just reported itself unavailable.
+    _preparationSubscription = isar.downloadEntrys
+        .filter()
+        .statusEqualTo(DownloadStatus.pending)
+        .pageUrlsIsEmpty()
+        .sortByQueuedAt()
+        .watch(fireImmediately: true)
+        .map((entries) =>
+            [for (final entry in entries) (entry.id, entry.queuedAt)])
+        .distinct(listEquals)
+        .listen((_) => unawaited(_preparePages()));
+    _browserSubscription = BrowserFetch.changes.listen((browser) {
+      if (browser is! UnavailableBrowserFetch) unawaited(_preparePages());
+    });
     _completedSubscription = isar.downloadEntrys
         .filter()
         .statusEqualTo(DownloadStatus.completed)
         .watch(fireImmediately: true)
         .listen((entries) => _scheduleInAppHistoryCleanup(isar, entries));
     ref.onDispose(() {
+      _pagePreparer.stop();
+      unawaited(_preparationSubscription?.cancel());
+      unawaited(_browserSubscription?.cancel());
       _historyCleanupTimer?.cancel();
       unawaited(_completedSubscription?.cancel());
       _fallbackProcessor?.stop();
@@ -147,6 +176,7 @@ class DownloadManager extends AsyncNotifier<void> {
       mangaId: manga.id,
       chapterIds: [for (final chapter in chapters) chapter.id],
     );
+    unawaited(_preparePages());
     // enqueueNewChapters schedules the Android worker itself; other
     // platforms run the queue in-process.
     if (queued > 0 && !Platform.isAndroid) await _runFallbackProcessor(isar);
@@ -193,7 +223,10 @@ class DownloadManager extends AsyncNotifier<void> {
         shouldSchedule = true;
       }
     });
-    if (shouldSchedule) await _scheduleQueue(isar);
+    if (shouldSchedule) {
+      unawaited(_preparePages());
+      await _scheduleQueue(isar);
+    }
   }
 
   Future<void> retry(int downloadId) => resume(downloadId);
@@ -215,6 +248,7 @@ class DownloadManager extends AsyncNotifier<void> {
         await isar.downloadEntrys.put(entry);
       }
     });
+    unawaited(_preparePages());
     await _scheduleQueue(isar);
   }
 
@@ -289,6 +323,15 @@ class DownloadManager extends AsyncNotifier<void> {
         for (final entry in queued) entry.chapterId,
       }.toList(),
     );
+  }
+
+  Future<void> _preparePages() async {
+    try {
+      await _pagePreparer.prepare();
+    } catch (error, stackTrace) {
+      AppLogger.instance
+          .warn('Download page preparation failed', error, stackTrace);
+    }
   }
 
   Future<void> _scheduleQueue(Isar isar) {

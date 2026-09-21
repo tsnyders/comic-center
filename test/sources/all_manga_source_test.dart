@@ -122,6 +122,9 @@ void main() {
       expect(source.name, 'AllManga');
       expect(source.baseUrl, 'https://allmanga.to');
       expect(source.language, 'en');
+      expect(source.needsBrowserForPages, isTrue);
+      expect(ExtensionFactory.create('mangapill_en')!.needsBrowserForPages,
+          isFalse);
       expect(source.getFilters().whereType<SelectFilter>().single.value, 'ALL');
       expect(
         source.getFilters().whereType<GroupFilter>().single.items.single.name,
@@ -375,13 +378,7 @@ void main() {
 
       await expectLater(
         AllMangaSource().fetchPageUrls('ex9vXC6gWYY9bGkSo|1193'),
-        throwsA(
-          isA<Exception>().having(
-            (error) => error.toString(),
-            'message',
-            contains('AllManga pages need the in-app browser (Android)'),
-          ),
-        ),
+        throwsA(isA<BrowserFetchUnavailable>()),
       );
 
       BrowserFetch.instance = _ScriptedCaptureBrowserFetch([

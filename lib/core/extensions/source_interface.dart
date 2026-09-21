@@ -12,10 +12,9 @@ export 'models/source_preference.dart';
 
 /// The contract every extension must implement.
 ///
-/// Sources run inline on the UI isolate — called directly from Riverpod
-/// providers (browse_provider.dart, download_provider.dart,
-/// reader_provider.dart). There is no Isolate boundary; keep network calls
-/// bounded with a connect/receive timeout so a slow source can't hang the UI.
+/// Sources run in both the UI and background download isolates. Sources that
+/// need the in-app browser for pages are prepared in the UI isolate first.
+/// Keep network calls bounded with a connect/receive timeout.
 /// See docs/SOURCES.md for the full contract, error-handling conventions,
 /// and the steps to register a new source.
 abstract class MangaSource {
@@ -70,6 +69,9 @@ abstract class MangaSource {
 
   /// Returns ordered list of full-resolution page URLs for [chapterId].
   Future<List<String>> fetchPageUrls(String chapterId);
+
+  /// Page discovery requires the foreground app's in-app browser.
+  bool get needsBrowserForPages => false;
 
   // ── Filters ───────────────────────────────────────────────────────────────
 
