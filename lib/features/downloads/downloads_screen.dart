@@ -237,14 +237,17 @@ class _DownloadTile extends ConsumerWidget {
                 ),
               ),
             ],
-            if (isFailed && entry.errorMessage != null) ...[
+            if ((isFailed || entry.status == DownloadStatus.pending) &&
+                entry.errorMessage != null) ...[
               const SizedBox(height: 6),
               Text(
                 entry.errorMessage!,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style:
-                    AppTextStyles.caption.copyWith(color: AppColors.warning),
+                style: AppTextStyles.caption.copyWith(
+                  color:
+                      isFailed ? AppColors.warning : context.textTertiaryColor,
+                ),
               ),
             ],
             const SizedBox(height: 10),

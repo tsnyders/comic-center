@@ -303,6 +303,9 @@ query($id:String!){
   }
 
   @override
+  bool get needsBrowserForPages => true;
+
+  @override
   Future<List<String>> fetchPageUrls(String chapterId) async {
     final separator = chapterId.indexOf('|');
     if (separator <= 0 || separator == chapterId.length - 1) {
@@ -335,8 +338,6 @@ query($id:String!){
           interactive: true,
         );
       }
-    } on BrowserFetchUnavailable {
-      throw Exception('AllManga pages need the in-app browser (Android).');
     } on BrowserChallengeCancelled {
       throw Exception('Site check cancelled.');
     }

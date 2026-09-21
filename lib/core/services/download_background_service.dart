@@ -169,8 +169,10 @@ abstract final class DownloadBackgroundService {
 }
 
 class DownloadQueueProcessor {
-  DownloadQueueProcessor({Dio? dio})
-      : _dio = dio ??
+  DownloadQueueProcessor(
+      {Dio? dio, MangaSource? Function(String)? sourceFactory})
+      : _sourceFactory = sourceFactory ?? ExtensionFactory.create,
+        _dio = dio ??
             Dio(BaseOptions(
               connectTimeout: const Duration(seconds: 15),
               receiveTimeout: const Duration(seconds: 30),
@@ -181,6 +183,7 @@ class DownloadQueueProcessor {
   }
 
   final Dio _dio;
+  final MangaSource? Function(String) _sourceFactory;
   CancelToken? _activeRequest;
   bool _stopRequested = false;
 
@@ -192,13 +195,19 @@ class DownloadQueueProcessor {
   Future<void> processQueue(Isar isar) async {
     await _recoverInterruptedEntries(isar);
 
+    // Browser-only entries may stay pending until the app opens. Visit each
+    // row at most once per run so they neither spin nor block other sources.
+    final visited = <int>{};
     while (!_stopRequested) {
       final pending = await isar.downloadEntrys
           .filter()
           .statusEqualTo(DownloadStatus.pending)
+          .optional(visited.isNotEmpty,
+              (query) => query.not().anyOf(visited, (q, id) => q.idEqualTo(id)))
           .sortByQueuedAt()
           .findFirst();
       if (pending == null) return;
+      visited.add(pending.id);
       await _downloadChapter(isar, pending.id);
     }
   }
@@ -224,29 +233,11 @@ class DownloadQueueProcessor {
     var entry = await isar.downloadEntrys.get(downloadId);
     if (entry == null || entry.status != DownloadStatus.pending) return;
 
-    await isar.writeTxn(() async {
-      final current = await isar.downloadEntrys.get(downloadId);
-      if (current == null || current.status != DownloadStatus.pending) return;
-      current
-        ..status = DownloadStatus.downloading
-        ..startedAt = DateTime.now()
-        ..errorMessage = null;
-      await isar.downloadEntrys.put(current);
-    });
-
-    entry = await isar.downloadEntrys.get(downloadId);
-    if (entry == null || entry.status != DownloadStatus.downloading) return;
     final chapterId = entry.chapterId;
 
     final cancelToken = CancelToken();
     _activeRequest = cancelToken;
-    final statusSubscription = isar.downloadEntrys
-        .watchObject(downloadId, fireImmediately: true)
-        .listen((current) {
-      if (current == null || current.status != DownloadStatus.downloading) {
-        cancelToken.cancel('Download paused or cancelled');
-      }
-    });
+    StreamSubscription<DownloadEntry?>? statusSubscription;
 
     try {
       final chapter = await isar.chapterEntrys.get(entry.chapterId);
@@ -255,12 +246,50 @@ class DownloadQueueProcessor {
         throw StateError('Chapter or manga is missing from the database');
       }
 
-      final source = ExtensionFactory.create(manga.sourceId);
+      final source = _sourceFactory(manga.sourceId);
       if (source == null) {
         throw StateError('Source "${manga.sourceId}" is not installed');
       }
 
-      final pageUrls = await source.fetchPageUrls(chapter.sourceChapterId);
+      if (entry.pageUrls.isEmpty && source.needsBrowserForPages) {
+        await isar.writeTxn(() async {
+          final current = await isar.downloadEntrys.get(downloadId);
+          if (current == null ||
+              current.status != DownloadStatus.pending ||
+              current.pageUrls.isNotEmpty ||
+              current.errorMessage == preparingDownloadPages ||
+              current.errorMessage == waitingForDownloadPages) {
+            return;
+          }
+          current.errorMessage = waitingForDownloadPages;
+          await isar.downloadEntrys.put(current);
+        });
+        return;
+      }
+
+      await isar.writeTxn(() async {
+        final current = await isar.downloadEntrys.get(downloadId);
+        if (current == null || current.status != DownloadStatus.pending) return;
+        current
+          ..status = DownloadStatus.downloading
+          ..startedAt = DateTime.now()
+          ..errorMessage = null;
+        await isar.downloadEntrys.put(current);
+      });
+
+      entry = await isar.downloadEntrys.get(downloadId);
+      if (entry == null || entry.status != DownloadStatus.downloading) return;
+      statusSubscription = isar.downloadEntrys
+          .watchObject(downloadId, fireImmediately: true)
+          .listen((current) {
+        if (current == null || current.status != DownloadStatus.downloading) {
+          cancelToken.cancel('Download paused or cancelled');
+        }
+      });
+
+      final pageUrls = entry.pageUrls.isNotEmpty
+          ? entry.pageUrls
+          : await source.fetchPageUrls(chapter.sourceChapterId);
       if (pageUrls.isEmpty) {
         throw StateError('The source returned no pages for this chapter');
       }
@@ -370,7 +399,7 @@ class DownloadQueueProcessor {
     } catch (error, stackTrace) {
       await _markFailed(isar, downloadId, error, stackTrace);
     } finally {
-      await statusSubscription.cancel();
+      await statusSubscription?.cancel();
       if (identical(_activeRequest, cancelToken)) _activeRequest = null;
     }
   }
@@ -428,7 +457,9 @@ class DownloadQueueProcessor {
   ) async {
     await isar.writeTxn(() async {
       final current = await isar.downloadEntrys.get(downloadId);
-      if (current == null || current.status != DownloadStatus.downloading) {
+      if (current == null ||
+          (current.status != DownloadStatus.downloading &&
+              current.status != DownloadStatus.pending)) {
         return;
       }
       current

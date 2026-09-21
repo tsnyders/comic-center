@@ -2,6 +2,9 @@ import 'package:isar/isar.dart';
 
 part 'download_entry.g.dart';
 
+const preparingDownloadPages = 'Preparing pages…';
+const waitingForDownloadPages = 'Open Yomi to prepare this chapter';
+
 /// Download status constants
 abstract final class DownloadStatus {
   static const pending = 'pending';
@@ -30,6 +33,9 @@ class DownloadEntry {
 
   int totalPages = 0;
   int downloadedPages = 0;
+
+  /// Foreground-resolved pages, reusable by the background isolate and retries.
+  List<String> pageUrls = [];
 
   String? downloadPath;
   DateTime? queuedAt;
