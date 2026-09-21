@@ -93,7 +93,7 @@ class _SumiRiseState extends State<SumiRise>
   }
 }
 
-/// `.y-stagger`: 35ms per item, capped at 6. Dropped under reduced motion.
+/// `.y-stagger`: entrance for the first six items, dropped under reduced motion.
 class SumiStagger extends StatelessWidget {
   const SumiStagger({super.key, required this.index, required this.child});
   final int index;
@@ -101,7 +101,9 @@ class SumiStagger extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (reduceMotion(context)) return child;
+    // ponytail: only the initial six items enter; later/recycled rows must not
+    // allocate controllers or fade layers just because the user is scrolling.
+    if (index >= AppMotion.staggerMax || reduceMotion(context)) return child;
     return SumiRise(
       duration: AppMotion.base,
       delay: AppMotion.stagger(index),
@@ -579,9 +581,7 @@ class SumiCoverFrame extends StatelessWidget {
 
 // ── Washi grain ───────────────────────────────────────────────────────────────
 
-/// Full-screen tiled noise, overlay-blended at 35%, pointer-transparent.
-/// Sumi only; skipped on low-spec hardware (one extra full-screen blend per
-/// frame).
+/// Full-screen tiled noise at 35%, pointer-transparent. Sumi only.
 class WashiGrain extends StatelessWidget {
   const WashiGrain({super.key});
 
@@ -591,20 +591,21 @@ class WashiGrain extends StatelessWidget {
       return const SizedBox.shrink();
     }
     return const IgnorePointer(
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          // Transparent colour satisfies BoxDecoration's blend-mode assert
-          // and contributes nothing; only the tiled grain is blended.
-          color: Color(0x00000000),
-          backgroundBlendMode: BlendMode.overlay,
-          image: DecorationImage(
-            image: AssetImage('assets/images/washi_grain.png'),
-            repeat: ImageRepeat.repeat,
-            opacity: 0.35,
-            filterQuality: FilterQuality.none,
+      child: RepaintBoundary(
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            // BoxDecoration's blend mode only affected its transparent color;
+            // the image already uses srcOver. Retain that appearance and cache
+            // its painting independently of the scrolling content underneath.
+            image: DecorationImage(
+              image: AssetImage('assets/images/washi_grain.png'),
+              repeat: ImageRepeat.repeat,
+              opacity: 0.35,
+              filterQuality: FilterQuality.none,
+            ),
           ),
+          child: SizedBox.expand(),
         ),
-        child: SizedBox.expand(),
       ),
     );
   }

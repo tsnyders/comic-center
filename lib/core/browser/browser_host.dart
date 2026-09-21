@@ -13,7 +13,7 @@ import 'browser_cookie_store.dart';
 import 'browser_fetch.dart';
 import 'cloudflare_challenge.dart';
 
-/// Owns the process-wide browser fetcher and its single persistent WebView.
+/// Keeps the process-wide fetcher installed; mounts a WebView only for a request.
 class BrowserHost extends StatefulWidget {
   const BrowserHost({super.key, required this.child});
 
@@ -41,13 +41,20 @@ class _BrowserHostState extends State<BrowserHost> {
     _supported = !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
     if (!_supported) return;
 
-    final controller = WebViewController();
     final browser = WebViewBrowserFetch(
-      controller: controller,
+      mountWebView: _mountWebView,
+      unmountWebView: _unmountWebView,
       showChallenge: _showChallenge,
       hideChallenge: _hideChallenge,
     );
     _browser = browser;
+    _previousBrowser = BrowserFetch.instance;
+    BrowserFetch.instance = browser;
+  }
+
+  Future<WebViewController> _mountWebView() async {
+    if (!mounted) throw const BrowserFetchUnavailable();
+    final controller = WebViewController();
     // Hybrid composition keeps the WebView inside the Activity's view tree,
     // which the document-start bridge in MainActivity needs to find it. The
     // default virtual-display path hides it in a Presentation window.
@@ -59,9 +66,19 @@ class _BrowserHostState extends State<BrowserHost> {
         displayWithHybridComposition: true,
       ),
     );
-    _previousBrowser = BrowserFetch.instance;
-    BrowserFetch.instance = browser;
-    unawaited(browser.ready.catchError((Object _) {}));
+    setState(() {});
+    // Layout/attach before navigation. The document-start bridge also retries
+    // WEBVIEW_NOT_READY while Android finishes attaching the native view.
+    await WidgetsBinding.instance.endOfFrame;
+    if (!mounted) throw const BrowserFetchUnavailable();
+    return controller;
+  }
+
+  Future<void> _unmountWebView() async {
+    if (!mounted) return;
+    setState(() => _webView = null);
+    // Detach this platform view before the serial queue can mount another.
+    await WidgetsBinding.instance.endOfFrame;
   }
 
   Future<void> _showChallenge() {
@@ -112,13 +129,13 @@ class _BrowserHostState extends State<BrowserHost> {
   @override
   Widget build(BuildContext context) {
     final webView = _webView;
-    if (!_supported || webView == null) return widget.child;
+    if (!_supported) return widget.child;
     return Stack(
       fit: StackFit.expand,
       children: [
-        if (!_challengeVisible)
-          // Keep the same viewport behind the app: resizing from 1x1 makes
-          // Android retain a zoomed, clipped captcha when the sheet opens.
+        if (webView != null && !_challengeVisible)
+          // Keep the challenge viewport stable for this request. Idle has no
+          // platform view, so ordinary Flutter scrolling avoids composition.
           Positioned.fill(
             child: IgnorePointer(
               child: BrowserChallengeSheet(
@@ -127,8 +144,8 @@ class _BrowserHostState extends State<BrowserHost> {
               ),
             ),
           ),
-        widget.child,
-        if (_challengeVisible)
+        KeyedSubtree(key: const ValueKey('browser-app'), child: widget.child),
+        if (webView != null && _challengeVisible)
           BrowserChallengeSheet(
             onCancel: _cancelChallenge,
             child: webView,
@@ -141,48 +158,52 @@ class _BrowserHostState extends State<BrowserHost> {
 /// Android implementation backed by the WebView owned by [BrowserHost].
 class WebViewBrowserFetch implements BrowserFetch {
   WebViewBrowserFetch({
-    required WebViewController controller,
+    required Future<WebViewController> Function() mountWebView,
+    required Future<void> Function() unmountWebView,
     required Future<void> Function() showChallenge,
     required VoidCallback hideChallenge,
-  })  : _controller = controller,
+  })  : _mountWebView = mountWebView,
+        _unmountWebView = unmountWebView,
         _showChallenge = showChallenge,
-        _hideChallenge = hideChallenge {
-    _ready = _configure();
-  }
+        _hideChallenge = hideChallenge;
 
   static const _platform = MethodChannel('yomi/platform');
   static const _automaticClearanceWait = Duration(seconds: 8);
   static const _pollInterval = Duration(milliseconds: 250);
 
-  final WebViewController _controller;
-  final WebViewCookieManager _cookieManager = WebViewCookieManager();
+  final Future<WebViewController> Function() _mountWebView;
+  final Future<void> Function() _unmountWebView;
+  WebViewController? _activeController;
+  WebViewController get _controller => _activeController!;
+  late final WebViewCookieManager _cookieManager = WebViewCookieManager();
   final Future<void> Function() _showChallenge;
   final VoidCallback _hideChallenge;
   final _SerialQueue _queue = _SerialQueue();
-  late final Future<void> _ready;
   Completer<void>? _pageLoaded;
   bool _disposed = false;
-
-  Future<void> get ready => _ready;
 
   @override
   String get userAgent => const UnavailableBrowserFetch().userAgent;
 
   Future<void> _configure() async {
+    final controller = _controller;
     await BrowserCookieStore.refresh();
-    await _controller.setJavaScriptMode(JavaScriptMode.unrestricted);
+    await controller.setJavaScriptMode(JavaScriptMode.unrestricted);
     if (Platform.isAndroid && (kDebugMode || kProfileMode)) {
       await AndroidWebViewController.enableDebugging(true);
     }
-    await _controller.setUserAgent(userAgent);
-    await _controller.setNavigationDelegate(NavigationDelegate(
+    await controller.setUserAgent(userAgent);
+    await controller.setNavigationDelegate(NavigationDelegate(
       onPageFinished: (_) {
+        // Native callbacks can arrive after this request's view was detached.
+        if (!identical(_activeController, controller)) return;
         final pageLoaded = _pageLoaded;
         if (pageLoaded != null && !pageLoaded.isCompleted) {
           pageLoaded.complete();
         }
       },
       onWebResourceError: (error) {
+        if (!identical(_activeController, controller)) return;
         if (error.isForMainFrame != true) return;
         final pageLoaded = _pageLoaded;
         if (pageLoaded != null && !pageLoaded.isCompleted) {
@@ -192,6 +213,32 @@ class WebViewBrowserFetch implements BrowserFetch {
     ));
   }
 
+  Future<T> _withWebView<T>(
+    DateTime deadline,
+    Future<T> Function() operation,
+  ) =>
+      _queue.add(() async {
+        _ensureActive();
+        // ponytail: one hybrid view, only during a serialized browser request.
+        // CookieManager is process-global; detaching does not clear cookies.
+        try {
+          if (!DateTime.now().isBefore(deadline)) {
+            throw TimeoutException('The in-app browser request timed out.');
+          }
+          _activeController = await _until(_mountWebView(), deadline);
+          _ensureActive();
+          final ready = _configure();
+          await _until(ready, deadline);
+          _ensureActive();
+          return await operation();
+        } finally {
+          _hideChallenge();
+          if (_activeController != null) await _abortNavigation();
+          await _unmountWebView();
+          _activeController = null;
+        }
+      });
+
   @override
   Future<String> fetchHtml(
     Uri url, {
@@ -199,21 +246,14 @@ class WebViewBrowserFetch implements BrowserFetch {
     bool interactive = true,
   }) {
     final deadline = DateTime.now().add(timeout);
-    return _queue.add(() async {
-      try {
-        await _until(_ready, deadline);
-        _ensureActive();
-        await _navigate(url, deadline);
-        await _handleChallenge(
-          url,
-          interactive: interactive,
-          deadline: deadline,
-        );
-        return await _until(_outerHtml(), deadline);
-      } on TimeoutException {
-        await _abortNavigation();
-        rethrow;
-      }
+    return _withWebView(deadline, () async {
+      await _navigate(url, deadline);
+      await _handleChallenge(
+        url,
+        interactive: interactive,
+        deadline: deadline,
+      );
+      return await _until(_outerHtml(), deadline);
     });
   }
 
@@ -227,9 +267,7 @@ class WebViewBrowserFetch implements BrowserFetch {
     bool interactive = true,
   }) {
     final deadline = DateTime.now().add(timeout);
-    return _queue.add(() async {
-      await _until(_ready, deadline);
-      _ensureActive();
+    return _withWebView(deadline, () async {
       if (!RegExp(r'^[A-Za-z_$][A-Za-z0-9_$]*$').hasMatch(channel)) {
         throw ArgumentError.value(
             channel, 'channel', 'Invalid JavaScript name');
@@ -265,42 +303,34 @@ class WebViewBrowserFetch implements BrowserFetch {
       );
 
       try {
-        try {
-          await _setDocumentStartScript(jsHook, url, deadline);
-          await _navigate(url, deadline);
-          await _handleChallenge(
-            url,
-            interactive: interactive,
-            deadline: deadline,
-          );
-          if (afterLoad != null) {
-            await _until(_controller.runJavaScript(afterLoad), deadline);
-          }
-          // SPA requests can raise a challenge after the initial page load.
-          while (!captured.isCompleted) {
-            await Future.any<void>([
-              captured.future.then((_) {}),
-              _delay(deadline, _pollInterval),
-            ]);
-            if (captured.isCompleted) break;
-            final snapshot = await _until(_snapshot(), deadline);
-            if (snapshot.challenged) {
-              await _handleChallenge(
-                url,
-                interactive: interactive,
-                deadline: deadline,
-              );
-            }
-          }
-          final result = await _until(captured.future, deadline);
-          // The payload is all we need. Stop the site's reader and image work
-          // before Flutter paints its own reader over this hybrid WebView.
-          await _abortNavigation();
-          return result;
-        } on TimeoutException {
-          await _abortNavigation();
-          rethrow;
+        await _setDocumentStartScript(jsHook, url, deadline);
+        await _navigate(url, deadline);
+        await _handleChallenge(
+          url,
+          interactive: interactive,
+          deadline: deadline,
+        );
+        if (afterLoad != null) {
+          await _until(_controller.runJavaScript(afterLoad), deadline);
         }
+        // SPA requests can raise a challenge after the initial page load.
+        while (!captured.isCompleted) {
+          await Future.any<void>([
+            captured.future.then((_) {}),
+            _delay(deadline, _pollInterval),
+          ]);
+          if (captured.isCompleted) break;
+          final snapshot = await _until(_snapshot(), deadline);
+          if (snapshot.challenged) {
+            await _handleChallenge(
+              url,
+              interactive: interactive,
+              deadline: deadline,
+            );
+          }
+        }
+        final result = await _until(captured.future, deadline);
+        return result;
       } finally {
         await _clearDocumentStartScript();
         await _controller.removeJavaScriptChannel(channel);
@@ -374,13 +404,15 @@ class WebViewBrowserFetch implements BrowserFetch {
   }
 
   Future<_PageSnapshot> _snapshot() async {
+    _ensureActive();
+    final controller = _controller;
     final readyState = _javascriptString(
-      await _controller.runJavaScriptReturningResult('document.readyState'),
+      await controller.runJavaScriptReturningResult('document.readyState'),
     );
-    final title = await _controller.getTitle() ?? '';
+    final title = await controller.getTitle() ?? '';
     // Inspect mounted elements, not inline CSS/JS mentioning captcha classes.
     final html = _javascriptString(
-      await _controller.runJavaScriptReturningResult('''
+      await controller.runJavaScriptReturningResult('''
 (() => {
   const overlay = document.querySelector('.captcha-overlay--visible');
   if (overlay) return overlay.outerHTML;

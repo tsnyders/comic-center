@@ -33,10 +33,8 @@ class CoverImage extends StatelessWidget {
       httpHeaders: headers,
       fit: fit,
       memCacheWidth: cacheWidth,
-      // A grid of loading covers each running a repeating shimmer keeps the
-      // GPU compositing every frame; on reduced-motion devices use a static
-      // placeholder instead.
-      placeholder: DeviceProfile.current.reducedMotion
+      placeholder: DeviceProfile.current.reducedMotion ||
+              MediaQuery.maybeDisableAnimationsOf(context) == true
           ? (_, __) => const ColoredBox(color: AppColors.surface)
           : (_, __) => const _ShimmerPlaceholder(),
       errorWidget: (_, __, ___) => const _Placeholder(),
@@ -53,45 +51,55 @@ class _ShimmerPlaceholder extends StatefulWidget {
 
 class _ShimmerPlaceholderState extends State<_ShimmerPlaceholder>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _ctrl;
-  late final Animation<double> _anim;
+  // ponytail: at most four loading covers animate across the app. The rest
+  // retain the same gradient at its midpoint without allocating a ticker.
+  static const _maxAnimated = 4;
+  static int _animated = 0;
+  AnimationController? _ctrl;
 
   @override
   void initState() {
     super.initState();
+    if (_animated >= _maxAnimated) return;
+    _animated++;
     _ctrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1200),
     )..repeat(reverse: true);
-    _anim = CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut);
   }
 
   @override
   void dispose() {
-    _ctrl.dispose();
+    if (_ctrl != null) {
+      _ctrl!.dispose();
+      _animated--;
+    }
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final ctrl = _ctrl;
+    if (ctrl == null) return _gradient(0.5);
     return AnimatedBuilder(
-      animation: _anim,
-      builder: (_, __) => Container(
+      animation: ctrl,
+      builder: (_, __) => _gradient(Curves.easeInOut.transform(ctrl.value)),
+    );
+  }
+
+  Widget _gradient(double value) => Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
               AppColors.surface,
-              Color.lerp(
-                  AppColors.surface, AppColors.surfaceElevated, _anim.value)!,
+              Color.lerp(AppColors.surface, AppColors.surfaceElevated, value)!,
               AppColors.surface,
             ],
           ),
         ),
-      ),
-    );
-  }
+      );
 }
 
 class _Placeholder extends StatelessWidget {
