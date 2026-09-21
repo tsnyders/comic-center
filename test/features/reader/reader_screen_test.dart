@@ -1,6 +1,11 @@
+import 'dart:io';
+import 'dart:typed_data';
+import 'dart:ui' as ui;
+
 import 'package:comic_center/core/providers/library_provider.dart';
 import 'package:comic_center/core/providers/preferences_provider.dart';
 import 'package:comic_center/core/providers/reader_provider.dart';
+import 'package:comic_center/core/services/device_profile.dart';
 import 'package:comic_center/features/reader/reader_screen.dart';
 import 'package:comic_center/shared/widgets/sumi.dart';
 import 'package:extended_image/extended_image.dart';
@@ -31,6 +36,21 @@ class _FakeLibrary extends LibraryNotifier {
       markedRead.add(chapterId);
 }
 
+/// Exercise real image decodes without Windows file mappings outliving a test.
+class _MemoryPage implements File {
+  _MemoryPage(this.path, this.bytes);
+  @override
+  final String path;
+  final Uint8List bytes;
+  @override
+  Future<int> length() async => bytes.length;
+  @override
+  Future<Uint8List> readAsBytes() async => bytes;
+  @override
+  Object? noSuchMethod(Invocation invocation) =>
+      throw UnsupportedError('${invocation.memberName}');
+}
+
 void main() {
   const pages = ['https://x.test/1', 'https://x.test/2', 'https://x.test/3'];
 
@@ -47,7 +67,9 @@ void main() {
   ];
 
   Future<_FakeLibrary> pumpReader(WidgetTester tester,
-      {required int index, bool isWebtoon = false}) async {
+      {required int index,
+      bool isWebtoon = false,
+      List<String> pageUrls = pages}) async {
     SharedPreferences.setMockInitialValues({});
     final prefs = await SharedPreferences.getInstance();
     final library = _FakeLibrary();
@@ -61,7 +83,7 @@ void main() {
             databaseChapterId: c.id,
             sourceId: 'src',
             sourceChapterId: c.sourceChapterId,
-          )).overrideWith((_) async => pages),
+          )).overrideWith((_) async => pageUrls),
       ],
       child: CupertinoApp(
         home: ReaderScreen(
@@ -113,6 +135,124 @@ void main() {
 
   Future<void> settleRoute(WidgetTester tester) =>
       animate(tester, const Duration(seconds: 1)); // transition + old dispose
+
+  for (final strip in [false, true]) {
+    for (final lowSpec in [false, true]) {
+      testWidgets(
+          '${strip ? 'strip' : 'paged'} releases decoded pages, lowSpec=$lowSpec',
+          (tester) async {
+        final previous = DeviceProfile.current;
+        final cache = PaintingBinding.instance.imageCache;
+        final oldLimit = cache.maximumSizeBytes;
+        DeviceProfile.current =
+            DeviceProfile(reducedMotion: false, lowSpec: lowSpec);
+        cache.maximumSizeBytes = DeviceProfile.current.imageCacheBytes;
+        cache.clear();
+        cache.clearLiveImages();
+        addTearDown(() {
+          DeviceProfile.current = previous;
+          cache.clear();
+          cache.clearLiveImages();
+          cache.maximumSizeBytes = oldLimit;
+        });
+
+        final bytes = await tester.runAsync(() async {
+          final recorder = ui.PictureRecorder();
+          Canvas(recorder).drawColor(const Color(0xFF987654), BlendMode.src);
+          final picture = recorder.endRecording();
+          final image = await picture.toImage(2400, 900);
+          final data = await image.toByteData(format: ui.ImageByteFormat.png);
+          image.dispose();
+          picture.dispose();
+          return data!.buffer.asUint8List();
+        });
+        await IOOverrides.runZoned(() async {
+          final urls = [
+            for (var i = 0; i < 20; i++)
+              Uri.file('${Directory.systemTemp.path}/yomi-memory/$i.png')
+                  .toString(),
+          ];
+          await pumpReader(tester, index: 1, isWebtoon: strip, pageUrls: urls);
+
+          Future<void> loadVisible() async {
+            for (var i = 0; i < 100; i++) {
+              await tester.runAsync(
+                  () => Future<void>.delayed(const Duration(milliseconds: 10)));
+              await tester.pump();
+              final states = tester
+                  .stateList(find.byType(ExtendedImage))
+                  .cast<ExtendedImageState>();
+              if (states.isNotEmpty &&
+                  states.every((state) => state.extendedImageInfo != null)) {
+                return;
+              }
+            }
+            fail('Local reader images did not decode');
+          }
+
+          await loadVisible();
+          final firstImage = tester
+              .widgetList<ExtendedImage>(find.byType(ExtendedImage))
+              .first
+              .image;
+          final context = tester.element(find.byType(ReaderScreen));
+          final expectedWidth = (MediaQuery.sizeOf(context).width *
+                  MediaQuery.devicePixelRatioOf(context) *
+                  (lowSpec ? 1.25 : 2.0))
+              .round()
+              .clamp(1, 2400);
+          expect(
+              tester
+                  .stateList(find.byType(ExtendedImage))
+                  .cast<ExtendedImageState>()
+                  .first
+                  .extendedImageInfo!
+                  .image
+                  .width,
+              expectedWidth);
+
+          // Keep unrelated art in the cache: reader disposal must be selective.
+          final cover = MemoryImage(bytes!);
+          for (var i = 1; i <= 6; i++) {
+            if (strip) {
+              final scrollable =
+                  tester.state<ScrollableState>(find.byType(Scrollable).first);
+              scrollable.position.jumpTo(i * 600.0);
+            } else {
+              final pageView = tester.widget<ExtendedImageGesturePageView>(
+                  find.byType(ExtendedImageGesturePageView));
+              pageView.controller.jumpToPage(i);
+            }
+            await tester.pump();
+            await loadVisible();
+          }
+          final offscreen = await firstImage.obtainCacheStatus(
+              configuration: ImageConfiguration.empty);
+          expect(offscreen?.keepAlive, isFalse);
+          if (strip) {
+            // These strips are half a viewport tall: viewport + one screen on
+            // either side must not retain the old twelve-image window.
+            expect(find.byType(ExtendedImage).evaluate().length,
+                lessThanOrEqualTo(8));
+          }
+          expect(cache.currentSizeBytes,
+              lessThanOrEqualTo(DeviceProfile.current.imageCacheBytes));
+          await tester.runAsync(() => precacheImage(cover, context));
+          await tester.pump();
+
+          await tester.pumpWidget(const SizedBox());
+          await tester.pump();
+          expect(cache.currentSize, 1); // only the unrelated cover
+          expect(
+              (await cover.obtainCacheStatus(
+                      configuration: ImageConfiguration.empty))
+                  ?.keepAlive,
+              isTrue);
+          expect(tester.takeException(), isNull);
+        }, createFile: (path) => _MemoryPage(path, bytes!));
+      });
+    }
+  }
 
   testWidgets('page turns save progress after a pause and on close',
       (tester) async {

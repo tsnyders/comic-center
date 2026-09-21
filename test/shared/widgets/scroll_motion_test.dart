@@ -25,6 +25,38 @@ void main() {
   });
   tearDown(() => DeviceProfile.current = previousProfile);
 
+  testWidgets('unmount cancels a delayed entrance without retaining its timer',
+      (tester) async {
+    await tester.pumpWidget(const _Frame(
+      child: SumiRise(delay: Duration(minutes: 1), child: Text('Delayed')),
+    ));
+    await tester.pumpWidget(const SizedBox());
+    expect(tester.binding.transientCallbackCount, 0);
+    // Flutter's test teardown also asserts that no delayed timer remains.
+  });
+
+  testWidgets('a new entrance trigger cancels the previous delayed start',
+      (tester) async {
+    Widget entrance(int trigger) => _Frame(
+          child: SumiRise(
+            trigger: trigger,
+            delay: const Duration(seconds: 1),
+            child: const Text('Delayed'),
+          ),
+        );
+    await tester.pumpWidget(entrance(0));
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pumpWidget(entrance(1));
+    await tester.pump(const Duration(milliseconds: 600));
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(tester.widget<Opacity>(find.byType(Opacity)).opacity, 0);
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(
+        tester.widget<Opacity>(find.byType(Opacity)).opacity, greaterThan(0));
+    await tester.pumpWidget(const SizedBox());
+  });
+
   testWidgets('only the first six items retain the entrance animation',
       (tester) async {
     await tester.pumpWidget(_Frame(

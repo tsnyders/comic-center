@@ -30,6 +30,10 @@ class DeviceProfile {
   /// extraction.
   final bool lowSpec;
 
+  // ponytail: decoded-image LRU only; live viewport images are additional.
+  // Retain the existing low-spec budget and cap other devices at 64 MiB.
+  int get imageCacheBytes => (lowSpec ? 48 : 64) << 20;
+
   final int sdkInt;
   final String model;
 

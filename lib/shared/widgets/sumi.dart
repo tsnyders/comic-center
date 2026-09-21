@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 
@@ -46,6 +48,7 @@ class _SumiRiseState extends State<SumiRise>
       AnimationController(vsync: this, duration: widget.duration);
   late final Animation<double> _t =
       CurvedAnimation(parent: _ctrl, curve: Curves.easeOut);
+  Timer? _delay;
 
   @override
   void initState() {
@@ -54,13 +57,12 @@ class _SumiRiseState extends State<SumiRise>
   }
 
   void _run() {
+    _delay?.cancel();
     _ctrl.value = 0;
     if (widget.delay == Duration.zero) {
       _ctrl.forward();
     } else {
-      Future<void>.delayed(widget.delay, () {
-        if (mounted) _ctrl.forward();
-      });
+      _delay = Timer(widget.delay, _ctrl.forward);
     }
   }
 
@@ -72,6 +74,7 @@ class _SumiRiseState extends State<SumiRise>
 
   @override
   void dispose() {
+    _delay?.cancel();
     _ctrl.dispose();
     super.dispose();
   }

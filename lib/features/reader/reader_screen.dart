@@ -690,13 +690,9 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
           controller: _scrollController,
           physics: const ClampingScrollPhysics(),
           padding: EdgeInsets.zero,
-          // The default cache extent (250px) means strips start loading only as
-          // they reach the viewport edge — the visible "image pops in while I
-          // scroll" stall. Read ahead by whole screens instead; low-spec devices
-          // get a smaller window to bound decoded-image memory.
-          scrollCacheExtent: DeviceProfile.current.lowSpec
-              ? const ScrollCacheExtent.viewport(1.0)
-              : const ScrollCacheExtent.viewport(2.5),
+          // ponytail: keep one viewport warm on either side. The old 2.5-screen
+          // window retained six screens of full-resolution strips at once.
+          scrollCacheExtent: const ScrollCacheExtent.viewport(1.0),
           itemCount: pages.length + (hasFooter ? 1 : 0),
           itemBuilder: (context, i) {
             if (i == pages.length) {
@@ -1189,11 +1185,8 @@ class _ReaderPage extends ConsumerWidget {
     final cacheWidth =
         (MediaQuery.sizeOf(context).width * dpr * zoomHeadroom).round();
 
-    // Eager per-page eviction only on low-spec devices, where heap headroom
-    // matters more than back-swipe re-decode. Elsewhere the (bounded, LRU)
-    // global image cache keeps recently read pages warm so paging backwards
-    // doesn't re-decode.
-    final evictOnDispose = DeviceProfile.current.lowSpec;
+    // ponytail: off-screen pages must not fill the app's decoded-image LRU.
+    // Keep the disk copy and the same decode width/zoom quality on every tier.
 
     if (url.startsWith('/') || url.startsWith('file://')) {
       return ExtendedImage.file(
@@ -1204,7 +1197,7 @@ class _ReaderPage extends ConsumerWidget {
         onDoubleTap: _handleDoubleTap,
         loadStateChanged: _loadStateOverlay,
         cacheWidth: cacheWidth,
-        clearMemoryCacheWhenDispose: evictOnDispose,
+        clearMemoryCacheWhenDispose: true,
       );
     }
 
@@ -1217,7 +1210,7 @@ class _ReaderPage extends ConsumerWidget {
       onDoubleTap: _handleDoubleTap,
       loadStateChanged: _loadStateOverlay,
       cacheWidth: cacheWidth,
-      clearMemoryCacheWhenDispose: evictOnDispose,
+      clearMemoryCacheWhenDispose: true,
     );
   }
 
@@ -1299,9 +1292,8 @@ class _WebtoonPage extends StatelessWidget {
         (screenWidth * MediaQuery.devicePixelRatioOf(context) * zoomHeadroom)
             .round();
 
-    // See _ReaderPage: eager eviction only where heap headroom is scarce;
-    // otherwise let the bounded LRU cache keep back-scroll smooth.
-    final evictOnDispose = DeviceProfile.current.lowSpec;
+    // See _ReaderPage: release decoded pages outside the viewport cache on
+    // every device; returning to them uses the disk cache at identical quality.
 
     if (url.startsWith('/') || url.startsWith('file://')) {
       return ExtendedImage.file(
@@ -1310,7 +1302,7 @@ class _WebtoonPage extends StatelessWidget {
         width: screenWidth,
         mode: ExtendedImageMode.none,
         cacheWidth: cacheWidth,
-        clearMemoryCacheWhenDispose: evictOnDispose,
+        clearMemoryCacheWhenDispose: true,
         loadStateChanged: (s) => _loadStateOverlay(s, screenWidth),
       );
     }
@@ -1322,7 +1314,7 @@ class _WebtoonPage extends StatelessWidget {
       width: screenWidth,
       mode: ExtendedImageMode.none,
       cacheWidth: cacheWidth,
-      clearMemoryCacheWhenDispose: evictOnDispose,
+      clearMemoryCacheWhenDispose: true,
       loadStateChanged: (s) => _loadStateOverlay(s, screenWidth),
     );
   }

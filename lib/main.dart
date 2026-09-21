@@ -27,12 +27,8 @@ void main() async {
   // Detect hardware/OS capabilities before the first frame so every widget
   // can consult DeviceProfile.current when deciding whether to animate.
   await DeviceProfile.init();
-  if (DeviceProfile.current.lowSpec) {
-    // Halve the decoded-image cache (default 100MB). On 4GB devices like the
-    // Galaxy A23 the default lets the heap balloon until Android starts
-    // killing/GC-thrashing the app; covers re-decode cheaply on demand.
-    PaintingBinding.instance.imageCache.maximumSizeBytes = 48 << 20;
-  }
+  PaintingBinding.instance.imageCache.maximumSizeBytes =
+      DeviceProfile.current.imageCacheBytes;
 
   // Trim the reader page-image disk cache (extended_image never evicts on its
   // own, and manga pages are megabytes each — weeks of reading otherwise
