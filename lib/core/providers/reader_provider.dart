@@ -7,6 +7,11 @@ import 'preferences_provider.dart';
 import 'provider_cache.dart';
 import 'source_registry_provider.dart';
 
+// ponytail: at most three recently fetched chapter URL lists survive without
+// listeners, for fifteen minutes. Current/next-chapter watches keep data safe.
+final _chapterPageCacheProvider =
+    Provider((ref) => ProviderCache(maximumEntries: 3));
+
 // ── Chapter pages ─────────────────────────────────────────────────────────────
 
 // autoDispose: without it every chapter ever opened kept its page list (and
@@ -15,10 +20,9 @@ import 'source_registry_provider.dart';
 // the cache lives exactly as long as someone needs it.
 final chapterPagesProvider = FutureProvider.autoDispose
     .family<List<String>, ChapterKey>((ref, key) async {
-  // Re-opening a chapter within the TTL (e.g. backing out to check the
-  // chapter list, or flipping between the last two chapters) costs nothing;
-  // afterwards the page list ages out instead of accumulating per chapter.
-  ref.cacheFor(const Duration(minutes: 15));
+  ref
+      .watch(_chapterPageCacheProvider)
+      .keepAlive(ref, const Duration(minutes: 15));
 
   // Re-read durable state instead of trusting the navigation-time snapshot.
   // A background worker may have completed after the reader route was built.

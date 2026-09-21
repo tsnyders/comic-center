@@ -20,3 +20,26 @@ extension CacheFor on Ref<Object?> {
     onDispose(timer.cancel);
   }
 }
+
+/// A count and TTL bound shared by one provider family in a ProviderContainer.
+/// Releasing a keep-alive link never disposes a provider with active listeners.
+class ProviderCache {
+  ProviderCache({required this.maximumEntries}) : assert(maximumEntries > 0);
+
+  final int maximumEntries;
+  final _entries = <KeepAliveLink, Timer>{};
+
+  void keepAlive(Ref<Object?> ref, Duration duration) {
+    final link = ref.keepAlive();
+    _entries[link] = Timer(duration, () => _release(link));
+    ref.onDispose(() => _release(link));
+    while (_entries.length > maximumEntries) {
+      _release(_entries.keys.first);
+    }
+  }
+
+  void _release(KeepAliveLink link) {
+    _entries.remove(link)?.cancel();
+    link.close();
+  }
+}
